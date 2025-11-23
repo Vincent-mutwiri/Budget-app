@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Plus, TrendingUp, TrendingDown, Wallet, Award, Zap, 
   PieChart as PieChartIcon, X, DollarSign, 
-  Target, Brain, CreditCard, Calendar, ArrowRight, Check, Trophy
+  Target, Brain, CreditCard, Calendar, ArrowRight, Check, Trophy,
+  LayoutGrid, Settings, Folder, Download, Upload, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { 
   Transaction, UserState, Category, DailyChallenge, 
@@ -164,6 +165,8 @@ const GoalCard: React.FC<{ goal: Goal; onContribute: (id: string) => void }> = (
 
 // --- Main Application ---
 
+type View = 'dashboard' | 'accounts' | 'categories' | 'transactions' | 'statistics' | 'goals' | 'advisor' | 'settings';
+
 export default function App() {
   // --- Initialization Logic (LocalStorage) ---
   const loadState = <T,>(key: string, defaultVal: T): T => {
@@ -190,8 +193,8 @@ export default function App() {
     { id: 'c2', description: 'Spend < $20 today', target: 20, current: 0, xpReward: 75, completed: false, icon: '☕' },
   ]));
 
+  const [activeView, setActiveView] = useState<View>('dashboard');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'advisor'>('dashboard');
   const [showLevelUp, setShowLevelUp] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   
@@ -296,7 +299,6 @@ export default function App() {
   };
 
   const handleContributeToGoal = (id: string) => {
-    // For demo purposes, simply add $100 to the goal
     setGoals(prev => prev.map(g => {
       if (g.id === id) {
         const newAmount = Math.min(g.targetAmount, g.currentAmount + 100);
@@ -307,10 +309,41 @@ export default function App() {
     }));
   };
 
-  // --- Views ---
+  const handleExportData = () => {
+    const dataStr = JSON.stringify({ transactions, user, goals, dailyChallenges }, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `smartwallet_backup_${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    notify("Data exported successfully!", "success");
+  };
 
-  const renderDashboard = () => (
-    <div className="space-y-6 animate-fade-in">
+  const handleImportData = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = JSON.parse(event.target?.result as string);
+        if (data.transactions) setTransactions(data.transactions);
+        if (data.user) setUser(data.user);
+        if (data.goals) setGoals(data.goals);
+        if (data.dailyChallenges) setDailyChallenges(data.dailyChallenges);
+        notify("Data imported successfully!", "success");
+      } catch (err) {
+        notify("Failed to import data. Invalid file.", "warning");
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  // --- Views Implementation ---
+
+  const DashboardView = () => (
+    <div className="space-y-6 animate-fade-in pb-12">
       {/* Top Stats Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="relative overflow-hidden group">
@@ -349,74 +382,9 @@ export default function App() {
         </Card>
       </div>
 
-      {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Left Col: Charts & Transactions */}
+        {/* Left Col */}
         <div className="lg:col-span-2 space-y-6">
-           <Card title="Spending Trends" icon={<TrendingUp size={16}/>}>
-              <TrendChart transactions={transactions} />
-           </Card>
-           
-           <Card title="Recent Activity" icon={<CreditCard size={16}/>}>
-             <div className="flex flex-col">
-               {transactions.slice(0, 4).map(t => (
-                 <TransactionItem key={t.id} transaction={t} />
-               ))}
-             </div>
-             <button 
-                onClick={() => setActiveTab('transactions')}
-                className="w-full mt-4 py-2 text-sm text-slate-400 hover:text-white transition-colors flex items-center justify-center gap-1"
-             >
-               View All History <ArrowRight size={14}/>
-             </button>
-           </Card>
-
-           {/* Goals Section (New) */}
-           <Card title="Savings Goals" icon={<Trophy size={16}/>}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {goals.map(goal => (
-                  <GoalCard key={goal.id} goal={goal} onContribute={handleContributeToGoal} />
-                ))}
-              </div>
-           </Card>
-        </div>
-
-        {/* Right Col: Gamification & Categories */}
-        <div className="space-y-6">
-           {/* XP Card */}
-           <Card className="border-yellow-500/20 bg-yellow-900/5 relative overflow-hidden">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <p className="text-yellow-500 text-xs font-bold uppercase tracking-widest mb-1">Level {user.level}</p>
-                  <h3 className="text-xl font-bold text-slate-100">{currentLevelData.name}</h3>
-                </div>
-                <Award className="text-yellow-500" size={32} />
-              </div>
-              <div className="mb-2 flex justify-between text-xs text-slate-400">
-                 <span>{user.xp} XP</span>
-                 <span>{nextLevelData.minXP} XP</span>
-              </div>
-              <ProgressBar current={user.xp - currentLevelData.minXP} max={nextLevelData.minXP - currentLevelData.minXP} colorClass="bg-gradient-to-r from-yellow-600 to-yellow-400" />
-              <p className="text-xs text-center mt-3 text-slate-500">
-                 {nextLevelData.minXP - user.xp} XP to next level
-              </p>
-           </Card>
-
-           {/* Streak */}
-           <Card>
-             <div className="flex items-center gap-4">
-               <div className="h-12 w-12 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-500">
-                  <Zap size={24} fill="currentColor" />
-               </div>
-               <div>
-                 <h4 className="font-bold text-lg">{user.streak} Day Streak</h4>
-                 <p className="text-xs text-slate-400">Keep logging to earn bonuses!</p>
-               </div>
-             </div>
-           </Card>
-
-           {/* Daily Challenges */}
            <Card title="Daily Quests" icon={<Target size={16}/>}>
               <div className="space-y-3">
                 {dailyChallenges.map(challenge => (
@@ -436,6 +404,29 @@ export default function App() {
               </div>
            </Card>
 
+           <Card title="Recent Activity" icon={<CreditCard size={16}/>}>
+             <div className="flex flex-col">
+               {transactions.slice(0, 5).map(t => (
+                 <TransactionItem key={t.id} transaction={t} />
+               ))}
+             </div>
+           </Card>
+        </div>
+
+        {/* Right Col */}
+        <div className="space-y-6">
+           <Card>
+             <div className="flex items-center gap-4">
+               <div className="h-12 w-12 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-500">
+                  <Zap size={24} fill="currentColor" />
+               </div>
+               <div>
+                 <h4 className="font-bold text-lg">{user.streak} Day Streak</h4>
+                 <p className="text-xs text-slate-400">Keep logging to earn bonuses!</p>
+               </div>
+             </div>
+           </Card>
+
            <Card title="Spending Breakdown" icon={<PieChartIcon size={16}/>}>
               <ExpensePieChart transactions={transactions} />
            </Card>
@@ -444,8 +435,134 @@ export default function App() {
     </div>
   );
 
-  const renderAdvisor = () => (
-    <div className="max-w-2xl mx-auto space-y-6 animate-fade-in">
+  const AccountsView = () => (
+    <div className="animate-fade-in space-y-6">
+      <div className="flex justify-between items-center">
+        <h3 className="text-xl text-slate-300">Total balance: {formatCurrency(snapshot.balance)}</h3>
+        <button className="text-emerald-500 hover:text-emerald-400 font-medium text-sm">Add account</button>
+      </div>
+      
+      {/* Mock Account List */}
+      <div className="grid gap-4">
+        <Card className="flex items-center justify-between hover:bg-slate-800/60 transition-colors cursor-pointer group">
+          <div className="flex items-center gap-4">
+            <div className="bg-emerald-500/20 p-3 rounded-xl text-emerald-500 group-hover:scale-110 transition-transform">
+              <Wallet size={24} />
+            </div>
+            <div>
+              <h4 className="font-bold text-slate-200">Main Wallet</h4>
+              <p className="text-xs text-slate-500">Cash & Debit</p>
+            </div>
+          </div>
+          <div className="text-right">
+             <div className="font-mono text-lg font-bold">{formatCurrency(snapshot.balance)}</div>
+             <div className="text-xs text-emerald-500">Active</div>
+          </div>
+        </Card>
+        
+        {/* Placeholder for empty state matching screenshot style if needed, but showing one account is better UX */}
+        {snapshot.balance === 0 && (
+           <div className="text-slate-500 italic text-center py-12">No additional accounts found.</div>
+        )}
+      </div>
+    </div>
+  );
+
+  const CategoriesView = () => {
+    // Helper to group categories purely for display
+    const incomeCats = [Category.Income, Category.Investment];
+    const expenseCats = Object.values(Category).filter(c => !incomeCats.includes(c));
+
+    return (
+      <div className="animate-fade-in space-y-8">
+        <div className="flex justify-end">
+           <button className="bg-cyan-500 hover:bg-cyan-600 text-black font-bold py-2 px-4 rounded-lg text-sm">
+             Add category
+           </button>
+        </div>
+
+        <div>
+          <h3 className="text-lg font-medium text-slate-300 mb-4">Income categories</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {incomeCats.map(cat => (
+              <div key={cat} className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl flex items-center gap-3">
+                 <div className="w-2 h-8 bg-emerald-500 rounded-full"></div>
+                 <span className="font-medium text-slate-200">{cat}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <h3 className="text-lg font-medium text-slate-300 mb-4">Expense categories</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+             {expenseCats.map(cat => (
+              <div key={cat} className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl flex items-center gap-3">
+                 <div className="w-2 h-8 bg-rose-500 rounded-full"></div>
+                 <span className="font-medium text-slate-200">{cat}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const TransactionsView = () => (
+    <div className="animate-fade-in space-y-4">
+      <Card title="History" icon={<Calendar size={16}/>}>
+        {transactions.length === 0 ? (
+          <div className="text-center py-12 text-slate-500">No transactions yet.</div>
+        ) : (
+          <div className="flex flex-col gap-1">
+            {transactions.map(t => (
+              <TransactionItem key={t.id} transaction={t} />
+            ))}
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+
+  const StatisticsView = () => (
+    <div className="animate-fade-in space-y-6">
+       <div className="flex items-center justify-center gap-4 mb-6">
+          <button className="p-1 hover:bg-slate-800 rounded"><ChevronLeft size={20}/></button>
+          <span className="font-mono text-lg text-slate-200">Current Period</span>
+          <button className="p-1 hover:bg-slate-800 rounded"><ChevronRight size={20}/></button>
+       </div>
+
+       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card title="Income/Expense Ratio">
+             <div className="h-64">
+                <TrendChart transactions={transactions} />
+             </div>
+          </Card>
+          <Card title="Monthly Spending Distribution">
+             <div className="h-64">
+                <ExpensePieChart transactions={transactions} />
+             </div>
+          </Card>
+       </div>
+    </div>
+  );
+
+  const GoalsView = () => (
+    <div className="animate-fade-in">
+       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {goals.map(goal => (
+            <GoalCard key={goal.id} goal={goal} onContribute={handleContributeToGoal} />
+          ))}
+          <button className="border-2 border-dashed border-slate-700 rounded-xl p-6 flex flex-col items-center justify-center text-slate-500 hover:text-emerald-500 hover:border-emerald-500/50 transition-all group">
+             <Plus size={32} className="mb-2 group-hover:scale-110 transition-transform" />
+             <span className="font-medium">Create New Goal</span>
+          </button>
+       </div>
+    </div>
+  );
+
+  const AdvisorView = () => (
+    <div className="max-w-3xl mx-auto space-y-6 animate-fade-in">
       <div className="text-center mb-8">
         <div className="inline-flex items-center justify-center p-4 bg-indigo-500/10 rounded-full text-indigo-400 mb-4">
           <Brain size={48} />
@@ -491,138 +608,157 @@ export default function App() {
     </div>
   );
 
-  const renderTransactions = () => (
-    <div className="space-y-6 animate-fade-in">
-      <Card title="Transaction History" icon={<Calendar size={16}/>}>
-        <div className="flex flex-col gap-2">
-          {transactions.map(t => (
-            <TransactionItem key={t.id} transaction={t} />
-          ))}
-        </div>
-      </Card>
+  const SettingsView = () => (
+    <div className="animate-fade-in max-w-2xl space-y-8">
+       <div>
+         <h3 className="text-xl font-medium text-slate-200 mb-4">Currency</h3>
+         <select className="bg-slate-800 border border-slate-700 text-slate-200 rounded-lg p-3 w-full max-w-xs focus:ring-2 focus:ring-cyan-500 outline-none">
+            <option>US Dollar ($)</option>
+            <option>Euro (€)</option>
+            <option>British Pound (£)</option>
+            <option>Japanese Yen (¥)</option>
+         </select>
+       </div>
+
+       <div>
+         <h3 className="text-xl font-medium text-slate-200 mb-4">Import/Export data</h3>
+         <p className="text-slate-400 mb-4 text-sm">Here you can import or export your data.</p>
+         <div className="flex gap-4">
+            <label className="bg-cyan-500 hover:bg-cyan-600 text-black font-bold py-2 px-6 rounded-lg cursor-pointer transition-colors flex items-center gap-2">
+               <Upload size={18} />
+               Import
+               <input type="file" onChange={handleImportData} accept=".json" className="hidden" />
+            </label>
+            <button 
+              onClick={handleExportData}
+              className="bg-cyan-500 hover:bg-cyan-600 text-black font-bold py-2 px-6 rounded-lg transition-colors flex items-center gap-2"
+            >
+               <Download size={18} /> Export
+            </button>
+         </div>
+       </div>
+
+       <div>
+         <h3 className="text-xl font-medium text-slate-200 mb-4">Danger Zone</h3>
+         <button 
+           onClick={() => {
+              if(confirm('Are you sure you want to clear all data?')) {
+                 localStorage.clear();
+                 window.location.reload();
+              }
+           }}
+           className="border border-rose-500/50 text-rose-500 hover:bg-rose-500/10 px-6 py-2 rounded-lg text-sm transition-colors"
+         >
+            Reset All Data
+         </button>
+       </div>
     </div>
   );
 
-  return (
-    <div className="min-h-screen flex flex-col md:flex-row relative overflow-hidden">
-      {/* Notifications */}
-      <ToastContainer notifications={notifications} remove={removeNotification} />
+  const SidebarItem = ({ id, label, icon: Icon }: { id: View, label: string, icon: React.ElementType }) => (
+    <button 
+      onClick={() => setActiveView(id)}
+      className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all mb-1 ${
+        activeView === id 
+        ? 'bg-slate-800 text-cyan-400 shadow-md shadow-slate-900/50' 
+        : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/50'
+      }`}
+    >
+      <Icon size={20} />
+      <span className="font-medium text-sm">{label}</span>
+    </button>
+  );
 
-      {/* Level Up Modal */}
+  return (
+    <div className="flex h-screen bg-slate-950 text-slate-50 overflow-hidden font-inter selection:bg-cyan-500/30">
+      <ToastContainer notifications={notifications} remove={removeNotification} />
       {showLevelUp && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in">
           <Confetti />
-          <div className="bg-slate-900 border border-yellow-500/50 p-8 rounded-3xl max-w-md text-center shadow-2xl shadow-yellow-500/20 relative z-[101] animate-bounce-in">
-             <div className="w-24 h-24 bg-yellow-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
-               <Trophy size={48} className="text-yellow-500" />
-             </div>
+          <div className="bg-slate-900 border border-yellow-500/50 p-8 rounded-3xl max-w-md text-center shadow-2xl relative z-[101] animate-bounce-in">
+             <Trophy size={48} className="text-yellow-500 mx-auto mb-6" />
              <h2 className="text-4xl font-bold text-white mb-2">Level Up!</h2>
              <p className="text-xl text-yellow-400 font-medium mb-6">You are now a {currentLevelData.name}</p>
-             <button 
-               onClick={() => setShowLevelUp(false)}
-               className="bg-yellow-500 hover:bg-yellow-400 text-slate-900 font-bold px-8 py-3 rounded-xl transition-colors"
-             >
-               Awesome!
-             </button>
+             <button onClick={() => setShowLevelUp(false)} className="bg-yellow-500 hover:bg-yellow-400 text-slate-900 font-bold px-8 py-3 rounded-xl">Awesome!</button>
           </div>
         </div>
       )}
 
-      {/* Background Elements */}
-      <div className="fixed top-0 left-0 w-full h-full pointer-events-none overflow-hidden z-0">
-        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-emerald-900/20 rounded-full blur-[120px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-indigo-900/20 rounded-full blur-[120px]" />
-      </div>
-
-      {/* Mobile Nav Toggle */}
-      <div className="md:hidden fixed top-0 left-0 w-full bg-slate-900/90 backdrop-blur border-b border-slate-800 z-50 px-4 py-3 flex justify-between items-center">
-         <div className="font-bold text-emerald-500 flex items-center gap-2">
-           <Wallet /> SmartWallet
-         </div>
-         <div className="flex items-center gap-4">
-            <div className="bg-slate-800 px-3 py-1 rounded-full text-xs font-mono text-yellow-500 border border-yellow-500/20">
-               Lvl {user.level}
-            </div>
-         </div>
-      </div>
-
-      {/* Sidebar (Desktop) & Bottom Nav (Mobile) */}
-      <nav className="z-40 bg-slate-900/80 backdrop-blur border-r border-slate-800 w-full md:w-64 md:h-screen fixed md:relative bottom-0 md:bottom-auto flex md:flex-col justify-around md:justify-start p-4 md:pt-8">
-        <div className="hidden md:flex items-center gap-2 px-4 mb-12 text-emerald-500 font-bold text-xl">
-           <Wallet /> SmartWallet
+      {/* Sidebar */}
+      <aside className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col hidden md:flex">
+        <div className="p-6 flex items-center gap-2 text-emerald-500 font-bold text-xl tracking-tight">
+           <Wallet className="fill-emerald-500/20" /> SmartWallet
         </div>
-        
-        <button 
-          onClick={() => setActiveTab('dashboard')}
-          className={`flex flex-col md:flex-row items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'dashboard' ? 'bg-emerald-500/10 text-emerald-500' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'}`}
-        >
-          <PieChartIcon size={20} /> <span className="text-xs md:text-sm font-medium">Dashboard</span>
-        </button>
 
-        <button 
-           onClick={() => setActiveTab('transactions')}
-           className={`flex flex-col md:flex-row items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'transactions' ? 'bg-emerald-500/10 text-emerald-500' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'}`}
-        >
-          <CreditCard size={20} /> <span className="text-xs md:text-sm font-medium">Transactions</span>
-        </button>
+        <nav className="flex-1 px-4 py-2 overflow-y-auto">
+          <SidebarItem id="dashboard" label="Dashboard" icon={LayoutGrid} />
+          <SidebarItem id="accounts" label="Accounts" icon={Wallet} />
+          <SidebarItem id="categories" label="Categories" icon={Folder} />
+          <SidebarItem id="transactions" label="Transactions" icon={ArrowRight} />
+          <SidebarItem id="statistics" label="Statistics" icon={PieChartIcon} />
+          <SidebarItem id="goals" label="Goals" icon={Target} />
+          <SidebarItem id="advisor" label="AI Advisor" icon={Brain} />
+          <SidebarItem id="settings" label="Settings" icon={Settings} />
+        </nav>
 
-        <button 
-           onClick={() => setActiveTab('advisor')}
-           className={`flex flex-col md:flex-row items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'advisor' ? 'bg-indigo-500/10 text-indigo-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'}`}
-        >
-          <Brain size={20} /> <span className="text-xs md:text-sm font-medium">AI Advisor</span>
-        </button>
-        
-        {/* Quick Add Button (Mobile Only position in nav) */}
-        <button 
-          onClick={() => setIsDrawerOpen(true)}
-          className="md:hidden -mt-8 bg-emerald-500 text-white p-4 rounded-full shadow-lg shadow-emerald-500/40"
-        >
-          <Plus size={24} />
-        </button>
-      </nav>
+        {/* Gamification Stats Footer */}
+        <div className="p-4 bg-slate-800/50 border-t border-slate-800">
+           <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center text-slate-900 font-bold shadow-lg shadow-yellow-500/20">
+                 {user.level}
+              </div>
+              <div className="flex-1">
+                 <div className="text-xs font-bold text-slate-400 uppercase">Level {user.level}</div>
+                 <div className="text-sm font-bold text-white truncate">{currentLevelData.name}</div>
+              </div>
+           </div>
+           <div className="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden">
+               <div className="h-full bg-yellow-500 rounded-full transition-all duration-500" style={{ width: `${((user.xp - currentLevelData.minXP) / (nextLevelData.minXP - currentLevelData.minXP)) * 100}%` }}></div>
+           </div>
+           <div className="mt-2 flex justify-between text-xs text-slate-500">
+              <span>{user.xp} XP</span>
+              <span>Next: {nextLevelData.minXP}</span>
+           </div>
+        </div>
+      </aside>
 
-      {/* Main Content Area */}
-      <main className="flex-1 relative z-10 h-screen overflow-y-auto pb-24 md:pb-8 scroll-smooth">
-         <header className="hidden md:flex justify-between items-center px-8 py-6 sticky top-0 bg-slate-950/80 backdrop-blur z-30 border-b border-slate-800/50">
-            <h1 className="text-2xl font-bold text-slate-100 capitalize">{activeTab}</h1>
-            <div className="flex items-center gap-6">
-               <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-full px-4 py-2">
-                  <Zap size={16} className="text-orange-500" fill="currentColor"/>
-                  <span className="font-bold text-slate-200">{user.streak}</span>
-               </div>
-               <div className="flex items-center gap-3 bg-slate-900 border border-slate-800 rounded-full pr-4 pl-2 py-1">
-                  <div className="bg-yellow-500 h-8 w-8 rounded-full flex items-center justify-center text-slate-900 font-bold text-xs">
-                    {user.level}
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-xs font-bold text-slate-300">{currentLevelData.name}</span>
-                    <div className="w-24 h-1 bg-slate-800 rounded-full mt-1">
-                       <div className="h-full bg-yellow-500 rounded-full" style={{ width: `${((user.xp - currentLevelData.minXP) / (nextLevelData.minXP - currentLevelData.minXP)) * 100}%` }}></div>
-                    </div>
-                  </div>
-               </div>
-               <button 
-                 onClick={() => setIsDrawerOpen(true)}
-                 className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors shadow-lg shadow-emerald-500/20"
-               >
-                 <Plus size={18} /> Add New
-               </button>
-            </div>
-         </header>
+      {/* Main Content */}
+      <main className="flex-1 flex flex-col relative overflow-hidden">
+        {/* Mobile Header */}
+        <div className="md:hidden flex items-center justify-between p-4 bg-slate-900 border-b border-slate-800">
+           <div className="font-bold text-emerald-500 flex items-center gap-2"><Wallet/> SmartWallet</div>
+           <button onClick={() => setIsDrawerOpen(true)} className="bg-emerald-500 text-white p-2 rounded-lg"><Plus size={20}/></button>
+        </div>
 
-         <div className="p-4 md:p-8 mt-16 md:mt-0">
-            {activeTab === 'dashboard' && renderDashboard()}
-            {activeTab === 'advisor' && renderAdvisor()}
-            {activeTab === 'transactions' && renderTransactions()}
-         </div>
+        {/* Desktop Header */}
+        <header className="hidden md:flex justify-between items-center px-8 py-6 bg-slate-950">
+           <h1 className="text-3xl font-bold text-slate-100 capitalize">{activeView}</h1>
+           <button 
+             onClick={() => setIsDrawerOpen(true)}
+             className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 transition-colors shadow-lg shadow-emerald-500/20"
+           >
+             <Plus size={18} /> New Transaction
+           </button>
+        </header>
+
+        {/* Content Area */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-8 scroll-smooth">
+           {activeView === 'dashboard' && <DashboardView />}
+           {activeView === 'accounts' && <AccountsView />}
+           {activeView === 'categories' && <CategoriesView />}
+           {activeView === 'transactions' && <TransactionsView />}
+           {activeView === 'statistics' && <StatisticsView />}
+           {activeView === 'goals' && <GoalsView />}
+           {activeView === 'advisor' && <AdvisorView />}
+           {activeView === 'settings' && <SettingsView />}
+        </div>
       </main>
 
-      {/* Add Transaction Drawer/Modal */}
+      {/* Add Transaction Modal */}
       {isDrawerOpen && (
-        <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center bg-slate-950/80 backdrop-blur-sm p-0 md:p-4 animate-fade-in">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in" onClick={() => setIsDrawerOpen(false)}>
            <div 
-              className="bg-slate-900 w-full md:w-[500px] rounded-t-2xl md:rounded-2xl border border-slate-800 shadow-2xl animate-slide-up"
+              className="bg-slate-900 w-full max-w-md rounded-2xl border border-slate-800 shadow-2xl animate-scale-in"
               onClick={(e) => e.stopPropagation()}
            >
               <div className="p-6 border-b border-slate-800 flex justify-between items-center">
@@ -630,74 +766,42 @@ export default function App() {
                  <button onClick={() => setIsDrawerOpen(false)} className="text-slate-400 hover:text-white"><X size={24}/></button>
               </div>
               <form onSubmit={handleAddTransaction} className="p-6 space-y-6">
-                 {/* Type Switcher */}
                  <div className="grid grid-cols-2 gap-4 p-1 bg-slate-800 rounded-xl">
-                    <button
-                      type="button"
-                      onClick={() => setFormType('income')}
-                      className={`py-2 rounded-lg text-sm font-medium transition-all ${formType === 'income' ? 'bg-emerald-500 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
-                    >
-                      Income
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setFormType('expense')}
-                      className={`py-2 rounded-lg text-sm font-medium transition-all ${formType === 'expense' ? 'bg-rose-500 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
-                    >
-                      Expense
-                    </button>
+                    <button type="button" onClick={() => setFormType('income')} className={`py-2 rounded-lg text-sm font-medium transition-all ${formType === 'income' ? 'bg-emerald-500 text-white' : 'text-slate-400 hover:text-white'}`}>Income</button>
+                    <button type="button" onClick={() => setFormType('expense')} className={`py-2 rounded-lg text-sm font-medium transition-all ${formType === 'expense' ? 'bg-rose-500 text-white' : 'text-slate-400 hover:text-white'}`}>Expense</button>
                  </div>
-
                  <div>
                     <label className="block text-xs font-medium text-slate-400 mb-2">Amount</label>
                     <div className="relative">
                        <DollarSign size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
-                       <input 
-                          type="number" 
-                          value={formAmount}
-                          onChange={(e) => setFormAmount(e.target.value)}
-                          className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-10 pr-4 text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none text-lg font-mono"
-                          placeholder="0.00"
-                          autoFocus
-                       />
+                       <input type="number" value={formAmount} onChange={(e) => setFormAmount(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-10 pr-4 text-white focus:ring-2 focus:ring-emerald-500 outline-none text-lg font-mono" placeholder="0.00" autoFocus />
                     </div>
                  </div>
-
                  <div>
                     <label className="block text-xs font-medium text-slate-400 mb-2">Description</label>
-                    <input 
-                        type="text" 
-                        value={formDesc}
-                        onChange={(e) => setFormDesc(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                        placeholder="e.g., Starbucks Coffee"
-                     />
+                    <input type="text" value={formDesc} onChange={(e) => setFormDesc(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="e.g., Coffee" />
                  </div>
-
                  <div>
                     <label className="block text-xs font-medium text-slate-400 mb-2">Category</label>
-                    <select 
-                      value={formCategory}
-                      onChange={(e) => setFormCategory(e.target.value as Category)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none appearance-none"
-                    >
-                       {Object.values(Category).map(cat => (
-                         <option key={cat} value={cat}>{cat}</option>
-                       ))}
+                    <select value={formCategory} onChange={(e) => setFormCategory(e.target.value as Category)} className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-emerald-500 outline-none appearance-none">
+                       {Object.values(Category).map(cat => <option key={cat} value={cat}>{cat}</option>)}
                     </select>
                  </div>
-
-                 <button 
-                   type="submit"
-                   className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
-                 >
-                    <Plus size={20} /> Save Transaction
-                    <span className="bg-white/20 px-2 py-0.5 rounded text-xs text-emerald-50">+{XP_REWARDS.ADD_TRANSACTION} XP</span>
+                 <button type="submit" className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2">
+                    <Plus size={20} /> Save <span className="bg-white/20 px-2 py-0.5 rounded text-xs">+{XP_REWARDS.ADD_TRANSACTION} XP</span>
                  </button>
               </form>
            </div>
         </div>
       )}
+
+      {/* Mobile Nav (Fallback) */}
+      <div className="md:hidden fixed bottom-0 w-full bg-slate-900 border-t border-slate-800 p-2 flex justify-around">
+          <button onClick={() => setActiveView('dashboard')} className={`p-2 rounded-lg ${activeView === 'dashboard' ? 'text-emerald-500' : 'text-slate-500'}`}><LayoutGrid/></button>
+          <button onClick={() => setActiveView('transactions')} className={`p-2 rounded-lg ${activeView === 'transactions' ? 'text-emerald-500' : 'text-slate-500'}`}><ArrowRight/></button>
+          <button onClick={() => setActiveView('statistics')} className={`p-2 rounded-lg ${activeView === 'statistics' ? 'text-emerald-500' : 'text-slate-500'}`}><PieChartIcon/></button>
+          <button onClick={() => setActiveView('settings')} className={`p-2 rounded-lg ${activeView === 'settings' ? 'text-emerald-500' : 'text-slate-500'}`}><Settings/></button>
+      </div>
     </div>
   );
 }
