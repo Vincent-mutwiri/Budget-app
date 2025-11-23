@@ -1,0 +1,71 @@
+export type TransactionType = 'income' | 'expense';
+
+export enum Category {
+  Housing = 'Housing',
+  Food = 'Food & Dining',
+  Transport = 'Transportation',
+  Utilities = 'Utilities',
+  Entertainment = 'Entertainment',
+  Health = 'Health',
+  Shopping = 'Shopping',
+  Savings = 'Savings',
+  Investment = 'Investments',
+  Income = 'Income',
+  Other = 'Other'
+}
+
+export interface Transaction {
+  id: string;
+  amount: number;
+  description: string;
+  category: Category;
+  date: string;
+  type: TransactionType;
+}
+
+export interface UserState {
+  xp: number;
+  level: number;
+  streak: number;
+  currency: string;
+  monthlyIncome: number;
+}
+
+export interface LevelData {
+  level: number;
+  name: string;
+  minXP: number;
+  maxXP: number;
+}
+
+export interface DailyChallenge {
+  id: string;
+  description: string;
+  target: number;
+  current: number;
+  xpReward: number;
+  completed: boolean;
+  icon: string;
+}
+
+export interface FinancialSnapshot {
+  totalIncome: number;
+  totalExpenses: number;
+  balance: number;
+  savingsRate: number;
+}
+
+export interface Goal {
+  id: string;
+  name: string;
+  targetAmount: number;
+  currentAmount: number;
+  icon: string;
+  color: string;
+}
+
+export interface Notification {
+  id: string;
+  message: string;
+  type: 'success' | 'info' | 'warning' | 'xp';
+}
