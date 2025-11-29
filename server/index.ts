@@ -13,6 +13,13 @@ import { Transaction } from './models/Transaction';
 import { Budget } from './models/Budget';
 import { SavingsGoal } from './models/SavingsGoal';
 import { Account } from './models/Account';
+import { RecurringTransaction } from './models/RecurringTransaction';
+import { Notification } from './models/Notification';
+import { Investment } from './models/Investment';
+import { Debt } from './models/Debt';
+import { BudgetRecommendation } from './models/BudgetRecommendation';
+import { Receipt } from './models/Receipt';
+import { UserPreferences } from './models/UserPreferences';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
