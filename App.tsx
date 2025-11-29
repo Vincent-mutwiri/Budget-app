@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import {
   Transaction, UserState, Category, DailyChallenge,
-  FinancialSnapshot, Goal, Notification, Alert, TransactionType, CategoriesList, Budget, Security, Challenge
+  FinancialSnapshot, Goal, Notification, Alert, TransactionType, CategoriesList, Budget, Security, Challenge, SavingsGoal
 } from './types';
 import {
   MOCK_TRANSACTIONS, LEVEL_THRESHOLDS, XP_REWARDS,
@@ -729,6 +729,137 @@ const GamificationView = ({ user, challenges }: { user: UserState, challenges: C
   );
 };
 
+// --- Goals View Component ---
+
+const GoalsView = ({ goals }: { goals: SavingsGoal[] }) => {
+  const [filterStatus, setFilterStatus] = useState<'all' | 'in-progress' | 'completed' | 'archived'>('all');
+
+  const filteredGoals = filterStatus === 'all'
+    ? goals
+    : goals.filter(g => g.status === filterStatus);
+
+  const GoalCard = ({ goal }: { goal: SavingsGoal }) => {
+    const progressPercent = (goal.currentAmount / goal.targetAmount) * 100;
+    const isCompleted = progressPercent >= 100;
+
+    return (
+      <div className="flex flex-col rounded-3xl bg-forest-800 border border-forest-700 overflow-hidden hover:border-forest-600 transition-colors">
+        <div
+          className="w-full bg-center bg-no-repeat aspect-video bg-cover"
+          style={{ backgroundImage: `url("${goal.imageUrl}")` }}
+        ></div>
+        <div className="flex flex-col p-6 gap-4">
+          <h3 className="text-white text-lg font-bold leading-tight">{goal.title}</h3>
+
+          <div className="flex flex-col gap-2">
+            <div className="flex justify-between items-center">
+              <span className="text-forest-400 text-sm font-normal">Progress</span>
+              <span className="text-white text-sm font-bold">{Math.min(100, Math.round(progressPercent))}%</span>
+            </div>
+            <div className="rounded-full bg-forest-950 h-2.5 overflow-hidden">
+              <div
+                className="h-2.5 rounded-full bg-primary transition-all duration-500"
+                style={{ width: `${Math.min(100, progressPercent)}%` }}
+              ></div>
+            </div>
+            <div className="text-forest-400 text-sm font-normal text-right">
+              {formatCurrency(goal.currentAmount)} / {formatCurrency(goal.targetAmount)}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-3">
+            {isCompleted ? (
+              <div className="text-primary text-sm font-bold flex items-center gap-1.5">
+                <CheckCircle2 size={16} />
+                Completed!
+              </div>
+            ) : (
+              <span className="text-forest-400 text-sm font-normal">
+                Est: {new Date(goal.deadline).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+              </span>
+            )}
+            <button className={`flex items-center justify-center rounded-xl h-8 px-4 text-sm font-medium transition-colors ${isCompleted
+              ? 'bg-forest-900 text-forest-400'
+              : 'bg-primary hover:bg-primary/90 text-forest-950'
+              }`}>
+              {isCompleted ? 'View' : 'Contribute'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="flex flex-col gap-6 w-full max-w-full overflow-hidden">
+
+      {/* Header */}
+      <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4">
+        <div className="flex flex-col gap-2">
+          <h2 className="text-4xl font-black text-white tracking-tight">My Savings Goals</h2>
+          <p className="text-forest-400 text-base">Create and track your progress towards your financial goals.</p>
+        </div>
+        <button className="flex items-center justify-center gap-2 rounded-xl h-10 px-4 bg-primary hover:bg-primary/90 text-forest-950 text-sm font-bold whitespace-nowrap">
+          <Plus size={18} strokeWidth={3} />
+          Add a New Goal
+        </button>
+      </div>
+
+      {/* Filter Tabs */}
+      <div className="flex gap-3 overflow-x-auto pb-2">
+        <button
+          onClick={() => setFilterStatus('all')}
+          className={`flex h-8 shrink-0 items-center justify-center gap-2 rounded-full px-4 transition-colors ${filterStatus === 'all'
+            ? 'bg-primary/20 text-primary'
+            : 'bg-forest-800 text-forest-400 hover:bg-forest-700 hover:text-white'
+            }`}
+        >
+          <span className="text-sm font-medium">All Goals</span>
+        </button>
+        <button
+          onClick={() => setFilterStatus('in-progress')}
+          className={`flex h-8 shrink-0 items-center justify-center gap-2 rounded-full px-4 transition-colors ${filterStatus === 'in-progress'
+            ? 'bg-primary/20 text-primary'
+            : 'bg-forest-800 text-forest-400 hover:bg-forest-700 hover:text-white'
+            }`}
+        >
+          <span className="text-sm font-medium">In Progress</span>
+        </button>
+        <button
+          onClick={() => setFilterStatus('completed')}
+          className={`flex h-8 shrink-0 items-center justify-center gap-2 rounded-full px-4 transition-colors ${filterStatus === 'completed'
+            ? 'bg-primary/20 text-primary'
+            : 'bg-forest-800 text-forest-400 hover:bg-forest-700 hover:text-white'
+            }`}
+        >
+          <span className="text-sm font-medium">Completed</span>
+        </button>
+        <button
+          onClick={() => setFilterStatus('archived')}
+          className={`flex h-8 shrink-0 items-center justify-center gap-2 rounded-full px-4 transition-colors ${filterStatus === 'archived'
+            ? 'bg-primary/20 text-primary'
+            : 'bg-forest-800 text-forest-400 hover:bg-forest-700 hover:text-white'
+            }`}
+        >
+          <span className="text-sm font-medium">Archived</span>
+        </button>
+      </div>
+
+      {/* Goals Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
+        {filteredGoals.map(goal => (
+          <GoalCard key={goal.id} goal={goal} />
+        ))}
+        {filteredGoals.length === 0 && (
+          <div className="col-span-2 py-12 text-center text-forest-400 italic">
+            No goals found for this filter.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // --- Budgets View Component ---
 
 const BudgetsView = ({ budgets }: { budgets: Budget[] }) => {
@@ -912,6 +1043,37 @@ export default function App() {
     { id: '4', title: 'Complete daily challenges 3 times', description: '', progress: 1, target: 3, xpReward: 150, type: 'weekly', resetTime: '4 days', completed: false },
     { id: '5', title: 'Achieve a 90% savings goal', description: '', progress: 85, target: 90, xpReward: 500, type: 'monthly', resetTime: '22 days', completed: false },
     { id: '6', title: 'End with a positive cash flow', description: '', progress: 1, target: 1, xpReward: 400, type: 'monthly', resetTime: '22 days', completed: false },
+  ]);
+
+  // Mock Savings Goals Data
+  const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([
+    {
+      id: '1',
+      title: 'Trip to Japan',
+      targetAmount: 5000,
+      currentAmount: 3500,
+      deadline: '2024-12-31',
+      imageUrl: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=800&h=600&fit=crop',
+      status: 'in-progress'
+    },
+    {
+      id: '2',
+      title: 'New Laptop',
+      targetAmount: 2000,
+      currentAmount: 900,
+      deadline: '2025-03-31',
+      imageUrl: 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=800&h=600&fit=crop',
+      status: 'in-progress'
+    },
+    {
+      id: '3',
+      title: 'Emergency Fund',
+      targetAmount: 10000,
+      currentAmount: 10000,
+      deadline: '2024-06-30',
+      imageUrl: 'https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?w=800&h=600&fit=crop',
+      status: 'completed'
+    },
   ]);
 
   // Mock Alerts
@@ -1195,6 +1357,8 @@ export default function App() {
             <InvestmentsView securities={securities} />
           ) : activeView === 'gamification' ? (
             <GamificationView user={user} challenges={challenges} />
+          ) : activeView === 'goals' ? (
+            <GoalsView goals={savingsGoals} />
           ) : (
             <div className="flex items-center justify-center h-full text-forest-400 italic">
               Work in progress for {activeView} view

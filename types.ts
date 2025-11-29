@@ -124,3 +124,13 @@ export interface Challenge {
   resetTime: string;
   completed: boolean;
 }
+
+export interface SavingsGoal {
+  id: string;
+  title: string;
+  targetAmount: number;
+  currentAmount: number;
+  deadline: string;
+  imageUrl: string;
+  status: 'in-progress' | 'completed' | 'archived';
+}
