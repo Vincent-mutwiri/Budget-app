@@ -251,4 +251,40 @@ export const getPortfolioMetrics = async (userId: string) => {
     return response.data;
 };
 
+// Debts
+export const getDebts = async (userId: string) => {
+    const response = await api.get('/debts', { params: { userId } });
+    return response.data;
+};
+
+export const createDebt = async (debt: any) => {
+    const response = await api.post('/debts', debt);
+    return response.data;
+};
+
+export const updateDebt = async (id: string, debt: any) => {
+    const response = await api.put(`/debts/${id}`, debt);
+    return response.data;
+};
+
+export const recordDebtPayment = async (id: string, amount: number, date: string) => {
+    const response = await api.post(`/debts/${id}/payment`, { amount, date });
+    return response.data;
+};
+
+export const deleteDebt = async (id: string) => {
+    const response = await api.delete(`/debts/${id}`);
+    return response.data;
+};
+
+export const getDebtSummary = async (userId: string) => {
+    const response = await api.get('/debts/summary', { params: { userId } });
+    return response.data;
+};
+
+export const calculateAcceleratedPayoff = async (id: string, extraPayment: number) => {
+    const response = await api.post(`/debts/${id}/accelerated-payoff`, { extraPayment });
+    return response.data;
+};
+
 export default api;

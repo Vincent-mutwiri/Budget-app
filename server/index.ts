@@ -420,6 +420,14 @@ import {
 // Investment calculation service
 import { calculateInvestmentMetrics, calculatePortfolioMetrics } from './services/investmentCalculator';
 
+// Debt calculation service
+import {
+    calculateDebtMetrics,
+    calculateAcceleratedPayoff,
+    processDebtPayment,
+    calculateDebtSummary
+} from './services/debtCalculator';
+
 // Generate budget recommendations
 app.post('/api/budget-recommendations/generate', async (req, res) => {
     const { userId } = req.body;
@@ -797,6 +805,220 @@ app.get('/api/investments/portfolio/metrics', async (req, res) => {
         res.json(portfolioMetrics);
     } catch (error) {
         console.error('Error calculating portfolio metrics:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Debt Routes
+
+// Get all debts for a user
+app.get('/api/debts', async (req, res) => {
+    const { userId } = req.query;
+
+    if (!userId) {
+        return res.status(400).json({ error: 'UserId required' });
+    }
+
+    try {
+        const debts = await Debt.find({ userId }).sort({ createdAt: -1 });
+
+        // Calculate metrics for each debt
+        const debtsWithMetrics = debts.map(debt => {
+            const metrics = calculateDebtMetrics(debt.toObject());
+            return {
+                ...debt.toObject(),
+                calculatedMetrics: metrics
+            };
+        });
+
+        res.json(debtsWithMetrics);
+    } catch (error) {
+        console.error('Error fetching debts:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Create a new debt
+app.post('/api/debts', async (req, res) => {
+    try {
+        const { userId, name, type, originalAmount, currentBalance, interestRate, minimumPayment, dueDate } = req.body;
+
+        // Validate required fields
+        if (!userId || !name || !type || originalAmount === undefined || currentBalance === undefined ||
+            interestRate === undefined || !minimumPayment || !dueDate) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        const newDebt = new Debt({
+            userId,
+            name,
+            type,
+            originalAmount,
+            currentBalance,
+            interestRate,
+            minimumPayment,
+            dueDate: new Date(dueDate),
+            paymentHistory: [],
+            createdAt: new Date(),
+            updatedAt: new Date()
+        });
+
+        await newDebt.save();
+
+        // Calculate metrics for the new debt
+        const metrics = calculateDebtMetrics(newDebt.toObject());
+
+        res.status(201).json({
+            ...newDebt.toObject(),
+            calculatedMetrics: metrics
+        });
+    } catch (error) {
+        console.error('Error creating debt:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Update a debt
+app.put('/api/debts/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, type, originalAmount, currentBalance, interestRate, minimumPayment, dueDate } = req.body;
+
+        const debt = await Debt.findById(id);
+        if (!debt) {
+            return res.status(404).json({ error: 'Debt not found' });
+        }
+
+        // Update fields
+        if (name !== undefined) debt.name = name;
+        if (type !== undefined) debt.type = type;
+        if (originalAmount !== undefined) debt.originalAmount = originalAmount;
+        if (currentBalance !== undefined) debt.currentBalance = currentBalance;
+        if (interestRate !== undefined) debt.interestRate = interestRate;
+        if (minimumPayment !== undefined) debt.minimumPayment = minimumPayment;
+        if (dueDate !== undefined) debt.dueDate = new Date(dueDate);
+
+        debt.updatedAt = new Date();
+
+        await debt.save();
+
+        // Calculate metrics for the updated debt
+        const metrics = calculateDebtMetrics(debt.toObject());
+
+        res.json({
+            ...debt.toObject(),
+            calculatedMetrics: metrics
+        });
+    } catch (error) {
+        console.error('Error updating debt:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Record a debt payment
+app.post('/api/debts/:id/payment', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { amount, date } = req.body;
+
+        if (amount === undefined || !date) {
+            return res.status(400).json({ error: 'Payment amount and date required' });
+        }
+
+        const debt = await Debt.findById(id);
+        if (!debt) {
+            return res.status(404).json({ error: 'Debt not found' });
+        }
+
+        // Process the payment
+        const paymentDate = new Date(date);
+        const paymentResult = processDebtPayment(debt.toObject(), amount, paymentDate);
+
+        // Create payment record
+        const payment = {
+            amount,
+            date: paymentDate,
+            principalPaid: paymentResult.principalPaid,
+            interestPaid: paymentResult.interestPaid
+        };
+
+        // Update debt
+        debt.currentBalance = paymentResult.newBalance;
+        debt.paymentHistory.push(payment as any);
+        debt.updatedAt = new Date();
+
+        await debt.save();
+
+        // Calculate metrics for the updated debt
+        const metrics = calculateDebtMetrics(debt.toObject());
+
+        res.json({
+            ...debt.toObject(),
+            calculatedMetrics: metrics,
+            payment
+        });
+    } catch (error) {
+        console.error('Error recording debt payment:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Delete a debt
+app.delete('/api/debts/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const debt = await Debt.findByIdAndDelete(id);
+        if (!debt) {
+            return res.status(404).json({ error: 'Debt not found' });
+        }
+
+        res.json({ message: 'Debt deleted successfully', id });
+    } catch (error) {
+        console.error('Error deleting debt:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Get debt summary for a user
+app.get('/api/debts/summary', async (req, res) => {
+    const { userId } = req.query;
+
+    if (!userId) {
+        return res.status(400).json({ error: 'UserId required' });
+    }
+
+    try {
+        const debts = await Debt.find({ userId });
+        const summary = calculateDebtSummary(debts.map(d => d.toObject()));
+
+        res.json(summary);
+    } catch (error) {
+        console.error('Error calculating debt summary:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Calculate accelerated payoff scenario
+app.post('/api/debts/:id/accelerated-payoff', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { extraPayment } = req.body;
+
+        if (extraPayment === undefined) {
+            return res.status(400).json({ error: 'Extra payment amount required' });
+        }
+
+        const debt = await Debt.findById(id);
+        if (!debt) {
+            return res.status(404).json({ error: 'Debt not found' });
+        }
+
+        const acceleratedMetrics = calculateAcceleratedPayoff(debt.toObject(), extraPayment);
+
+        res.json(acceleratedMetrics);
+    } catch (error) {
+        console.error('Error calculating accelerated payoff:', error);
         res.status(500).json({ error: 'Server error' });
     }
 });

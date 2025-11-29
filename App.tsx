@@ -36,6 +36,7 @@ import BudgetRecommendations from './components/BudgetRecommendations';
 import InsightsDashboard from './components/InsightsDashboard';
 import { ReceiptScanner } from './components/ReceiptScanner';
 import { InvestmentsView as NewInvestmentsView } from './components/InvestmentsView';
+import { DebtTracker } from './components/DebtTracker';
 
 // --- Components ---
 
@@ -2010,6 +2011,7 @@ export default function App() {
               <SidebarItem id="budgets" label="Budgets" icon={Target} active={activeView === 'budgets'} onClick={() => setActiveView('budgets')} />
               <SidebarItem id="insights" label="Insights" icon={TrendingUp} active={activeView === 'insights'} onClick={() => setActiveView('insights')} />
               <SidebarItem id="investments" label="Investments" icon={TrendingUp} active={activeView === 'investments'} onClick={() => setActiveView('investments')} />
+              <SidebarItem id="debts" label="Debt Tracker" icon={CreditCard} active={activeView === 'debts'} onClick={() => setActiveView('debts')} />
               <SidebarItem id="ai-assistant" label="AI Assistant" icon={Brain} active={activeView === 'ai-assistant'} onClick={() => setActiveView('ai-assistant')} />
               <SidebarItem id="gamification" label="Gamification" icon={Medal} active={activeView === 'gamification'} onClick={() => setActiveView('gamification')} />
               <SidebarItem id="goals" label="Goals" icon={Target} active={activeView === 'goals'} onClick={() => setActiveView('goals')} />
@@ -2128,6 +2130,8 @@ export default function App() {
                 <InsightsDashboard />
               ) : activeView === 'investments' ? (
                 clerkUser ? <NewInvestmentsView userId={clerkUser.id} /> : <div>Loading...</div>
+              ) : activeView === 'debts' ? (
+                clerkUser ? <DebtTracker userId={clerkUser.id} /> : <div>Loading...</div>
               ) : activeView === 'gamification' ? (
                 <GamificationView user={user} challenges={challenges} />
               ) : activeView === 'goals' ? (
