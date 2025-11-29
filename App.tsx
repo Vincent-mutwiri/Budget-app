@@ -1,37 +1,36 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { 
-  Plus, Wallet, Target, Brain, CreditCard, Calendar, 
+import {
+  Plus, Wallet, Target, Brain, CreditCard, Calendar,
   LayoutGrid, Settings, Folder, ArrowRight, X, DollarSign,
   TrendingUp, TrendingDown, CheckCircle2, AlertTriangle, AlertCircle, Medal, Flame, ChevronRight,
   Search, Filter, Pencil, Trash2, Lightbulb,
   ShoppingCart, Bus, Film, Zap, ShoppingBag, PlusCircle
 } from 'lucide-react';
-import { 
-  Transaction, UserState, Category, DailyChallenge, 
-  FinancialSnapshot, Goal, Notification, Alert, TransactionType, CategoriesList, Budget
+import {
+  Transaction, UserState, Category, DailyChallenge,
+  FinancialSnapshot, Goal, Notification, Alert, TransactionType, CategoriesList, Budget, Security
 } from './types';
-import { 
-  MOCK_TRANSACTIONS, LEVEL_THRESHOLDS, XP_REWARDS, 
-  calculateLevel, formatCurrency 
+import {
+  MOCK_TRANSACTIONS, LEVEL_THRESHOLDS, XP_REWARDS,
+  calculateLevel, formatCurrency
 } from './constants';
 import { ExpensePieChart, TrendChart } from './components/Charts';
 import { generateFinancialAdvice } from './services/geminiService';
 
 // --- Components ---
 
-const SidebarItem = ({ 
-  id, label, icon: Icon, active, onClick 
-}: { 
-  id: string, label: string, icon: React.ElementType, active: boolean, onClick: () => void 
+const SidebarItem = ({
+  id, label, icon: Icon, active, onClick
+}: {
+  id: string, label: string, icon: React.ElementType, active: boolean, onClick: () => void
 }) => (
-  <button 
+  <button
     onClick={onClick}
-    className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all mb-2 group ${
-      active 
-      ? 'bg-primary/10 text-primary font-semibold' 
+    className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all mb-2 group ${active
+      ? 'bg-primary/10 text-primary font-semibold'
       : 'text-forest-300 hover:bg-forest-800 hover:text-white'
-    }`}
+      }`}
   >
     <Icon size={22} className={active ? 'text-primary' : 'text-forest-400 group-hover:text-white'} />
     <span className="tracking-wide">{label}</span>
@@ -65,8 +64,8 @@ const GoalCard = ({ title, current, target, colorClass }: { title: string, curre
     <div className="bg-forest-800 border border-forest-700 p-6 rounded-3xl">
       <div className="flex justify-between items-end mb-4">
         <div>
-           <h4 className="font-bold text-white text-lg">{title}</h4>
-           <div className="text-forest-400 text-sm mt-1">{formatCurrency(current)} / {formatCurrency(target)}</div>
+          <h4 className="font-bold text-white text-lg">{title}</h4>
+          <div className="text-forest-400 text-sm mt-1">{formatCurrency(current)} / {formatCurrency(target)}</div>
         </div>
         <div className="text-xl font-bold text-forest-200">{percent}%</div>
       </div>
@@ -84,7 +83,7 @@ const AlertItem: React.FC<{ alert: Alert }> = ({ alert }) => {
     success: <Medal size={20} className="text-primary" />,
     info: <CheckCircle2 size={20} className="text-blue-500" />
   };
-  
+
   const bgColors = {
     warning: 'bg-amber-500/10',
     danger: 'bg-rose-500/10',
@@ -107,12 +106,12 @@ const AlertItem: React.FC<{ alert: Alert }> = ({ alert }) => {
 
 // --- Transactions View Component ---
 
-const TransactionsView = ({ 
-  transactions, 
-  onAdd, 
-  onDelete 
-}: { 
-  transactions: Transaction[], 
+const TransactionsView = ({
+  transactions,
+  onAdd,
+  onDelete
+}: {
+  transactions: Transaction[],
   onAdd: (t: Omit<Transaction, 'id'>) => void,
   onDelete: (id: string) => void
 }) => {
@@ -142,7 +141,7 @@ const TransactionsView = ({
     setCategory('');
   };
 
-  const filteredTransactions = transactions.filter(t => 
+  const filteredTransactions = transactions.filter(t =>
     t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
     t.category.toLowerCase().includes(searchTerm.toLowerCase())
   ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -153,29 +152,27 @@ const TransactionsView = ({
       <div className="lg:col-span-1 flex flex-col gap-6">
         <div className="bg-forest-800 border border-forest-700 rounded-3xl p-6">
           <h2 className="text-xl font-bold text-white mb-6">Add New Transaction</h2>
-          
+
           <form onSubmit={handleSubmit} className="flex flex-col gap-5">
             {/* Type Toggle */}
             <div className="bg-forest-900 p-1 rounded-xl flex">
               <button
                 type="button"
                 onClick={() => setType('expense')}
-                className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                  type === 'expense' 
-                    ? 'bg-forest-800 text-white shadow-sm border border-forest-700' 
-                    : 'text-forest-400 hover:text-white'
-                }`}
+                className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${type === 'expense'
+                  ? 'bg-forest-800 text-white shadow-sm border border-forest-700'
+                  : 'text-forest-400 hover:text-white'
+                  }`}
               >
                 Expense
               </button>
               <button
                 type="button"
                 onClick={() => setType('income')}
-                className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                  type === 'income' 
-                    ? 'bg-forest-800 text-white shadow-sm border border-forest-700' 
-                    : 'text-forest-400 hover:text-white'
-                }`}
+                className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${type === 'income'
+                  ? 'bg-forest-800 text-white shadow-sm border border-forest-700'
+                  : 'text-forest-400 hover:text-white'
+                  }`}
               >
                 Income
               </button>
@@ -255,7 +252,7 @@ const TransactionsView = ({
         {/* Smart Suggestion Alert */}
         {showSuggestion && (
           <div className="bg-forest-800/50 border border-primary/20 rounded-2xl p-4 flex gap-4 relative">
-            <button 
+            <button
               onClick={() => setShowSuggestion(false)}
               className="absolute top-3 right-3 text-forest-400 hover:text-white"
             >
@@ -278,13 +275,13 @@ const TransactionsView = ({
       <div className="lg:col-span-2 bg-forest-800 border border-forest-700 rounded-3xl p-6 flex flex-col h-full overflow-hidden">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 shrink-0">
           <h2 className="text-xl font-bold text-white">Transaction History</h2>
-          
+
           <div className="flex gap-3">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-forest-400" size={18} />
-              <input 
-                type="text" 
-                placeholder="Search..." 
+              <input
+                type="text"
+                placeholder="Search..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="bg-forest-950 border border-forest-700 rounded-xl py-2 pl-10 pr-4 text-white text-sm focus:outline-none focus:border-primary w-full md:w-64"
@@ -328,7 +325,7 @@ const TransactionsView = ({
                       <button className="p-1.5 text-forest-400 hover:text-primary transition-colors rounded-lg hover:bg-forest-900">
                         <Pencil size={16} />
                       </button>
-                      <button 
+                      <button
                         onClick={() => onDelete(t.id)}
                         className="p-1.5 text-forest-400 hover:text-rose-500 transition-colors rounded-lg hover:bg-forest-900"
                       >
@@ -348,12 +345,191 @@ const TransactionsView = ({
             </tbody>
           </table>
         </div>
-        
+
         {filteredTransactions.length > 5 && (
           <div className="pt-4 border-t border-forest-700 shrink-0 flex justify-center">
             <button className="text-sm font-medium text-forest-300 hover:text-white transition-colors py-2 px-4 rounded-lg hover:bg-forest-900">
               Load More
             </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// --- Investments View Component ---
+
+const InvestmentsView = ({ securities }: { securities: Security[] }) => {
+  const [activeTab, setActiveTab] = useState<'holdings' | 'history' | 'performance'>('holdings');
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Calculate portfolio totals
+  const totalValue = securities.reduce((sum, s) => sum + s.marketValue, 0);
+  const change24h = securities.reduce((sum, s) => sum + (s.marketValue * s.change24h / 100), 0);
+  const change24hPercent = (change24h / totalValue) * 100;
+  const allTimeReturn = securities.reduce((sum, s) => sum + s.totalReturn, 0);
+  const dividendsYTD = 4320.50; // Mock value
+
+  const filteredSecurities = securities.filter(s =>
+    s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    s.symbol.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <div className="flex flex-col gap-8 w-full max-w-full overflow-hidden">
+
+      {/* Header Section */}
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
+          <div>
+            <h2 className="text-3xl font-bold text-white mb-1">Investments & Holdings</h2>
+            <p className="text-forest-400">Track your portfolio performance and manage securities.</p>
+          </div>
+          <div className="flex gap-3 flex-wrap">
+            <button className="flex items-center gap-2 bg-forest-800 border border-forest-700 hover:border-forest-600 text-white font-medium py-2.5 px-5 rounded-xl transition-colors whitespace-nowrap">
+              <Settings size={18} /> <span className="hidden sm:inline">Manage Securities</span><span className="sm:hidden">Manage</span>
+            </button>
+            <button className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-forest-950 font-bold py-2.5 px-5 rounded-xl transition-colors whitespace-nowrap">
+              <Plus size={18} strokeWidth={3} /> Add Trade
+            </button>
+          </div>
+        </div>
+
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-forest-800 border border-forest-700 p-5 rounded-3xl min-w-0">
+            <div className="text-forest-300 text-sm font-medium mb-1">Total Value</div>
+            <div className="text-2xl lg:text-3xl font-bold text-white truncate">{formatCurrency(totalValue)}</div>
+          </div>
+          <div className="bg-forest-800 border border-forest-700 p-5 rounded-3xl min-w-0">
+            <div className="text-forest-300 text-sm font-medium mb-1">24h Change</div>
+            <div className="text-2xl lg:text-3xl font-bold text-primary truncate">+{formatCurrency(change24h)}</div>
+            <div className="text-sm text-primary font-medium mt-1">+{change24hPercent.toFixed(2)}%</div>
+          </div>
+          <div className="bg-forest-800 border border-forest-700 p-5 rounded-3xl min-w-0">
+            <div className="text-forest-300 text-sm font-medium mb-1">All-time Return</div>
+            <div className="text-2xl lg:text-3xl font-bold text-primary truncate">+{formatCurrency(allTimeReturn)}</div>
+          </div>
+          <div className="bg-forest-800 border border-forest-700 p-5 rounded-3xl min-w-0">
+            <div className="text-forest-300 text-sm font-medium mb-1">Dividends (YTD)</div>
+            <div className="text-2xl lg:text-3xl font-bold text-white truncate">{formatCurrency(dividendsYTD)}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content Section */}
+      <div className="bg-forest-800 border border-forest-700 rounded-3xl p-6 flex flex-col">
+
+        {/* Tabs & Search */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+          <div className="flex gap-2 bg-forest-900 p-1 rounded-xl w-fit">
+            <button
+              onClick={() => setActiveTab('holdings')}
+              className={`px-6 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'holdings'
+                ? 'bg-forest-800 text-white border border-forest-700'
+                : 'text-forest-400 hover:text-white'
+                }`}
+            >
+              Holdings
+            </button>
+            <button
+              onClick={() => setActiveTab('history')}
+              className={`px-6 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'history'
+                ? 'bg-forest-800 text-white border border-forest-700'
+                : 'text-forest-400 hover:text-white'
+                }`}
+            >
+              Trade History
+            </button>
+            <button
+              onClick={() => setActiveTab('performance')}
+              className={`px-6 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'performance'
+                ? 'bg-forest-800 text-white border border-forest-700'
+                : 'text-forest-400 hover:text-white'
+                }`}
+            >
+              Performance
+            </button>
+          </div>
+
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-forest-400" size={18} />
+            <input
+              type="text"
+              placeholder="Search by name or symbol..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="bg-forest-950 border border-forest-700 rounded-xl py-2 pl-10 pr-4 text-white text-sm focus:outline-none focus:border-primary w-full md:w-80"
+            />
+          </div>
+        </div>
+
+        {/* Holdings Table */}
+        {activeTab === 'holdings' && (
+          <div className="overflow-auto -mx-6 px-6 scrollbar-thin scrollbar-thumb-forest-700">
+            <table className="w-full min-w-[800px]">
+              <thead className="text-forest-400 text-xs uppercase tracking-wider font-semibold text-left border-b border-forest-700">
+                <tr>
+                  <th className="pb-4 pl-2">Security</th>
+                  <th className="pb-4 text-right">Shares</th>
+                  <th className="pb-4 text-right">Market Price</th>
+                  <th className="pb-4 text-right">Market Value</th>
+                  <th className="pb-4 text-right">24h Change</th>
+                  <th className="pb-4 pr-2 text-right">Total Return</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-forest-700/50">
+                {filteredSecurities.map((security) => (
+                  <tr key={security.id} className="group hover:bg-forest-700/30 transition-colors">
+                    <td className="py-5 pl-2">
+                      <div>
+                        <div className="text-white font-bold text-sm">{security.name}</div>
+                        <div className="text-forest-400 text-xs mt-0.5">{security.symbol}</div>
+                      </div>
+                    </td>
+                    <td className="py-5 text-right text-white font-medium text-sm">
+                      {security.shares.toFixed(2)}
+                    </td>
+                    <td className="py-5 text-right text-white font-medium text-sm">
+                      {formatCurrency(security.marketPrice)}
+                    </td>
+                    <td className="py-5 text-right text-white font-medium text-sm">
+                      {formatCurrency(security.marketValue)}
+                    </td>
+                    <td className="py-5 text-right">
+                      <span className={`font-medium text-sm ${security.change24h >= 0 ? 'text-primary' : 'text-rose-500'}`}>
+                        {security.change24h >= 0 ? '+' : ''}{security.change24h.toFixed(2)}%
+                      </span>
+                    </td>
+                    <td className="py-5 pr-2 text-right">
+                      <span className={`font-medium text-sm ${security.totalReturn >= 0 ? 'text-primary' : 'text-rose-500'}`}>
+                        {security.totalReturn >= 0 ? '+' : ''}{formatCurrency(security.totalReturn)}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+                {filteredSecurities.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="py-12 text-center text-forest-400 italic">
+                      No securities found.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {activeTab === 'history' && (
+          <div className="py-12 text-center text-forest-400 italic">
+            Trade history coming soon...
+          </div>
+        )}
+
+        {activeTab === 'performance' && (
+          <div className="py-12 text-center text-forest-400 italic">
+            Performance analytics coming soon...
           </div>
         )}
       </div>
@@ -395,13 +571,13 @@ const BudgetsView = ({ budgets }: { budgets: Budget[] }) => {
     }
   };
 
-  const filteredBudgets = budgets.filter(b => 
+  const filteredBudgets = budgets.filter(b =>
     b.category.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
     <div className="flex flex-col gap-8">
-      
+
       {/* Top Section: Header & Summary Cards */}
       <div className="flex flex-col gap-6">
         <div className="flex justify-between items-center">
@@ -415,20 +591,20 @@ const BudgetsView = ({ budgets }: { budgets: Budget[] }) => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-           <div className="bg-forest-800 border border-forest-700 p-6 rounded-3xl">
-              <div className="text-forest-300 text-sm font-medium mb-1">Total Budgeted</div>
-              <div className="text-3xl font-bold text-white">{formatCurrency(totalBudgeted)}</div>
-           </div>
-           <div className="bg-forest-800 border border-forest-700 p-6 rounded-3xl">
-              <div className="text-forest-300 text-sm font-medium mb-1">Total Spent</div>
-              <div className="text-3xl font-bold text-white">{formatCurrency(totalSpent)}</div>
-           </div>
-           <div className="bg-forest-800 border border-forest-700 p-6 rounded-3xl">
-              <div className="text-forest-300 text-sm font-medium mb-1">Remaining</div>
-              <div className={`text-3xl font-bold ${remaining >= 0 ? 'text-primary' : 'text-rose-500'}`}>
-                {formatCurrency(remaining)}
-              </div>
-           </div>
+          <div className="bg-forest-800 border border-forest-700 p-6 rounded-3xl">
+            <div className="text-forest-300 text-sm font-medium mb-1">Total Budgeted</div>
+            <div className="text-3xl font-bold text-white">{formatCurrency(totalBudgeted)}</div>
+          </div>
+          <div className="bg-forest-800 border border-forest-700 p-6 rounded-3xl">
+            <div className="text-forest-300 text-sm font-medium mb-1">Total Spent</div>
+            <div className="text-3xl font-bold text-white">{formatCurrency(totalSpent)}</div>
+          </div>
+          <div className="bg-forest-800 border border-forest-700 p-6 rounded-3xl">
+            <div className="text-forest-300 text-sm font-medium mb-1">Remaining</div>
+            <div className={`text-3xl font-bold ${remaining >= 0 ? 'text-primary' : 'text-rose-500'}`}>
+              {formatCurrency(remaining)}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -437,65 +613,65 @@ const BudgetsView = ({ budgets }: { budgets: Budget[] }) => {
         <div className="flex justify-between items-center">
           <h3 className="text-xl font-bold text-white">Your Budgets</h3>
           <div className="relative">
-             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-forest-400" size={16} />
-             <input 
-                type="text" 
-                placeholder="Find a budget category..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="bg-forest-800 border border-forest-700 rounded-xl py-2 pl-9 pr-4 text-white text-sm focus:outline-none focus:border-primary w-64"
-             />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-forest-400" size={16} />
+            <input
+              type="text"
+              placeholder="Find a budget category..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="bg-forest-800 border border-forest-700 rounded-xl py-2 pl-9 pr-4 text-white text-sm focus:outline-none focus:border-primary w-64"
+            />
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-           {filteredBudgets.map((budget) => {
-             const percent = Math.min(100, Math.round((budget.spent / budget.limit) * 100));
-             const isOver = budget.spent > budget.limit;
-             const isWarning = !isOver && percent > 80;
-             const overAmount = budget.spent - budget.limit;
-             const leftAmount = budget.limit - budget.spent;
+          {filteredBudgets.map((budget) => {
+            const percent = Math.min(100, Math.round((budget.spent / budget.limit) * 100));
+            const isOver = budget.spent > budget.limit;
+            const isWarning = !isOver && percent > 80;
+            const overAmount = budget.spent - budget.limit;
+            const leftAmount = budget.limit - budget.spent;
 
-             let statusColor = 'bg-primary';
-             if (isOver) statusColor = 'bg-rose-500';
-             else if (isWarning) statusColor = 'bg-amber-500';
+            let statusColor = 'bg-primary';
+            if (isOver) statusColor = 'bg-rose-500';
+            else if (isWarning) statusColor = 'bg-amber-500';
 
-             return (
-               <div key={budget.id} className="bg-forest-800 border border-forest-700 p-6 rounded-3xl hover:border-forest-600 transition-colors">
-                  <div className="flex justify-between items-start mb-6">
-                     <div className="flex items-center gap-4">
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${getIconColor(budget.icon)}`}>
-                           {getIcon(budget.icon)}
-                        </div>
-                        <span className="font-bold text-lg text-white">{budget.category}</span>
-                     </div>
-                     {isOver && <span className="text-xs font-bold text-rose-500 bg-rose-500/10 px-2 py-1 rounded-lg">error</span>}
-                     {isWarning && <span className="text-xs font-bold text-amber-500 bg-amber-500/10 px-2 py-1 rounded-lg">warning</span>}
+            return (
+              <div key={budget.id} className="bg-forest-800 border border-forest-700 p-6 rounded-3xl hover:border-forest-600 transition-colors">
+                <div className="flex justify-between items-start mb-6">
+                  <div className="flex items-center gap-4">
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center ${getIconColor(budget.icon)}`}>
+                      {getIcon(budget.icon)}
+                    </div>
+                    <span className="font-bold text-lg text-white">{budget.category}</span>
                   </div>
+                  {isOver && <span className="text-xs font-bold text-rose-500 bg-rose-500/10 px-2 py-1 rounded-lg">error</span>}
+                  {isWarning && <span className="text-xs font-bold text-amber-500 bg-amber-500/10 px-2 py-1 rounded-lg">warning</span>}
+                </div>
 
-                  <div className="mb-2 w-full bg-forest-950 rounded-full h-3 overflow-hidden">
-                     <div className={`h-full rounded-full ${statusColor}`} style={{ width: `${percent}%` }}></div>
+                <div className="mb-2 w-full bg-forest-950 rounded-full h-3 overflow-hidden">
+                  <div className={`h-full rounded-full ${statusColor}`} style={{ width: `${percent}%` }}></div>
+                </div>
+
+                <div className="flex justify-between items-center text-sm">
+                  <div className="text-forest-300">
+                    Spent <span className="text-white font-medium">{formatCurrency(budget.spent)}</span> of {formatCurrency(budget.limit)}
                   </div>
-
-                  <div className="flex justify-between items-center text-sm">
-                     <div className="text-forest-300">
-                        Spent <span className="text-white font-medium">{formatCurrency(budget.spent)}</span> of {formatCurrency(budget.limit)}
-                     </div>
-                     <div className={`font-bold ${isOver ? 'text-rose-500' : isWarning ? 'text-amber-500' : 'text-primary'}`}>
-                        {isOver ? `-${formatCurrency(overAmount)} Over` : `${Math.round((leftAmount / budget.limit) * 100)}% Left`}
-                     </div>
+                  <div className={`font-bold ${isOver ? 'text-rose-500' : isWarning ? 'text-amber-500' : 'text-primary'}`}>
+                    {isOver ? `-${formatCurrency(overAmount)} Over` : `${Math.round((leftAmount / budget.limit) * 100)}% Left`}
                   </div>
-               </div>
-             );
-           })}
-
-           {/* Add New Placeholder Card */}
-           <button className="border-2 border-dashed border-forest-700 rounded-3xl p-6 flex flex-col items-center justify-center gap-4 text-forest-400 hover:text-white hover:border-forest-500 hover:bg-forest-800/30 transition-all group min-h-[180px]">
-              <div className="w-14 h-14 rounded-full bg-forest-900 flex items-center justify-center group-hover:scale-110 transition-transform">
-                 <PlusCircle size={32} className="text-primary" />
+                </div>
               </div>
-              <span className="font-medium">Add a new budget category</span>
-           </button>
+            );
+          })}
+
+          {/* Add New Placeholder Card */}
+          <button className="border-2 border-dashed border-forest-700 rounded-3xl p-6 flex flex-col items-center justify-center gap-4 text-forest-400 hover:text-white hover:border-forest-500 hover:bg-forest-800/30 transition-all group min-h-[180px]">
+            <div className="w-14 h-14 rounded-full bg-forest-900 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <PlusCircle size={32} className="text-primary" />
+            </div>
+            <span className="font-medium">Add a new budget category</span>
+          </button>
         </div>
       </div>
     </div>
@@ -508,15 +684,15 @@ export default function App() {
   // --- State & Setup ---
   const [activeView, setActiveView] = useState('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  
+
   const [user, setUser] = useState<UserState>(() => {
-     const saved = localStorage.getItem('smartwallet_user');
-     return saved ? JSON.parse(saved) : { xp: 150, level: 12, streak: 12, badges: 8, currency: 'USD', monthlyIncome: 4500 };
+    const saved = localStorage.getItem('smartwallet_user');
+    return saved ? JSON.parse(saved) : { xp: 150, level: 12, streak: 12, badges: 8, currency: 'USD', monthlyIncome: 4500 };
   });
 
   const [transactions, setTransactions] = useState<Transaction[]>(() => {
-     const saved = localStorage.getItem('smartwallet_transactions');
-     return saved ? JSON.parse(saved) : MOCK_TRANSACTIONS;
+    const saved = localStorage.getItem('smartwallet_transactions');
+    return saved ? JSON.parse(saved) : MOCK_TRANSACTIONS;
   });
 
   // Mock Budgets Data
@@ -526,6 +702,14 @@ export default function App() {
     { id: '3', category: 'Entertainment', limit: 250, spent: 100.00, icon: 'film' },
     { id: '4', category: 'Utilities', limit: 150, spent: 112.50, icon: 'zap' },
     { id: '5', category: 'Shopping', limit: 400, spent: 200.00, icon: 'bag' },
+  ]);
+
+  // Mock Securities Data
+  const [securities, setSecurities] = useState<Security[]>([
+    { id: '1', name: 'Apple Inc.', symbol: 'AAPL', shares: 50.00, marketPrice: 214.29, marketValue: 10714.50, change24h: 1.25, totalReturn: 1500.25 },
+    { id: '2', name: 'Tech Innovators ETF', symbol: 'INVT', shares: 200.00, marketPrice: 152.80, marketValue: 30560.00, change24h: -0.50, totalReturn: 5820.00 },
+    { id: '3', name: 'Microsoft Corp.', symbol: 'MSFT', shares: 25.00, marketPrice: 447.67, marketValue: 11191.75, change24h: 2.10, totalReturn: 2101.50 },
+    { id: '4', name: 'Global Growth Fund', symbol: 'GGF', shares: 1000.00, marketPrice: 73.36, marketValue: 73363.95, change24h: 0.80, totalReturn: 16408.45 },
   ]);
 
   // Mock Alerts
@@ -546,7 +730,7 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('smartwallet_transactions', JSON.stringify(transactions));
   }, [transactions]);
-  
+
   useEffect(() => {
     localStorage.setItem('smartwallet_user', JSON.stringify(user));
   }, [user]);
@@ -558,7 +742,7 @@ export default function App() {
       id: Math.random().toString(36).substr(2, 9),
     };
     setTransactions(prev => [transaction, ...prev]);
-    
+
     // Gamification: Add XP
     setUser(prev => ({
       ...prev,
@@ -576,26 +760,26 @@ export default function App() {
     <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
       {/* Left Main Column */}
       <div className="xl:col-span-3 flex flex-col gap-6">
-        
+
         {/* Metrics Row */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <MetricCard 
-            title="Total Balance" 
-            value={formatCurrency(snapshot.balance)} 
-            subValue="+2.5%" 
-            trend="up" 
+          <MetricCard
+            title="Total Balance"
+            value={formatCurrency(snapshot.balance)}
+            subValue="+2.5%"
+            trend="up"
           />
-          <MetricCard 
-            title="This Month's Spending" 
-            value={formatCurrency(snapshot.totalExpenses)} 
-            subValue="-10.2%" 
-            trend="down" 
+          <MetricCard
+            title="This Month's Spending"
+            value={formatCurrency(snapshot.totalExpenses)}
+            subValue="-10.2%"
+            trend="down"
           />
-          <MetricCard 
-            title="Remaining Budget" 
-            value={formatCurrency(snapshot.totalIncome - snapshot.totalExpenses)} 
-            subValue="On Track" 
-            trend="neutral" 
+          <MetricCard
+            title="Remaining Budget"
+            value={formatCurrency(snapshot.totalIncome - snapshot.totalExpenses)}
+            subValue="On Track"
+            trend="neutral"
           />
         </div>
 
@@ -603,24 +787,24 @@ export default function App() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[400px]">
           <div className="lg:col-span-2 bg-forest-800 border border-forest-700 p-6 rounded-3xl flex flex-col">
             <div className="flex justify-between items-center mb-6">
-               <h3 className="font-bold text-white text-lg">Spending Over Time</h3>
-               <span className="text-xl font-bold text-white">{formatCurrency(snapshot.totalExpenses)}</span>
+              <h3 className="font-bold text-white text-lg">Spending Over Time</h3>
+              <span className="text-xl font-bold text-white">{formatCurrency(snapshot.totalExpenses)}</span>
             </div>
             <div className="flex-1 w-full min-h-0">
-               <TrendChart transactions={transactions} />
+              <TrendChart transactions={transactions} />
             </div>
           </div>
           <div className="lg:col-span-1 bg-forest-800 border border-forest-700 p-6 rounded-3xl flex flex-col">
             <h3 className="font-bold text-white text-lg mb-6">Spending by Category</h3>
             <div className="flex-1 w-full min-h-0 relative">
-               <ExpensePieChart transactions={transactions} />
+              <ExpensePieChart transactions={transactions} />
             </div>
             {/* Custom Legend */}
             <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-forest-300">
-               <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[#f59e0b]"/> Food</div>
-               <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[#3b82f6]"/> Transport</div>
-               <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[#ec4899]"/> Shopping</div>
-               <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[#8b5cf6]"/> Bills</div>
+              <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[#f59e0b]" /> Food</div>
+              <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[#3b82f6]" /> Transport</div>
+              <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[#ec4899]" /> Shopping</div>
+              <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[#8b5cf6]" /> Bills</div>
             </div>
           </div>
         </div>
@@ -637,49 +821,49 @@ export default function App() {
 
       {/* Right Widget Column */}
       <div className="xl:col-span-1 flex flex-col gap-6">
-        
+
         {/* Gamification Card */}
         <div className="bg-forest-800 border border-forest-700 p-6 rounded-3xl">
           <h3 className="font-bold text-white text-lg mb-6">Your Progress</h3>
-          
+
           <div className="text-center mb-6">
-             <div className="text-primary font-bold text-2xl mb-2">Level {user.level}</div>
-             {/* XP Bar */}
-             <div className="w-full bg-forest-900 rounded-full h-2.5 mb-2">
-                <div className="bg-primary h-2.5 rounded-full" style={{ width: '60%' }}></div>
-             </div>
-             <div className="text-xs text-forest-400">150 / 250 XP</div>
+            <div className="text-primary font-bold text-2xl mb-2">Level {user.level}</div>
+            {/* XP Bar */}
+            <div className="w-full bg-forest-900 rounded-full h-2.5 mb-2">
+              <div className="bg-primary h-2.5 rounded-full" style={{ width: '60%' }}></div>
+            </div>
+            <div className="text-xs text-forest-400">150 / 250 XP</div>
           </div>
 
           <div className="grid grid-cols-2 gap-4 mb-8">
-             <div className="text-center p-3 rounded-2xl bg-forest-900/50">
-                <Flame size={24} className="text-amber-500 mx-auto mb-1" />
-                <div className="font-bold text-white text-lg">{user.streak}</div>
-                <div className="text-xs text-forest-400">Day Streak</div>
-             </div>
-             <div className="text-center p-3 rounded-2xl bg-forest-900/50">
-                <Medal size={24} className="text-purple-500 mx-auto mb-1" />
-                <div className="font-bold text-white text-lg">{user.badges}</div>
-                <div className="text-xs text-forest-400">Badges</div>
-             </div>
+            <div className="text-center p-3 rounded-2xl bg-forest-900/50">
+              <Flame size={24} className="text-amber-500 mx-auto mb-1" />
+              <div className="font-bold text-white text-lg">{user.streak}</div>
+              <div className="text-xs text-forest-400">Day Streak</div>
+            </div>
+            <div className="text-center p-3 rounded-2xl bg-forest-900/50">
+              <Medal size={24} className="text-purple-500 mx-auto mb-1" />
+              <div className="font-bold text-white text-lg">{user.badges}</div>
+              <div className="text-xs text-forest-400">Badges</div>
+            </div>
           </div>
 
           <div>
-             <h4 className="font-bold text-white text-sm mb-3">Recent Badges</h4>
-             <div className="flex gap-3 justify-center">
-                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary"><Wallet size={18} /></div>
-                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary"><Medal size={18} /></div>
-                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary"><Flame size={18} /></div>
-             </div>
+            <h4 className="font-bold text-white text-sm mb-3">Recent Badges</h4>
+            <div className="flex gap-3 justify-center">
+              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary"><Wallet size={18} /></div>
+              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary"><Medal size={18} /></div>
+              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary"><Flame size={18} /></div>
+            </div>
           </div>
         </div>
 
         {/* Activity Feed */}
         <div className="bg-forest-800 border border-forest-700 p-6 rounded-3xl flex-1">
-           <h3 className="font-bold text-white text-lg mb-4">Recent Activity & Alerts</h3>
-           <div className="flex flex-col gap-2">
-             {alerts.map(alert => <AlertItem key={alert.id} alert={alert} />)}
-           </div>
+          <h3 className="font-bold text-white text-lg mb-4">Recent Activity & Alerts</h3>
+          <div className="flex flex-col gap-2">
+            {alerts.map(alert => <AlertItem key={alert.id} alert={alert} />)}
+          </div>
         </div>
       </div>
     </div>
@@ -687,73 +871,76 @@ export default function App() {
 
   return (
     <div className="flex h-screen bg-forest-950 text-forest-100 font-inter selection:bg-primary/30 overflow-hidden">
-      
+
       {/* Sidebar - Desktop */}
       <aside className="w-72 bg-forest-900 hidden md:flex flex-col border-r border-forest-800">
-         <div className="p-8 pb-4">
-            <div className="flex items-center gap-3 text-white font-bold text-2xl">
-               <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-forest-900">
-                 <Wallet size={24} strokeWidth={2.5} />
-               </div>
-               SmartWallet
+        <div className="p-8 pb-4">
+          <div className="flex items-center gap-3 text-white font-bold text-2xl">
+            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-forest-900">
+              <Wallet size={24} strokeWidth={2.5} />
             </div>
-         </div>
+            SmartWallet
+          </div>
+        </div>
 
-         <nav className="flex-1 px-6 py-6 overflow-y-auto">
-            <SidebarItem id="dashboard" label="Dashboard" icon={LayoutGrid} active={activeView === 'dashboard'} onClick={() => setActiveView('dashboard')} />
-            <SidebarItem id="transactions" label="Transactions" icon={CreditCard} active={activeView === 'transactions'} onClick={() => setActiveView('transactions')} />
-            <SidebarItem id="budgets" label="Budgets" icon={Target} active={activeView === 'budgets'} onClick={() => setActiveView('budgets')} />
-            <SidebarItem id="goals" label="Goals" icon={Medal} active={activeView === 'goals'} onClick={() => setActiveView('goals')} />
-            <SidebarItem id="settings" label="Settings" icon={Settings} active={activeView === 'settings'} onClick={() => setActiveView('settings')} />
-         </nav>
+        <nav className="flex-1 px-6 py-6 overflow-y-auto">
+          <SidebarItem id="dashboard" label="Dashboard" icon={LayoutGrid} active={activeView === 'dashboard'} onClick={() => setActiveView('dashboard')} />
+          <SidebarItem id="transactions" label="Transactions" icon={CreditCard} active={activeView === 'transactions'} onClick={() => setActiveView('transactions')} />
+          <SidebarItem id="budgets" label="Budgets" icon={Target} active={activeView === 'budgets'} onClick={() => setActiveView('budgets')} />
+          <SidebarItem id="investments" label="Investments" icon={TrendingUp} active={activeView === 'investments'} onClick={() => setActiveView('investments')} />
+          <SidebarItem id="goals" label="Goals" icon={Medal} active={activeView === 'goals'} onClick={() => setActiveView('goals')} />
+          <SidebarItem id="settings" label="Settings" icon={Settings} active={activeView === 'settings'} onClick={() => setActiveView('settings')} />
+        </nav>
 
-         <div className="p-6">
-            <div className="flex items-center gap-3 p-4 rounded-2xl hover:bg-forest-800 transition-colors cursor-pointer">
-               <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center overflow-hidden border-2 border-white">
-                  <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Alex" alt="User" />
-               </div>
-               <div>
-                  <div className="text-white font-bold text-sm">Alex Doe</div>
-                  <div className="text-forest-400 text-xs">alex.doe@email.com</div>
-               </div>
+        <div className="p-6">
+          <div className="flex items-center gap-3 p-4 rounded-2xl hover:bg-forest-800 transition-colors cursor-pointer">
+            <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center overflow-hidden border-2 border-white">
+              <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Jane" alt="User" />
             </div>
-         </div>
+            <div>
+              <div className="text-white font-bold text-sm">Jane Doe</div>
+              <div className="text-forest-400 text-xs">jane.doe@email.com</div>
+            </div>
+          </div>
+        </div>
       </aside>
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col relative h-full overflow-hidden">
-         {/* Header */}
-         <header className="px-8 py-8 flex justify-between items-start shrink-0">
-            <div>
-               <h1 className="text-3xl font-bold text-white mb-1">
-                 {activeView === 'dashboard' ? 'Welcome back, Alex!' : activeView.charAt(0).toUpperCase() + activeView.slice(1)}
-               </h1>
-               <p className="text-forest-400">
-                 {activeView === 'dashboard' ? "Here's a summary of your financial activity." : 'Manage your financial records.'}
-               </p>
-            </div>
-            
-            {/* Mobile Menu Toggle would go here */}
-         </header>
+        {/* Header */}
+        <header className="px-8 py-8 flex justify-between items-start shrink-0">
+          <div>
+            <h1 className="text-3xl font-bold text-white mb-1">
+              {activeView === 'dashboard' ? 'Welcome back, Alex!' : activeView.charAt(0).toUpperCase() + activeView.slice(1)}
+            </h1>
+            <p className="text-forest-400">
+              {activeView === 'dashboard' ? "Here's a summary of your financial activity." : 'Manage your financial records.'}
+            </p>
+          </div>
 
-         {/* Scrollable Content */}
-         <div className="flex-1 overflow-y-auto px-8 pb-8 scrollbar-thin scrollbar-thumb-forest-700 scrollbar-track-transparent">
-            {activeView === 'dashboard' ? (
-              <DashboardContent />
-            ) : activeView === 'transactions' ? (
-              <TransactionsView 
-                transactions={transactions} 
-                onAdd={handleAddTransaction} 
-                onDelete={handleDeleteTransaction}
-              />
-            ) : activeView === 'budgets' ? (
-               <BudgetsView budgets={budgets} />
-            ) : (
-              <div className="flex items-center justify-center h-full text-forest-400 italic">
-                 Work in progress for {activeView} view
-              </div>
-            )}
-         </div>
+          {/* Mobile Menu Toggle would go here */}
+        </header>
+
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto px-8 pb-8 scrollbar-thin scrollbar-thumb-forest-700 scrollbar-track-transparent">
+          {activeView === 'dashboard' ? (
+            <DashboardContent />
+          ) : activeView === 'transactions' ? (
+            <TransactionsView
+              transactions={transactions}
+              onAdd={handleAddTransaction}
+              onDelete={handleDeleteTransaction}
+            />
+          ) : activeView === 'budgets' ? (
+            <BudgetsView budgets={budgets} />
+          ) : activeView === 'investments' ? (
+            <InvestmentsView securities={securities} />
+          ) : (
+            <div className="flex items-center justify-center h-full text-forest-400 italic">
+              Work in progress for {activeView} view
+            </div>
+          )}
+        </div>
       </main>
     </div>
   );

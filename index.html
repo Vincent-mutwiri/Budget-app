@@ -1,69 +1,78 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SmartWallet - Level Up Your Finances</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              forest: {
-                50: '#f2fdf9',
-                100: '#e6fcf3',
-                200: '#bbf7e0',
-                300: '#8ef2cd',
-                400: '#4ce7b0',
-                500: '#10b981', // Primary Green
-                600: '#059669',
-                700: '#1c2828', // Borders/Accents
-                800: '#162222', // Cards
-                900: '#111a1a', // Sidebar
-                950: '#0c1214', // Main BG
-              },
-              primary: {
-                DEFAULT: '#10b981',
-                hover: '#059669',
-              }
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SmartWallet - Level Up Your Finances</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            forest: {
+              50: '#f2fdf9',
+              100: '#e6fcf3',
+              200: '#bbf7e0',
+              300: '#8ef2cd',
+              400: '#4ce7b0',
+              500: '#10b981', // Primary Green
+              600: '#059669',
+              700: '#1c2828', // Borders/Accents
+              800: '#162222', // Cards
+              900: '#111a1a', // Sidebar
+              950: '#0c1214', // Main BG
             },
-            fontFamily: {
-              inter: ['Inter', 'sans-serif'],
-              mono: ['JetBrains Mono', 'monospace'],
-            },
-            animation: {
-              'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-              'fade-in': 'fadeIn 0.5s ease-out forwards',
-            },
-            keyframes: {
-              fadeIn: {
-                '0%': { opacity: '0', transform: 'translateY(10px)' },
-                '100%': { opacity: '1', transform: 'translateY(0)' },
-              }
+            primary: {
+              DEFAULT: '#10b981',
+              hover: '#059669',
             }
           },
+          fontFamily: {
+            inter: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          animation: {
+            'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'fade-in': 'fadeIn 0.5s ease-out forwards',
+          },
+          keyframes: {
+            fadeIn: {
+              '0%': { opacity: '0', transform: 'translateY(10px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' },
+            }
+          }
         },
-      }
-    </script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-    <style>
-      body { font-family: 'Inter', sans-serif; }
-      /* Custom scrollbar for dark theme */
-      ::-webkit-scrollbar {
-        width: 6px;
-      }
-      ::-webkit-scrollbar-track {
-        background: #0c1214;
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #1c2828;
-        border-radius: 3px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #2d4040;
-      }
-    </style>
+      },
+    }
+  </script>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
+    rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+
+    /* Custom scrollbar for dark theme */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #0c1214;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #1c2828;
+      border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #2d4040;
+    }
+  </style>
   <script type="importmap">
 {
   "imports": {
@@ -77,7 +86,10 @@
 }
 </script>
 </head>
-  <body class="bg-forest-950 text-forest-100 antialiased selection:bg-primary/30">
-    <div id="root"></div>
-  </body>
+
+<body class="bg-forest-950 text-forest-100 antialiased selection:bg-primary/30">
+  <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+
 </html>

@@ -101,3 +101,14 @@ export interface Notification {
   message: string;
   type: 'success' | 'info' | 'warning' | 'xp';
 }
+
+export interface Security {
+  id: string;
+  name: string;
+  symbol: string;
+  shares: number;
+  marketPrice: number;
+  marketValue: number;
+  change24h: number;
+  totalReturn: number;
+}
