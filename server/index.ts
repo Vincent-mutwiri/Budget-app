@@ -20,6 +20,7 @@ import { Debt } from './models/Debt';
 import { BudgetRecommendation } from './models/BudgetRecommendation';
 import { Receipt } from './models/Receipt';
 import { UserPreferences } from './models/UserPreferences';
+import { startRecurringTransactionScheduler } from './services/recurringTransactionScheduler';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -137,7 +138,138 @@ app.post('/api/goals', async (req, res) => {
     }
 });
 
+// Recurring Transactions Routes
+
+// Get all recurring transactions for a user
+app.get('/api/recurring-transactions', async (req, res) => {
+    const { userId } = req.query;
+    if (!userId) return res.status(400).json({ error: 'UserId required' });
+
+    try {
+        const recurringTransactions = await RecurringTransaction.find({ userId }).sort({ createdAt: -1 });
+        res.json(recurringTransactions);
+    } catch (error) {
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Create a new recurring transaction
+app.post('/api/recurring-transactions', async (req, res) => {
+    try {
+        const { userId, amount, category, description, type, frequency, startDate, endDate, reminderEnabled, reminderDaysBefore } = req.body;
+
+        // Validate required fields
+        if (!userId || !amount || !category || !description || !type || !frequency || !startDate) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        // Calculate next occurrence based on start date and frequency
+        const nextOccurrence = new Date(startDate);
+
+        const newRecurringTransaction = new RecurringTransaction({
+            userId,
+            amount,
+            category,
+            description,
+            type,
+            frequency,
+            startDate: new Date(startDate),
+            endDate: endDate ? new Date(endDate) : undefined,
+            nextOccurrence,
+            isActive: true,
+            reminderEnabled: reminderEnabled || false,
+            reminderDaysBefore: reminderDaysBefore || 3,
+            createdAt: new Date(),
+            updatedAt: new Date()
+        });
+
+        await newRecurringTransaction.save();
+        res.status(201).json(newRecurringTransaction);
+    } catch (error) {
+        console.error('Error creating recurring transaction:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Update a recurring transaction
+app.put('/api/recurring-transactions/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { amount, category, description, type, frequency, startDate, endDate, reminderEnabled, reminderDaysBefore } = req.body;
+
+        const recurringTransaction = await RecurringTransaction.findById(id);
+        if (!recurringTransaction) {
+            return res.status(404).json({ error: 'Recurring transaction not found' });
+        }
+
+        // Update fields
+        if (amount !== undefined) recurringTransaction.amount = amount;
+        if (category !== undefined) recurringTransaction.category = category;
+        if (description !== undefined) recurringTransaction.description = description;
+        if (type !== undefined) recurringTransaction.type = type;
+        if (frequency !== undefined) recurringTransaction.frequency = frequency;
+        if (startDate !== undefined) recurringTransaction.startDate = new Date(startDate);
+        if (endDate !== undefined) recurringTransaction.endDate = endDate ? new Date(endDate) : undefined;
+        if (reminderEnabled !== undefined) recurringTransaction.reminderEnabled = reminderEnabled;
+        if (reminderDaysBefore !== undefined) recurringTransaction.reminderDaysBefore = reminderDaysBefore;
+
+        recurringTransaction.updatedAt = new Date();
+
+        await recurringTransaction.save();
+        res.json(recurringTransaction);
+    } catch (error) {
+        console.error('Error updating recurring transaction:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Delete a recurring transaction
+app.delete('/api/recurring-transactions/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const recurringTransaction = await RecurringTransaction.findByIdAndDelete(id);
+        if (!recurringTransaction) {
+            return res.status(404).json({ error: 'Recurring transaction not found' });
+        }
+
+        res.json({ message: 'Recurring transaction deleted successfully', id });
+    } catch (error) {
+        console.error('Error deleting recurring transaction:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Toggle active/inactive status
+app.patch('/api/recurring-transactions/:id/toggle', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { isActive } = req.body;
+
+        if (isActive === undefined) {
+            return res.status(400).json({ error: 'isActive field required' });
+        }
+
+        const recurringTransaction = await RecurringTransaction.findById(id);
+        if (!recurringTransaction) {
+            return res.status(404).json({ error: 'Recurring transaction not found' });
+        }
+
+        recurringTransaction.isActive = isActive;
+        recurringTransaction.updatedAt = new Date();
+
+        await recurringTransaction.save();
+        res.json(recurringTransaction);
+    } catch (error) {
+        console.error('Error toggling recurring transaction:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
 // Start Server
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
+
+    // Start the recurring transaction scheduler
+    startRecurringTransactionScheduler();
 });

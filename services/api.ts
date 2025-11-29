@@ -76,4 +76,30 @@ export const getUser = async (clerkId: string, email?: string, fullName?: string
     return response.data;
 };
 
+// Recurring Transactions
+export const getRecurringTransactions = async (userId: string) => {
+    const response = await api.get('/recurring-transactions', { params: { userId } });
+    return response.data;
+};
+
+export const createRecurringTransaction = async (data: any) => {
+    const response = await api.post('/recurring-transactions', data);
+    return response.data;
+};
+
+export const updateRecurringTransaction = async (id: string, data: any) => {
+    const response = await api.put(`/recurring-transactions/${id}`, data);
+    return response.data;
+};
+
+export const deleteRecurringTransaction = async (id: string) => {
+    const response = await api.delete(`/recurring-transactions/${id}`);
+    return response.data;
+};
+
+export const toggleRecurringTransaction = async (id: string, isActive: boolean) => {
+    const response = await api.patch(`/recurring-transactions/${id}/toggle`, { isActive });
+    return response.data;
+};
+
 export default api;

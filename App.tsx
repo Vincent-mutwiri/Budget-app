@@ -27,7 +27,9 @@ import { ExpensePieChart, TrendChart } from './components/Charts';
 import { generateFinancialAdvice } from './services/geminiService';
 import { Modal } from './components/Modal';
 import { AddBudgetForm, AddGoalForm } from './components/Forms';
-import { createBudget, createGoal } from './services/api';
+import { createBudget, createGoal, getRecurringTransactions, createRecurringTransaction, updateRecurringTransaction, deleteRecurringTransaction, toggleRecurringTransaction } from './services/api';
+import { RecurringTransactionsView } from './components/RecurringTransactionsView';
+import type { RecurringTransaction, RecurringTransactionInput } from './types';
 
 // --- Components ---
 
@@ -1671,6 +1673,9 @@ export default function App() {
   // Accounts Data
   const [accounts, setAccounts] = useState<Account[]>([]);
 
+  // Recurring Transactions Data
+  const [recurringTransactions, setRecurringTransactions] = useState<RecurringTransaction[]>([]);
+
   // Alerts
   const alerts: Alert[] = [];
 
@@ -1694,17 +1699,19 @@ export default function App() {
           setUser(prev => ({ ...prev, ...userData }));
 
           // Fetch Resources
-          const [txs, bgs, gls, accs] = await Promise.all([
+          const [txs, bgs, gls, accs, recTxs] = await Promise.all([
             getTransactions(clerkUser.id),
             getBudgets(clerkUser.id),
             getGoals(clerkUser.id),
-            getAccounts(clerkUser.id)
+            getAccounts(clerkUser.id),
+            getRecurringTransactions(clerkUser.id)
           ]);
 
           setTransactions(txs);
           setBudgets(bgs);
           setSavingsGoals(gls);
           setAccounts(accs);
+          setRecurringTransactions(recTxs);
         } catch (error) {
           console.error("Failed to fetch data:", error);
         }
@@ -1749,6 +1756,44 @@ export default function App() {
 
   const handleDeleteTransaction = (id: string) => {
     setTransactions(prev => prev.filter(t => t.id !== id));
+  };
+
+  // Recurring Transaction Handlers
+  const handleAddRecurringTransaction = async (data: RecurringTransactionInput) => {
+    if (!clerkUser) return;
+    try {
+      const savedRecTx = await createRecurringTransaction({ ...data, userId: clerkUser.id });
+      setRecurringTransactions(prev => [savedRecTx, ...prev]);
+    } catch (error) {
+      console.error("Failed to add recurring transaction:", error);
+    }
+  };
+
+  const handleUpdateRecurringTransaction = async (id: string, data: RecurringTransactionInput) => {
+    try {
+      const updatedRecTx = await updateRecurringTransaction(id, data);
+      setRecurringTransactions(prev => prev.map(rt => rt.id === id ? updatedRecTx : rt));
+    } catch (error) {
+      console.error("Failed to update recurring transaction:", error);
+    }
+  };
+
+  const handleDeleteRecurringTransaction = async (id: string) => {
+    try {
+      await deleteRecurringTransaction(id);
+      setRecurringTransactions(prev => prev.filter(rt => rt.id !== id));
+    } catch (error) {
+      console.error("Failed to delete recurring transaction:", error);
+    }
+  };
+
+  const handleToggleRecurringTransaction = async (id: string, isActive: boolean) => {
+    try {
+      const updatedRecTx = await toggleRecurringTransaction(id, isActive);
+      setRecurringTransactions(prev => prev.map(rt => rt.id === id ? updatedRecTx : rt));
+    } catch (error) {
+      console.error("Failed to toggle recurring transaction:", error);
+    }
   };
 
   // --- Views ---
@@ -1898,6 +1943,7 @@ export default function App() {
               <SidebarItem id="dashboard" label="Dashboard" icon={LayoutGrid} active={activeView === 'dashboard'} onClick={() => setActiveView('dashboard')} />
               <SidebarItem id="accounts" label="Accounts" icon={Wallet} active={activeView === 'accounts'} onClick={() => setActiveView('accounts')} />
               <SidebarItem id="transactions" label="Transactions" icon={CreditCard} active={activeView === 'transactions'} onClick={() => setActiveView('transactions')} />
+              <SidebarItem id="recurring" label="Recurring" icon={Calendar} active={activeView === 'recurring'} onClick={() => setActiveView('recurring')} />
               <SidebarItem id="budgets" label="Budgets" icon={Target} active={activeView === 'budgets'} onClick={() => setActiveView('budgets')} />
               <SidebarItem id="investments" label="Investments" icon={TrendingUp} active={activeView === 'investments'} onClick={() => setActiveView('investments')} />
               <SidebarItem id="ai-assistant" label="AI Assistant" icon={Brain} active={activeView === 'ai-assistant'} onClick={() => setActiveView('ai-assistant')} />
@@ -1999,6 +2045,14 @@ export default function App() {
                   transactions={transactions}
                   onAdd={handleAddTransaction}
                   onDelete={handleDeleteTransaction}
+                />
+              ) : activeView === 'recurring' ? (
+                <RecurringTransactionsView
+                  recurringTransactions={recurringTransactions}
+                  onAdd={handleAddRecurringTransaction}
+                  onUpdate={handleUpdateRecurringTransaction}
+                  onDelete={handleDeleteRecurringTransaction}
+                  onToggleActive={handleToggleRecurringTransaction}
                 />
               ) : activeView === 'budgets' ? (
                 <BudgetsView budgets={budgets} onAdd={() => setIsBudgetModalOpen(true)} />
