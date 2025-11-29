@@ -35,6 +35,7 @@ import { NotificationPreferences } from './components/NotificationPreferences';
 import BudgetRecommendations from './components/BudgetRecommendations';
 import InsightsDashboard from './components/InsightsDashboard';
 import { ReceiptScanner } from './components/ReceiptScanner';
+import { InvestmentsView as NewInvestmentsView } from './components/InvestmentsView';
 
 // --- Components ---
 
@@ -2126,7 +2127,7 @@ export default function App() {
               ) : activeView === 'insights' ? (
                 <InsightsDashboard />
               ) : activeView === 'investments' ? (
-                <InvestmentsView securities={securities} />
+                clerkUser ? <NewInvestmentsView userId={clerkUser.id} /> : <div>Loading...</div>
               ) : activeView === 'gamification' ? (
                 <GamificationView user={user} challenges={challenges} />
               ) : activeView === 'goals' ? (

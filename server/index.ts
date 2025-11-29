@@ -417,6 +417,9 @@ import {
     detectAnomalies
 } from './services/insightsCalculator';
 
+// Investment calculation service
+import { calculateInvestmentMetrics, calculatePortfolioMetrics } from './services/investmentCalculator';
+
 // Generate budget recommendations
 app.post('/api/budget-recommendations/generate', async (req, res) => {
     const { userId } = req.body;
@@ -619,6 +622,181 @@ app.get('/api/insights/anomalies', async (req, res) => {
         res.json(anomalies);
     } catch (error) {
         console.error('Error detecting anomalies:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Investment Routes
+
+// Get all investments for a user
+app.get('/api/investments', async (req, res) => {
+    const { userId } = req.query;
+
+    if (!userId) {
+        return res.status(400).json({ error: 'UserId required' });
+    }
+
+    try {
+        const investments = await Investment.find({ userId }).sort({ createdAt: -1 });
+
+        // Calculate metrics for each investment
+        const investmentsWithMetrics = investments.map(investment => {
+            const metrics = calculateInvestmentMetrics(investment.toObject());
+            return {
+                ...investment.toObject(),
+                calculatedMetrics: metrics
+            };
+        });
+
+        res.json(investmentsWithMetrics);
+    } catch (error) {
+        console.error('Error fetching investments:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Create a new investment
+app.post('/api/investments', async (req, res) => {
+    try {
+        const { userId, name, type, symbol, initialAmount, currentValue, ratePerAnnum, purchaseDate, notes } = req.body;
+
+        // Validate required fields
+        if (!userId || !name || !type || !initialAmount || !currentValue || ratePerAnnum === undefined || !purchaseDate) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        const newInvestment = new Investment({
+            userId,
+            name,
+            type,
+            symbol,
+            initialAmount,
+            currentValue,
+            ratePerAnnum,
+            purchaseDate: new Date(purchaseDate),
+            notes,
+            createdAt: new Date(),
+            updatedAt: new Date()
+        });
+
+        await newInvestment.save();
+
+        // Calculate metrics for the new investment
+        const metrics = calculateInvestmentMetrics(newInvestment.toObject());
+
+        res.status(201).json({
+            ...newInvestment.toObject(),
+            calculatedMetrics: metrics
+        });
+    } catch (error) {
+        console.error('Error creating investment:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Update an investment
+app.put('/api/investments/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, type, symbol, initialAmount, currentValue, ratePerAnnum, purchaseDate, notes } = req.body;
+
+        const investment = await Investment.findById(id);
+        if (!investment) {
+            return res.status(404).json({ error: 'Investment not found' });
+        }
+
+        // Update fields
+        if (name !== undefined) investment.name = name;
+        if (type !== undefined) investment.type = type;
+        if (symbol !== undefined) investment.symbol = symbol;
+        if (initialAmount !== undefined) investment.initialAmount = initialAmount;
+        if (currentValue !== undefined) investment.currentValue = currentValue;
+        if (ratePerAnnum !== undefined) investment.ratePerAnnum = ratePerAnnum;
+        if (purchaseDate !== undefined) investment.purchaseDate = new Date(purchaseDate);
+        if (notes !== undefined) investment.notes = notes;
+
+        investment.updatedAt = new Date();
+
+        await investment.save();
+
+        // Calculate metrics for the updated investment
+        const metrics = calculateInvestmentMetrics(investment.toObject());
+
+        res.json({
+            ...investment.toObject(),
+            calculatedMetrics: metrics
+        });
+    } catch (error) {
+        console.error('Error updating investment:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Update current value of an investment
+app.patch('/api/investments/:id/value', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { currentValue } = req.body;
+
+        if (currentValue === undefined) {
+            return res.status(400).json({ error: 'currentValue field required' });
+        }
+
+        const investment = await Investment.findById(id);
+        if (!investment) {
+            return res.status(404).json({ error: 'Investment not found' });
+        }
+
+        investment.currentValue = currentValue;
+        investment.updatedAt = new Date();
+
+        await investment.save();
+
+        // Calculate metrics for the updated investment
+        const metrics = calculateInvestmentMetrics(investment.toObject());
+
+        res.json({
+            ...investment.toObject(),
+            calculatedMetrics: metrics
+        });
+    } catch (error) {
+        console.error('Error updating investment value:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Delete an investment
+app.delete('/api/investments/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const investment = await Investment.findByIdAndDelete(id);
+        if (!investment) {
+            return res.status(404).json({ error: 'Investment not found' });
+        }
+
+        res.json({ message: 'Investment deleted successfully', id });
+    } catch (error) {
+        console.error('Error deleting investment:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Get portfolio metrics
+app.get('/api/investments/portfolio/metrics', async (req, res) => {
+    const { userId } = req.query;
+
+    if (!userId) {
+        return res.status(400).json({ error: 'UserId required' });
+    }
+
+    try {
+        const investments = await Investment.find({ userId });
+        const portfolioMetrics = calculatePortfolioMetrics(investments.map(inv => inv.toObject()));
+
+        res.json(portfolioMetrics);
+    } catch (error) {
+        console.error('Error calculating portfolio metrics:', error);
         res.status(500).json({ error: 'Server error' });
     }
 });

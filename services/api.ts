@@ -220,4 +220,35 @@ export const deleteReceipt = async (receiptId: string) => {
     return response.data;
 };
 
+// Investments
+export const getInvestments = async (userId: string) => {
+    const response = await api.get('/investments', { params: { userId } });
+    return response.data;
+};
+
+export const createInvestment = async (investment: any) => {
+    const response = await api.post('/investments', investment);
+    return response.data;
+};
+
+export const updateInvestment = async (id: string, investment: any) => {
+    const response = await api.put(`/investments/${id}`, investment);
+    return response.data;
+};
+
+export const updateInvestmentValue = async (id: string, currentValue: number) => {
+    const response = await api.patch(`/investments/${id}/value`, { currentValue });
+    return response.data;
+};
+
+export const deleteInvestment = async (id: string) => {
+    const response = await api.delete(`/investments/${id}`);
+    return response.data;
+};
+
+export const getPortfolioMetrics = async (userId: string) => {
+    const response = await api.get('/investments/portfolio/metrics', { params: { userId } });
+    return response.data;
+};
+
 export default api;
