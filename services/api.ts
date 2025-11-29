@@ -336,4 +336,33 @@ export const logoutAllSessions = async (userId: string) => {
     return response.data;
 };
 
+// Export
+export const exportTransactions = async (config: any) => {
+    const response = await api.post('/export/transactions', config, {
+        responseType: config.format === 'csv' ? 'blob' : 'text'
+    });
+    return response.data;
+};
+
+export const exportBudgets = async (config: any) => {
+    const response = await api.post('/export/budgets', config, {
+        responseType: config.format === 'csv' || config.format === 'pdf' ? 'blob' : 'text'
+    });
+    return response.data;
+};
+
+export const exportInvestments = async (config: any) => {
+    const response = await api.post('/export/investments', config, {
+        responseType: 'blob'
+    });
+    return response.data;
+};
+
+export const exportSummary = async (config: any) => {
+    const response = await api.post('/export/summary', config, {
+        responseType: 'blob'
+    });
+    return response.data;
+};
+
 export default api;

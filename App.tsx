@@ -5,7 +5,7 @@ import {
   LayoutGrid, Settings, Folder, ArrowRight, X, DollarSign,
   TrendingUp, TrendingDown, CheckCircle2, AlertTriangle, AlertCircle, Medal, Flame, ChevronRight,
   Search, Filter, Pencil, Trash2, Lightbulb,
-  ShoppingCart, Bus, Film, Zap, ShoppingBag, PlusCircle
+  ShoppingCart, Bus, Film, Zap, ShoppingBag, PlusCircle, Download
 } from 'lucide-react';
 import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from "@clerk/clerk-react";
 import {
@@ -37,6 +37,7 @@ import InsightsDashboard from './components/InsightsDashboard';
 import { ReceiptScanner } from './components/ReceiptScanner';
 import { InvestmentsView as NewInvestmentsView } from './components/InvestmentsView';
 import { DebtTracker } from './components/DebtTracker';
+import { ExportReports } from './components/ExportReports';
 
 // --- Components ---
 
@@ -2015,6 +2016,7 @@ export default function App() {
               <SidebarItem id="ai-assistant" label="AI Assistant" icon={Brain} active={activeView === 'ai-assistant'} onClick={() => setActiveView('ai-assistant')} />
               <SidebarItem id="gamification" label="Gamification" icon={Medal} active={activeView === 'gamification'} onClick={() => setActiveView('gamification')} />
               <SidebarItem id="goals" label="Goals" icon={Target} active={activeView === 'goals'} onClick={() => setActiveView('goals')} />
+              <SidebarItem id="export" label="Export" icon={Download} active={activeView === 'export'} onClick={() => setActiveView('export')} />
               <SidebarItem id="settings" label="Settings" icon={Settings} active={activeView === 'settings'} onClick={() => setActiveView('settings')} />
             </nav>
 
@@ -2096,12 +2098,14 @@ export default function App() {
                 <h1 className="text-3xl font-bold text-white mb-1">
                   {activeView === 'dashboard' ? 'Welcome back, Jane!' :
                     activeView === 'gamification' ? 'Your Gamification Hub' :
-                      activeView.charAt(0).toUpperCase() + activeView.slice(1)}
+                      activeView === 'export' ? 'Export & Reports' :
+                        activeView.charAt(0).toUpperCase() + activeView.slice(1)}
                 </h1>
                 <p className="text-forest-400">
                   {activeView === 'dashboard' ? "Here's a summary of your financial activity." :
                     activeView === 'gamification' ? 'Track your progress, earn badges, and complete challenges to level up your finances.' :
-                      'Manage your financial records.'}
+                      activeView === 'export' ? 'Generate and download reports for your financial data.' :
+                        'Manage your financial records.'}
                 </p>
               </div>
             )}
@@ -2150,6 +2154,8 @@ export default function App() {
                 <AccountsView accounts={accounts} />
               ) : activeView === 'ai-assistant' ? (
                 <AIAssistantView transactions={transactions} />
+              ) : activeView === 'export' ? (
+                clerkUser ? <ExportReports userId={clerkUser.id} /> : <div>Loading...</div>
               ) : activeView === 'settings' ? (
                 <SettingsView userProfile={userProfile} onUpdateProfile={setUserProfile} />
               ) : (

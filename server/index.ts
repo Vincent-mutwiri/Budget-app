@@ -1491,6 +1491,228 @@ app.post('/api/security/sessions/logout-all', async (req, res) => {
     }
 });
 
+// Export Routes
+import {
+    generateTransactionsCSV,
+    generateInvestmentsCSV,
+    generateDebtsCSV,
+    generateBudgetsCSV
+} from './services/csvExportService';
+import {
+    generateBudgetReportHTML,
+    generateFinancialSummaryHTML
+} from './services/pdfExportService';
+
+// Generate transaction export
+app.post('/api/export/transactions', async (req, res) => {
+    const { userId, format, dateRange, filters } = req.body;
+
+    if (!userId || !format) {
+        return res.status(400).json({ error: 'UserId and format required' });
+    }
+
+    try {
+        // Get transactions
+        let query: any = { userId };
+
+        // Apply date range filter
+        if (dateRange?.start && dateRange?.end) {
+            query.date = {
+                $gte: new Date(dateRange.start),
+                $lte: new Date(dateRange.end)
+            };
+        }
+
+        // Apply category filter
+        if (filters?.categories && filters.categories.length > 0) {
+            query.category = { $in: filters.categories };
+        }
+
+        const transactions = await Transaction.find(query).sort({ date: -1 });
+
+        if (format === 'csv') {
+            const csv = generateTransactionsCSV(transactions.map(t => t.toObject()));
+            const filename = `transactions_${new Date().toISOString().split('T')[0]}.csv`;
+
+            res.setHeader('Content-Type', 'text/csv');
+            res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+            res.send(csv);
+        } else {
+            res.status(400).json({ error: 'Only CSV format is supported for transactions' });
+        }
+    } catch (error) {
+        console.error('Error exporting transactions:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Generate budget report export
+app.post('/api/export/budgets', async (req, res) => {
+    const { userId, format, dateRange } = req.body;
+
+    if (!userId || !format) {
+        return res.status(400).json({ error: 'UserId and format required' });
+    }
+
+    try {
+        // Get budgets
+        const budgets = await Budget.find({ userId });
+
+        // Get transactions for the date range
+        let transactionQuery: any = { userId };
+        if (dateRange?.start && dateRange?.end) {
+            transactionQuery.date = {
+                $gte: new Date(dateRange.start),
+                $lte: new Date(dateRange.end)
+            };
+        }
+        const transactions = await Transaction.find(transactionQuery);
+
+        // Get user info
+        const user = await User.findOne({ clerkId: userId });
+        const userName = user?.fullName || 'User';
+
+        if (format === 'csv') {
+            const csv = generateBudgetsCSV(
+                budgets.map(b => b.toObject()),
+                transactions.map(t => t.toObject())
+            );
+            const filename = `budgets_${new Date().toISOString().split('T')[0]}.csv`;
+
+            res.setHeader('Content-Type', 'text/csv');
+            res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+            res.send(csv);
+        } else if (format === 'pdf') {
+            const html = generateBudgetReportHTML(
+                budgets.map(b => b.toObject()),
+                transactions.map(t => t.toObject()),
+                dateRange || {
+                    start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+                    end: new Date().toISOString()
+                },
+                userName
+            );
+            const filename = `budget_report_${new Date().toISOString().split('T')[0]}.html`;
+
+            res.setHeader('Content-Type', 'text/html');
+            res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+            res.send(html);
+        } else {
+            res.status(400).json({ error: 'Unsupported format' });
+        }
+    } catch (error) {
+        console.error('Error exporting budgets:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Generate investment export
+app.post('/api/export/investments', async (req, res) => {
+    const { userId, format } = req.body;
+
+    if (!userId || !format) {
+        return res.status(400).json({ error: 'UserId and format required' });
+    }
+
+    try {
+        const investments = await Investment.find({ userId }).sort({ createdAt: -1 });
+
+        // Calculate metrics for each investment
+        const investmentsWithMetrics = investments.map(investment => {
+            const metrics = calculateInvestmentMetrics(investment.toObject());
+            return {
+                ...investment.toObject(),
+                calculatedMetrics: metrics
+            };
+        });
+
+        if (format === 'csv') {
+            const csv = generateInvestmentsCSV(investmentsWithMetrics);
+            const filename = `investments_${new Date().toISOString().split('T')[0]}.csv`;
+
+            res.setHeader('Content-Type', 'text/csv');
+            res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+            res.send(csv);
+        } else {
+            res.status(400).json({ error: 'Only CSV format is supported for investments' });
+        }
+    } catch (error) {
+        console.error('Error exporting investments:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Generate financial summary export
+app.post('/api/export/summary', async (req, res) => {
+    const { userId, format, dateRange } = req.body;
+
+    if (!userId || !format) {
+        return res.status(400).json({ error: 'UserId and format required' });
+    }
+
+    try {
+        // Get all financial data
+        let transactionQuery: any = { userId };
+        if (dateRange?.start && dateRange?.end) {
+            transactionQuery.date = {
+                $gte: new Date(dateRange.start),
+                $lte: new Date(dateRange.end)
+            };
+        }
+
+        const transactions = await Transaction.find(transactionQuery);
+        const budgets = await Budget.find({ userId });
+        const investments = await Investment.find({ userId });
+        const debts = await Debt.find({ userId });
+
+        // Calculate metrics for investments
+        const investmentsWithMetrics = investments.map(investment => {
+            const metrics = calculateInvestmentMetrics(investment.toObject());
+            return {
+                ...investment.toObject(),
+                calculatedMetrics: metrics
+            };
+        });
+
+        // Calculate metrics for debts
+        const debtsWithMetrics = debts.map(debt => {
+            const metrics = calculateDebtMetrics(debt.toObject());
+            return {
+                ...debt.toObject(),
+                calculatedMetrics: metrics
+            };
+        });
+
+        // Get user info
+        const user = await User.findOne({ clerkId: userId });
+        const userName = user?.fullName || 'User';
+
+        if (format === 'pdf') {
+            const html = generateFinancialSummaryHTML(
+                transactions.map(t => t.toObject()),
+                budgets.map(b => b.toObject()),
+                investmentsWithMetrics,
+                debtsWithMetrics,
+                dateRange || {
+                    start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+                    end: new Date().toISOString()
+                },
+                userName
+            );
+            const filename = `financial_summary_${new Date().toISOString().split('T')[0]}.html`;
+
+            res.setHeader('Content-Type', 'text/html');
+            res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+            res.send(html);
+        } else {
+            res.status(400).json({ error: 'Only PDF format is supported for financial summary' });
+        }
+    } catch (error) {
+        console.error('Error exporting financial summary:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
 // Start Server
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
