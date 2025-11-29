@@ -25,6 +25,9 @@ import {
 } from './constants';
 import { ExpensePieChart, TrendChart } from './components/Charts';
 import { generateFinancialAdvice } from './services/geminiService';
+import { Modal } from './components/Modal';
+import { AddBudgetForm, AddGoalForm } from './components/Forms';
+import { createBudget, createGoal } from './services/api';
 
 // --- Components ---
 
@@ -1525,7 +1528,10 @@ const BudgetsView = ({ budgets }: { budgets: Budget[] }) => {
             <h2 className="text-3xl font-bold text-white mb-1">Monthly Budgets</h2>
             <p className="text-forest-400">October 2024</p>
           </div>
-          <button className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-forest-950 font-bold py-2.5 px-5 rounded-xl transition-colors">
+          <button
+            onClick={onAdd}
+            className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-forest-950 font-bold py-2.5 px-5 rounded-xl transition-colors"
+          >
             <Plus size={18} strokeWidth={3} /> Add New Budget
           </button>
         </div>
@@ -1606,7 +1612,10 @@ const BudgetsView = ({ budgets }: { budgets: Budget[] }) => {
           })}
 
           {/* Add New Placeholder Card */}
-          <button className="border-2 border-dashed border-forest-700 rounded-3xl p-6 flex flex-col items-center justify-center gap-4 text-forest-400 hover:text-white hover:border-forest-500 hover:bg-forest-800/30 transition-all group min-h-[180px]">
+          <button
+            onClick={onAdd}
+            className="border-2 border-dashed border-forest-700 rounded-3xl p-6 flex flex-col items-center justify-center gap-4 text-forest-400 hover:text-white hover:border-forest-500 hover:bg-forest-800/30 transition-all group min-h-[180px]"
+          >
             <div className="w-14 h-14 rounded-full bg-forest-900 flex items-center justify-center group-hover:scale-110 transition-transform">
               <PlusCircle size={32} className="text-primary" />
             </div>
@@ -1625,6 +1634,10 @@ export default function App() {
   const { user: clerkUser } = useUser();
   const [activeView, setActiveView] = useState('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Modal States
+  const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
+  const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
 
   const [user, setUser] = useState<UserState>({ xp: 0, level: 1, streak: 0, badges: 0, currency: 'USD', monthlyIncome: 0 });
 
@@ -1720,6 +1733,18 @@ export default function App() {
     } catch (error) {
       console.error("Failed to add transaction:", error);
     }
+  };
+
+  const handleAddBudget = async (newBudget: any) => {
+    if (!clerkUser) return;
+    const savedBudget = await createBudget({ ...newBudget, userId: clerkUser.id });
+    setBudgets(prev => [...prev, savedBudget]);
+  };
+
+  const handleAddGoal = async (newGoal: any) => {
+    if (!clerkUser) return;
+    const savedGoal = await createGoal({ ...newGoal, userId: clerkUser.id });
+    setSavingsGoals(prev => [...prev, savedGoal]);
   };
 
   const handleDeleteTransaction = (id: string) => {
@@ -1976,13 +2001,23 @@ export default function App() {
                   onDelete={handleDeleteTransaction}
                 />
               ) : activeView === 'budgets' ? (
-                <BudgetsView budgets={budgets} />
+                <BudgetsView budgets={budgets} onAdd={() => setIsBudgetModalOpen(true)} />
               ) : activeView === 'investments' ? (
                 <InvestmentsView securities={securities} />
               ) : activeView === 'gamification' ? (
                 <GamificationView user={user} challenges={challenges} />
               ) : activeView === 'goals' ? (
-                <GoalsView goals={savingsGoals} />
+                <>
+                  <div className="flex justify-end mb-4 px-8">
+                    <button
+                      onClick={() => setIsGoalModalOpen(true)}
+                      className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-forest-950 font-bold py-2.5 px-5 rounded-xl transition-colors"
+                    >
+                      <Plus size={18} strokeWidth={3} /> Add New Goal
+                    </button>
+                  </div>
+                  <GoalsView goals={savingsGoals} />
+                </>
               ) : activeView === 'accounts' ? (
                 <AccountsView accounts={accounts} />
               ) : activeView === 'ai-assistant' ? (
@@ -1997,6 +2032,24 @@ export default function App() {
             </div>
           </main>
         </div>
+
+        {/* Modals */}
+        <Modal
+          isOpen={isBudgetModalOpen}
+          onClose={() => setIsBudgetModalOpen(false)}
+          title="Create New Budget"
+        >
+          <AddBudgetForm onAdd={handleAddBudget} onClose={() => setIsBudgetModalOpen(false)} />
+        </Modal>
+
+        <Modal
+          isOpen={isGoalModalOpen}
+          onClose={() => setIsGoalModalOpen(false)}
+          title="Set Savings Goal"
+        >
+          <AddGoalForm onAdd={handleAddGoal} onClose={() => setIsGoalModalOpen(false)} />
+        </Modal>
+
       </SignedIn>
     </>
   );
