@@ -27,6 +27,7 @@ export interface UserState {
   xp: number;
   level: number;
   streak: number;
+  badges: number;
   currency: string;
   monthlyIncome: number;
 }
@@ -62,6 +63,14 @@ export interface Goal {
   currentAmount: number;
   icon: string;
   color: string;
+}
+
+export interface Alert {
+  id: string;
+  title: string;
+  message: string;
+  type: 'warning' | 'danger' | 'success' | 'info';
+  time: string;
 }
 
 export interface Notification {

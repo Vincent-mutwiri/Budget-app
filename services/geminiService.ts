@@ -59,7 +59,6 @@ export const generateFinancialAdvice = async (
       contents: prompt,
       config: {
         temperature: 0.7,
-        maxOutputTokens: 400,
       }
     });
 
