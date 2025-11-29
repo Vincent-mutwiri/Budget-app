@@ -33,6 +33,7 @@ import type { RecurringTransaction, RecurringTransactionInput } from './types';
 import { NotificationCenter } from './components/NotificationCenter';
 import { NotificationPreferences } from './components/NotificationPreferences';
 import BudgetRecommendations from './components/BudgetRecommendations';
+import InsightsDashboard from './components/InsightsDashboard';
 
 // --- Components ---
 
@@ -1968,6 +1969,7 @@ export default function App() {
               <SidebarItem id="transactions" label="Transactions" icon={CreditCard} active={activeView === 'transactions'} onClick={() => setActiveView('transactions')} />
               <SidebarItem id="recurring" label="Recurring" icon={Calendar} active={activeView === 'recurring'} onClick={() => setActiveView('recurring')} />
               <SidebarItem id="budgets" label="Budgets" icon={Target} active={activeView === 'budgets'} onClick={() => setActiveView('budgets')} />
+              <SidebarItem id="insights" label="Insights" icon={TrendingUp} active={activeView === 'insights'} onClick={() => setActiveView('insights')} />
               <SidebarItem id="investments" label="Investments" icon={TrendingUp} active={activeView === 'investments'} onClick={() => setActiveView('investments')} />
               <SidebarItem id="ai-assistant" label="AI Assistant" icon={Brain} active={activeView === 'ai-assistant'} onClick={() => setActiveView('ai-assistant')} />
               <SidebarItem id="gamification" label="Gamification" icon={Medal} active={activeView === 'gamification'} onClick={() => setActiveView('gamification')} />
@@ -2048,21 +2050,23 @@ export default function App() {
             </header>
 
             {/* Page Header */}
-            <div className="px-8 py-6 shrink-0">
-              <h1 className="text-3xl font-bold text-white mb-1">
-                {activeView === 'dashboard' ? 'Welcome back, Jane!' :
-                  activeView === 'gamification' ? 'Your Gamification Hub' :
-                    activeView.charAt(0).toUpperCase() + activeView.slice(1)}
-              </h1>
-              <p className="text-forest-400">
-                {activeView === 'dashboard' ? "Here's a summary of your financial activity." :
-                  activeView === 'gamification' ? 'Track your progress, earn badges, and complete challenges to level up your finances.' :
-                    'Manage your financial records.'}
-              </p>
-            </div>
+            {activeView !== 'insights' && (
+              <div className="px-8 py-6 shrink-0">
+                <h1 className="text-3xl font-bold text-white mb-1">
+                  {activeView === 'dashboard' ? 'Welcome back, Jane!' :
+                    activeView === 'gamification' ? 'Your Gamification Hub' :
+                      activeView.charAt(0).toUpperCase() + activeView.slice(1)}
+                </h1>
+                <p className="text-forest-400">
+                  {activeView === 'dashboard' ? "Here's a summary of your financial activity." :
+                    activeView === 'gamification' ? 'Track your progress, earn badges, and complete challenges to level up your finances.' :
+                      'Manage your financial records.'}
+                </p>
+              </div>
+            )}
 
             {/* Scrollable Content */}
-            <div className={`flex-1 ${activeView === 'ai-assistant' ? 'overflow-hidden' : 'overflow-y-auto px-8 pb-8'} scrollbar-thin scrollbar-thumb-forest-700 scrollbar-track-transparent`}>
+            <div className={`flex-1 ${activeView === 'ai-assistant' || activeView === 'insights' ? 'overflow-hidden' : 'overflow-y-auto px-8 pb-8'} scrollbar-thin scrollbar-thumb-forest-700 scrollbar-track-transparent`}>
               {activeView === 'dashboard' ? (
                 <DashboardContent />
               ) : activeView === 'transactions' ? (
@@ -2081,6 +2085,8 @@ export default function App() {
                 />
               ) : activeView === 'budgets' ? (
                 <BudgetsView budgets={budgets} onAdd={() => setIsBudgetModalOpen(true)} />
+              ) : activeView === 'insights' ? (
+                <InsightsDashboard />
               ) : activeView === 'investments' ? (
                 <InvestmentsView securities={securities} />
               ) : activeView === 'gamification' ? (

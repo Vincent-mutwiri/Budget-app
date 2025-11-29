@@ -156,4 +156,30 @@ export const dismissBudgetRecommendation = async (id: string) => {
     return response.data;
 };
 
+// Insights
+export const getAllInsights = async (userId: string) => {
+    const response = await api.get('/insights/dashboard', { params: { userId } });
+    return response.data;
+};
+
+export const getHealthScore = async (userId: string) => {
+    const response = await api.get('/insights/health-score', { params: { userId } });
+    return response.data;
+};
+
+export const getSpendingTrends = async (userId: string) => {
+    const response = await api.get('/insights/trends', { params: { userId } });
+    return response.data;
+};
+
+export const getForecast = async (userId: string) => {
+    const response = await api.get('/insights/forecast', { params: { userId } });
+    return response.data;
+};
+
+export const getAnomalies = async (userId: string) => {
+    const response = await api.get('/insights/anomalies', { params: { userId } });
+    return response.data;
+};
+
 export default api;

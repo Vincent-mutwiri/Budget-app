@@ -406,6 +406,15 @@ app.put('/api/notifications/preferences', async (req, res) => {
 // Budget Recommendation Routes
 import { generateBudgetRecommendations } from './services/budgetRecommendationEngine';
 
+// Insights Routes
+import {
+    calculateAllInsights,
+    calculateHealthScore,
+    calculateSpendingTrends,
+    calculateForecast,
+    detectAnomalies
+} from './services/insightsCalculator';
+
 // Generate budget recommendations
 app.post('/api/budget-recommendations/generate', async (req, res) => {
     const { userId } = req.body;
@@ -521,6 +530,93 @@ app.get('/api/budget-recommendations', async (req, res) => {
         res.json(recommendations);
     } catch (error) {
         console.error('Error fetching budget recommendations:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Insights Routes
+
+// Get all insights for dashboard
+app.get('/api/insights/dashboard', async (req, res) => {
+    const { userId } = req.query;
+
+    if (!userId) {
+        return res.status(400).json({ error: 'UserId required' });
+    }
+
+    try {
+        const insights = await calculateAllInsights(userId as string);
+        res.json(insights);
+    } catch (error) {
+        console.error('Error calculating insights:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Get financial health score
+app.get('/api/insights/health-score', async (req, res) => {
+    const { userId } = req.query;
+
+    if (!userId) {
+        return res.status(400).json({ error: 'UserId required' });
+    }
+
+    try {
+        const healthData = await calculateHealthScore(userId as string);
+        res.json(healthData);
+    } catch (error) {
+        console.error('Error calculating health score:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Get spending trends
+app.get('/api/insights/trends', async (req, res) => {
+    const { userId } = req.query;
+
+    if (!userId) {
+        return res.status(400).json({ error: 'UserId required' });
+    }
+
+    try {
+        const trends = await calculateSpendingTrends(userId as string);
+        res.json(trends);
+    } catch (error) {
+        console.error('Error calculating spending trends:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Get income/expense forecast
+app.get('/api/insights/forecast', async (req, res) => {
+    const { userId } = req.query;
+
+    if (!userId) {
+        return res.status(400).json({ error: 'UserId required' });
+    }
+
+    try {
+        const forecast = await calculateForecast(userId as string);
+        res.json(forecast);
+    } catch (error) {
+        console.error('Error calculating forecast:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Get spending anomalies
+app.get('/api/insights/anomalies', async (req, res) => {
+    const { userId } = req.query;
+
+    if (!userId) {
+        return res.status(400).json({ error: 'UserId required' });
+    }
+
+    try {
+        const anomalies = await detectAnomalies(userId as string);
+        res.json(anomalies);
+    } catch (error) {
+        console.error('Error detecting anomalies:', error);
         res.status(500).json({ error: 'Server error' });
     }
 });
