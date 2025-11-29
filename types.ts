@@ -123,6 +123,7 @@ export interface Challenge {
   type: 'daily' | 'weekly' | 'monthly';
   resetTime: string;
   completed: boolean;
+  claimed?: boolean;
 }
 
 export interface SavingsGoal {

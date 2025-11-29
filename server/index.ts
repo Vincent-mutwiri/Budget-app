@@ -1023,9 +1023,159 @@ app.post('/api/debts/:id/accelerated-payoff', async (req, res) => {
     }
 });
 
+// Gamification Routes
+import { Challenge } from './models/Challenge';
+import { Badge, UserBadge } from './models/Badge';
+import {
+    claimChallengeReward,
+    getLeaderboard,
+    generateChallenges,
+    calculateLevel,
+    calculateLevelProgress,
+    BADGE_DEFINITIONS,
+    initializeBadges
+} from './services/gamificationEngine';
+
+// Get challenges for a user
+app.get('/api/gamification/challenges', async (req, res) => {
+    const { userId } = req.query;
+
+    if (!userId) {
+        return res.status(400).json({ error: 'UserId required' });
+    }
+
+    try {
+        const now = new Date();
+
+        // Get active challenges
+        let challenges = await Challenge.find({
+            userId,
+            resetTime: { $gt: now }
+        }).sort({ type: 1, createdAt: 1 });
+
+        // If no challenges exist, generate them
+        if (challenges.length === 0) {
+            await generateChallenges(userId as string);
+            challenges = await Challenge.find({
+                userId,
+                resetTime: { $gt: now }
+            }).sort({ type: 1, createdAt: 1 });
+        }
+
+        res.json(challenges);
+    } catch (error) {
+        console.error('Error fetching challenges:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Claim challenge reward
+app.post('/api/gamification/challenges/:id/claim', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { userId } = req.body;
+
+        if (!userId) {
+            return res.status(400).json({ error: 'UserId required' });
+        }
+
+        await claimChallengeReward(userId, id);
+
+        res.json({
+            message: 'Challenge reward claimed successfully'
+        });
+    } catch (error: any) {
+        console.error('Error claiming challenge reward:', error);
+        res.status(400).json({ error: error.message || 'Server error' });
+    }
+});
+
+// Get user badges
+app.get('/api/gamification/badges', async (req, res) => {
+    const { userId } = req.query;
+
+    if (!userId) {
+        return res.status(400).json({ error: 'UserId required' });
+    }
+
+    try {
+        // Get user's unlocked badges
+        const userBadges = await UserBadge.find({ userId });
+        const unlockedBadgeIds = userBadges.map(ub => ub.badgeId);
+
+        // Return all badge definitions with unlock status
+        const badges = BADGE_DEFINITIONS.map(badge => ({
+            ...badge,
+            isUnlocked: unlockedBadgeIds.includes(badge.id),
+            unlockedAt: userBadges.find(ub => ub.badgeId === badge.id)?.unlockedAt
+        }));
+
+        res.json(badges);
+    } catch (error) {
+        console.error('Error fetching badges:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Get leaderboard
+app.get('/api/gamification/leaderboard', async (req, res) => {
+    const { limit = '100' } = req.query;
+
+    try {
+        const leaderboard = await getLeaderboard(parseInt(limit as string));
+        res.json(leaderboard);
+    } catch (error) {
+        console.error('Error fetching leaderboard:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Get user gamification state
+app.get('/api/gamification/state', async (req, res) => {
+    const { userId } = req.query;
+
+    if (!userId) {
+        return res.status(400).json({ error: 'UserId required' });
+    }
+
+    try {
+        const user = await User.findOne({ clerkId: userId });
+
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const xp = user.xp || 0;
+        const level = user.level || 1;
+        const levelProgress = calculateLevelProgress(xp);
+
+        // Get user's badges
+        const userBadges = await UserBadge.find({ userId });
+
+        // Get user's rank
+        const usersAbove = await User.countDocuments({ xp: { $gt: xp } });
+        const rank = usersAbove + 1;
+
+        res.json({
+            xp,
+            level,
+            levelProgress,
+            streak: user.streak || 0,
+            badges: userBadges.map(ub => ub.badgeId),
+            rank
+        });
+    } catch (error) {
+        console.error('Error fetching gamification state:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
 // Start Server
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
+
+    // Initialize badge definitions
+    initializeBadges();
 
     // Start the recurring transaction scheduler
     startRecurringTransactionScheduler();
