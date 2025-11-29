@@ -403,6 +403,128 @@ app.put('/api/notifications/preferences', async (req, res) => {
     }
 });
 
+// Budget Recommendation Routes
+import { generateBudgetRecommendations } from './services/budgetRecommendationEngine';
+
+// Generate budget recommendations
+app.post('/api/budget-recommendations/generate', async (req, res) => {
+    const { userId } = req.body;
+
+    if (!userId) {
+        return res.status(400).json({ error: 'UserId required' });
+    }
+
+    try {
+        // Delete existing pending recommendations for this user
+        await BudgetRecommendation.deleteMany({ userId, status: 'pending' });
+
+        // Generate new recommendations
+        const recommendations = await generateBudgetRecommendations(userId);
+
+        // Save recommendations to database
+        const savedRecommendations = await BudgetRecommendation.insertMany(recommendations);
+
+        res.status(201).json(savedRecommendations);
+    } catch (error) {
+        console.error('Error generating budget recommendations:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Accept a budget recommendation
+app.post('/api/budget-recommendations/:id/accept', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const recommendation = await BudgetRecommendation.findById(id);
+        if (!recommendation) {
+            return res.status(404).json({ error: 'Recommendation not found' });
+        }
+
+        if (recommendation.status !== 'pending') {
+            return res.status(400).json({ error: 'Recommendation has already been processed' });
+        }
+
+        // Update recommendation status
+        recommendation.status = 'accepted';
+        await recommendation.save();
+
+        // Create or update budget
+        const existingBudget = await Budget.findOne({
+            userId: recommendation.userId,
+            category: recommendation.category
+        });
+
+        if (existingBudget) {
+            existingBudget.limit = recommendation.suggestedLimit;
+            await existingBudget.save();
+        } else {
+            const newBudget = new Budget({
+                userId: recommendation.userId,
+                category: recommendation.category,
+                limit: recommendation.suggestedLimit,
+                spent: recommendation.currentSpending,
+                icon: 'tag'
+            });
+            await newBudget.save();
+        }
+
+        res.json({
+            recommendation,
+            message: 'Budget recommendation accepted and budget updated'
+        });
+    } catch (error) {
+        console.error('Error accepting budget recommendation:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Dismiss a budget recommendation
+app.delete('/api/budget-recommendations/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const recommendation = await BudgetRecommendation.findById(id);
+        if (!recommendation) {
+            return res.status(404).json({ error: 'Recommendation not found' });
+        }
+
+        // Update status to dismissed
+        recommendation.status = 'dismissed';
+        await recommendation.save();
+
+        res.json({
+            message: 'Budget recommendation dismissed',
+            recommendation
+        });
+    } catch (error) {
+        console.error('Error dismissing budget recommendation:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Get budget recommendations for a user
+app.get('/api/budget-recommendations', async (req, res) => {
+    const { userId, status } = req.query;
+
+    if (!userId) {
+        return res.status(400).json({ error: 'UserId required' });
+    }
+
+    try {
+        const query: any = { userId };
+        if (status) {
+            query.status = status;
+        }
+
+        const recommendations = await BudgetRecommendation.find(query).sort({ createdAt: -1 });
+        res.json(recommendations);
+    } catch (error) {
+        console.error('Error fetching budget recommendations:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
 // Start Server
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);

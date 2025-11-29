@@ -32,6 +32,7 @@ import { RecurringTransactionsView } from './components/RecurringTransactionsVie
 import type { RecurringTransaction, RecurringTransactionInput } from './types';
 import { NotificationCenter } from './components/NotificationCenter';
 import { NotificationPreferences } from './components/NotificationPreferences';
+import BudgetRecommendations from './components/BudgetRecommendations';
 
 // --- Components ---
 
@@ -1486,8 +1487,9 @@ const AIAssistantView = ({ transactions }: { transactions: Transaction[] }) => {
 
 // --- Budgets View Component ---
 
-const BudgetsView = ({ budgets }: { budgets: Budget[] }) => {
+const BudgetsView = ({ budgets, onAdd }: { budgets: Budget[], onAdd: () => void }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [showRecommendations, setShowRecommendations] = useState(true);
 
   // Calculate totals for summary cards
   const totalBudgeted = budgets.reduce((sum, b) => sum + b.limit, 0);
@@ -1557,6 +1559,22 @@ const BudgetsView = ({ budgets }: { budgets: Budget[] }) => {
           </div>
         </div>
       </div>
+
+      {/* Budget Recommendations Section */}
+      {showRecommendations && (
+        <div className="bg-forest-900/50 border border-forest-700 rounded-3xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-bold text-white">Smart Budget Recommendations</h3>
+            <button
+              onClick={() => setShowRecommendations(false)}
+              className="text-forest-400 hover:text-white transition-colors"
+            >
+              <X size={20} />
+            </button>
+          </div>
+          <BudgetRecommendations />
+        </div>
+      )}
 
       {/* Main Grid Section */}
       <div className="flex flex-col gap-6">

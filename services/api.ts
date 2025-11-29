@@ -133,4 +133,27 @@ export const updateNotificationPreferences = async (userId: string, preferences:
     return response.data;
 };
 
+// Budget Recommendations
+export const generateBudgetRecommendations = async (userId: string) => {
+    const response = await api.post('/budget-recommendations/generate', { userId });
+    return response.data;
+};
+
+export const getBudgetRecommendations = async (userId: string, status?: string) => {
+    const params: any = { userId };
+    if (status) params.status = status;
+    const response = await api.get('/budget-recommendations', { params });
+    return response.data;
+};
+
+export const acceptBudgetRecommendation = async (id: string) => {
+    const response = await api.post(`/budget-recommendations/${id}/accept`);
+    return response.data;
+};
+
+export const dismissBudgetRecommendation = async (id: string) => {
+    const response = await api.delete(`/budget-recommendations/${id}`);
+    return response.data;
+};
+
 export default api;
