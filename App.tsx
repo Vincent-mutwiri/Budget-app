@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import {
   Transaction, UserState, Category, DailyChallenge,
-  FinancialSnapshot, Goal, Notification, Alert, TransactionType, CategoriesList, Budget, Security
+  FinancialSnapshot, Goal, Notification, Alert, TransactionType, CategoriesList, Budget, Security, Challenge
 } from './types';
 import {
   MOCK_TRANSACTIONS, LEVEL_THRESHOLDS, XP_REWARDS,
@@ -537,6 +537,198 @@ const InvestmentsView = ({ securities }: { securities: Security[] }) => {
   );
 };
 
+// --- Gamification View Component ---
+
+const GamificationView = ({ user, challenges }: { user: UserState, challenges: Challenge[] }) => {
+  const [activeTab, setActiveTab] = useState<'challenges' | 'achievements' | 'leaderboards'>('challenges');
+
+  const currentLevel = calculateLevel(user.xp);
+  const nextLevel = LEVEL_THRESHOLDS.find(l => l.level === currentLevel.level + 1);
+  const progressPercent = nextLevel
+    ? ((user.xp - currentLevel.minXP) / (nextLevel.minXP - currentLevel.minXP)) * 100
+    : 100;
+
+  const dailyChallenges = challenges.filter(c => c.type === 'daily');
+  const weeklyChallenges = challenges.filter(c => c.type === 'weekly');
+  const monthlyChallenges = challenges.filter(c => c.type === 'monthly');
+
+  const ChallengeCard = ({ challenge }: { challenge: Challenge }) => {
+    const progressPercent = (challenge.progress / challenge.target) * 100;
+    const canClaim = challenge.completed && progressPercent >= 100;
+
+    return (
+      <div className="bg-forest-800 border border-forest-700 p-6 rounded-3xl hover:border-forest-600 transition-colors">
+        <div className="flex items-start gap-4 mb-4">
+          <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${challenge.type === 'daily' ? 'bg-primary/20 text-primary' :
+            challenge.type === 'weekly' ? 'bg-blue-500/20 text-blue-500' :
+              'bg-purple-500/20 text-purple-500'
+            }`}>
+            {challenge.type === 'daily' && <Calendar size={24} />}
+            {challenge.type === 'weekly' && <LayoutGrid size={24} />}
+            {challenge.type === 'monthly' && <Target size={24} />}
+          </div>
+          <div className="flex-1 min-w-0">
+            <h4 className="font-bold text-white text-base mb-1">{challenge.title}</h4>
+            <p className="text-forest-400 text-sm">{challenge.description}</p>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <div className="flex justify-between items-center text-sm">
+            <span className="text-forest-300">{challenge.progress} / {challenge.target}</span>
+            <span className="text-primary font-bold">+{challenge.xpReward} XP</span>
+          </div>
+          <div className="w-full bg-forest-950 rounded-full h-2.5 overflow-hidden">
+            <div
+              className={`h-full rounded-full ${challenge.type === 'daily' ? 'bg-primary' :
+                challenge.type === 'weekly' ? 'bg-blue-500' :
+                  'bg-purple-500'
+                }`}
+              style={{ width: `${Math.min(100, progressPercent)}%` }}
+            ></div>
+          </div>
+          <button
+            disabled={!canClaim}
+            className={`w-full py-2.5 rounded-xl font-medium text-sm transition-colors ${canClaim
+              ? 'bg-primary hover:bg-primary/90 text-forest-950'
+              : 'bg-forest-900 text-forest-500 cursor-not-allowed'
+              }`}
+          >
+            {canClaim ? 'Claim Rewards' : 'In Progress'}
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="flex flex-col gap-8 w-full max-w-full overflow-hidden">
+
+      {/* Header */}
+      <div>
+        <h2 className="text-3xl font-bold text-white mb-1">Your Gamification Hub</h2>
+        <p className="text-forest-400">Track your progress, earn badges, and complete challenges to level up your finances.</p>
+      </div>
+
+      {/* Level Card */}
+      <div className="bg-forest-800 border border-forest-700 p-8 rounded-3xl">
+        <div className="flex flex-col md:flex-row items-center gap-6">
+          <div className="w-24 h-24 rounded-full bg-amber-100 flex items-center justify-center overflow-hidden border-4 border-primary shrink-0">
+            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Jane" alt="User" className="w-full h-full" />
+          </div>
+          <div className="flex-1 w-full min-w-0">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+              <div>
+                <h3 className="text-2xl font-bold text-white">Level {currentLevel.level} - {currentLevel.name}</h3>
+                <p className="text-forest-400 text-sm">Keep up the great work!</p>
+              </div>
+              <div className="text-forest-300 text-sm font-medium">
+                {user.xp} / {nextLevel?.minXP || currentLevel.maxXP} XP
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="text-sm text-forest-400">Progress to Next Level</div>
+              <div className="w-full bg-forest-950 rounded-full h-4 overflow-hidden">
+                <div
+                  className="h-full bg-primary rounded-full transition-all duration-500"
+                  style={{ width: `${progressPercent}%` }}
+                ></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-2 bg-forest-900 p-1 rounded-xl w-fit">
+        <button
+          onClick={() => setActiveTab('challenges')}
+          className={`px-6 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'challenges'
+            ? 'bg-forest-800 text-white border border-forest-700'
+            : 'text-forest-400 hover:text-white'
+            }`}
+        >
+          Challenges
+        </button>
+        <button
+          onClick={() => setActiveTab('achievements')}
+          className={`px-6 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'achievements'
+            ? 'bg-forest-800 text-white border border-forest-700'
+            : 'text-forest-400 hover:text-white'
+            }`}
+        >
+          Achievements
+        </button>
+        <button
+          onClick={() => setActiveTab('leaderboards')}
+          className={`px-6 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'leaderboards'
+            ? 'bg-forest-800 text-white border border-forest-700'
+            : 'text-forest-400 hover:text-white'
+            }`}
+        >
+          Leaderboards
+        </button>
+      </div>
+
+      {/* Challenges Tab */}
+      {activeTab === 'challenges' && (
+        <div className="space-y-8">
+          {/* Daily Challenges */}
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-white">Daily Challenges</h3>
+              <span className="text-sm text-forest-400">Resets in 12 hours</span>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {dailyChallenges.map(challenge => (
+                <ChallengeCard key={challenge.id} challenge={challenge} />
+              ))}
+            </div>
+          </div>
+
+          {/* Weekly Challenges */}
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-white">Weekly Challenges</h3>
+              <span className="text-sm text-forest-400">Resets in 4 days</span>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {weeklyChallenges.map(challenge => (
+                <ChallengeCard key={challenge.id} challenge={challenge} />
+              ))}
+            </div>
+          </div>
+
+          {/* Monthly Challenges */}
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-white">Monthly Challenges</h3>
+              <span className="text-sm text-forest-400">Resets in 22 days</span>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {monthlyChallenges.map(challenge => (
+                <ChallengeCard key={challenge.id} challenge={challenge} />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'achievements' && (
+        <div className="py-12 text-center text-forest-400 italic">
+          Achievements coming soon...
+        </div>
+      )}
+
+      {activeTab === 'leaderboards' && (
+        <div className="py-12 text-center text-forest-400 italic">
+          Leaderboards coming soon...
+        </div>
+      )}
+    </div>
+  );
+};
+
 // --- Budgets View Component ---
 
 const BudgetsView = ({ budgets }: { budgets: Budget[] }) => {
@@ -710,6 +902,16 @@ export default function App() {
     { id: '2', name: 'Tech Innovators ETF', symbol: 'INVT', shares: 200.00, marketPrice: 152.80, marketValue: 30560.00, change24h: -0.50, totalReturn: 5820.00 },
     { id: '3', name: 'Microsoft Corp.', symbol: 'MSFT', shares: 25.00, marketPrice: 447.67, marketValue: 11191.75, change24h: 2.10, totalReturn: 2101.50 },
     { id: '4', name: 'Global Growth Fund', symbol: 'GGF', shares: 1000.00, marketPrice: 73.36, marketValue: 73363.95, change24h: 0.80, totalReturn: 16408.45 },
+  ]);
+
+  // Mock Challenges Data
+  const [challenges, setChallenges] = useState<Challenge[]>([
+    { id: '1', title: 'Log a transaction today', description: '', progress: 1, target: 1, xpReward: 50, type: 'daily', resetTime: '12 hours', completed: true },
+    { id: '2', title: 'Categorize 5 expenses', description: '', progress: 3, target: 5, xpReward: 75, type: 'daily', resetTime: '12 hours', completed: false },
+    { id: '3', title: "Stay under 'Dining Out' budget", description: '', progress: 1, target: 1, xpReward: 300, type: 'weekly', resetTime: '4 days', completed: false },
+    { id: '4', title: 'Complete daily challenges 3 times', description: '', progress: 1, target: 3, xpReward: 150, type: 'weekly', resetTime: '4 days', completed: false },
+    { id: '5', title: 'Achieve a 90% savings goal', description: '', progress: 85, target: 90, xpReward: 500, type: 'monthly', resetTime: '22 days', completed: false },
+    { id: '6', title: 'End with a positive cash flow', description: '', progress: 1, target: 1, xpReward: 400, type: 'monthly', resetTime: '22 days', completed: false },
   ]);
 
   // Mock Alerts
@@ -888,7 +1090,8 @@ export default function App() {
           <SidebarItem id="transactions" label="Transactions" icon={CreditCard} active={activeView === 'transactions'} onClick={() => setActiveView('transactions')} />
           <SidebarItem id="budgets" label="Budgets" icon={Target} active={activeView === 'budgets'} onClick={() => setActiveView('budgets')} />
           <SidebarItem id="investments" label="Investments" icon={TrendingUp} active={activeView === 'investments'} onClick={() => setActiveView('investments')} />
-          <SidebarItem id="goals" label="Goals" icon={Medal} active={activeView === 'goals'} onClick={() => setActiveView('goals')} />
+          <SidebarItem id="gamification" label="Gamification" icon={Medal} active={activeView === 'gamification'} onClick={() => setActiveView('gamification')} />
+          <SidebarItem id="goals" label="Goals" icon={Target} active={activeView === 'goals'} onClick={() => setActiveView('goals')} />
           <SidebarItem id="settings" label="Settings" icon={Settings} active={activeView === 'settings'} onClick={() => setActiveView('settings')} />
         </nav>
 
@@ -907,19 +1110,74 @@ export default function App() {
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col relative h-full overflow-hidden">
-        {/* Header */}
-        <header className="px-8 py-8 flex justify-between items-start shrink-0">
-          <div>
-            <h1 className="text-3xl font-bold text-white mb-1">
-              {activeView === 'dashboard' ? 'Welcome back, Alex!' : activeView.charAt(0).toUpperCase() + activeView.slice(1)}
-            </h1>
-            <p className="text-forest-400">
-              {activeView === 'dashboard' ? "Here's a summary of your financial activity." : 'Manage your financial records.'}
-            </p>
+        {/* Top Navigation Bar */}
+        <header className="bg-forest-900 border-b border-forest-800 px-8 py-4 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-8">
+            <div className="flex items-center gap-3 text-white font-bold text-xl md:hidden">
+              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-forest-900">
+                <Wallet size={20} strokeWidth={2.5} />
+              </div>
+              SmartWallet
+            </div>
+            <nav className="hidden md:flex items-center gap-6">
+              <button
+                onClick={() => setActiveView('dashboard')}
+                className={`text-sm font-medium transition-colors ${activeView === 'dashboard' ? 'text-white' : 'text-forest-400 hover:text-white'}`}
+              >
+                Dashboard
+              </button>
+              <button
+                onClick={() => setActiveView('budgets')}
+                className={`text-sm font-medium transition-colors ${activeView === 'budgets' ? 'text-white' : 'text-forest-400 hover:text-white'}`}
+              >
+                Budgets
+              </button>
+              <button
+                onClick={() => setActiveView('transactions')}
+                className={`text-sm font-medium transition-colors ${activeView === 'transactions' ? 'text-white' : 'text-forest-400 hover:text-white'}`}
+              >
+                Transactions
+              </button>
+              <button
+                onClick={() => setActiveView('goals')}
+                className={`text-sm font-medium transition-colors ${activeView === 'goals' ? 'text-white' : 'text-forest-400 hover:text-white'}`}
+              >
+                Goals
+              </button>
+              <button
+                onClick={() => setActiveView('gamification')}
+                className={`text-sm font-medium transition-colors ${activeView === 'gamification' ? 'text-white' : 'text-forest-400 hover:text-white'}`}
+              >
+                Gamification
+              </button>
+            </nav>
           </div>
-
-          {/* Mobile Menu Toggle would go here */}
+          <div className="flex items-center gap-4">
+            <button className="p-2 text-forest-400 hover:text-white transition-colors">
+              <AlertCircle size={20} />
+            </button>
+            <button className="p-2 text-forest-400 hover:text-white transition-colors">
+              <Settings size={20} />
+            </button>
+            <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center overflow-hidden border-2 border-forest-700 cursor-pointer">
+              <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Jane" alt="User" />
+            </div>
+          </div>
         </header>
+
+        {/* Page Header */}
+        <div className="px-8 py-6 shrink-0">
+          <h1 className="text-3xl font-bold text-white mb-1">
+            {activeView === 'dashboard' ? 'Welcome back, Jane!' :
+              activeView === 'gamification' ? 'Your Gamification Hub' :
+                activeView.charAt(0).toUpperCase() + activeView.slice(1)}
+          </h1>
+          <p className="text-forest-400">
+            {activeView === 'dashboard' ? "Here's a summary of your financial activity." :
+              activeView === 'gamification' ? 'Track your progress, earn badges, and complete challenges to level up your finances.' :
+                'Manage your financial records.'}
+          </p>
+        </div>
 
         {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto px-8 pb-8 scrollbar-thin scrollbar-thumb-forest-700 scrollbar-track-transparent">
@@ -935,6 +1193,8 @@ export default function App() {
             <BudgetsView budgets={budgets} />
           ) : activeView === 'investments' ? (
             <InvestmentsView securities={securities} />
+          ) : activeView === 'gamification' ? (
+            <GamificationView user={user} challenges={challenges} />
           ) : (
             <div className="flex items-center justify-center h-full text-forest-400 italic">
               Work in progress for {activeView} view

@@ -112,3 +112,15 @@ export interface Security {
   change24h: number;
   totalReturn: number;
 }
+
+export interface Challenge {
+  id: string;
+  title: string;
+  description: string;
+  progress: number;
+  target: number;
+  xpReward: number;
+  type: 'daily' | 'weekly' | 'monthly';
+  resetTime: string;
+  completed: boolean;
+}
