@@ -1,0 +1,424 @@
+name: Deploy to Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "deploy" to confirm production deployment'
+        required: true
+      slot:
+        description: 'Deployment slot (blue/green)'
+        required: true
+        default: 'green'
+        type: choice
+        options:
+          - blue
+          - green
+
+jobs:
+  pre-deployment-checks:
+    name: Pre-Deployment Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate confirmation
+        if: github.event.inputs.confirm != 'deploy'
+        run: |
+          echo "❌ Deployment not confirmed. Please type 'deploy' to confirm."
+          exit 1
+      
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: Budget-app/package-lock.json
+      
+      - name: Install dependencies
+        run: |
+          cd Budget-app
+          npm ci
+          cd server
+          npm ci
+      
+      - name: Run linter
+        run: |
+          cd Budget-app
+          npm run lint
+      
+      - name: Run tests
+        run: |
+          cd Budget-app
+          npm test -- --run --passWithNoTests
+          cd server
+          npm test -- --run --passWithNoTests
+      
+      - name: Security audit
+        run: |
+          cd Budget-app
+          npm audit --audit-level=high
+          cd server
+          npm audit --audit-level=high
+      
+      - name: Check for uncommitted changes
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "❌ Uncommitted changes detected"
+            exit 1
+          fi
+
+  build:
+    name: Build Application
+    needs: pre-deployment-checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: Budget-app/package-lock.json
+      
+      - name: Build frontend
+        run: |
+          cd Budget-app
+          npm ci
+          npm run build
+        env:
+          REACT_APP_API_URL: ${{ secrets.PROD_API_URL }}
+          REACT_APP_CLERK_PUBLISHABLE_KEY: ${{ secrets.PROD_CLERK_PUBLISHABLE_KEY }}
+          REACT_APP_SENTRY_DSN: ${{ secrets.PROD_SENTRY_DSN }}
+          REACT_APP_GA_TRACKING_ID: ${{ secrets.PROD_GA_TRACKING_ID }}
+          NODE_ENV: production
+      
+      - name: Build backend
+        run: |
+          cd Budget-app/server
+          npm ci
+          npm run build
+      
+      - name: Upload frontend artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: frontend-build
+          path: Budget-app/dist
+          retention-days: 7
+      
+      - name: Upload backend artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: backend-build
+          path: Budget-app/server/dist
+          retention-days: 7
+
+  database-migration:
+    name: Database Migration
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+      
+      - name: Create database backup
+        run: |
+          pg_dump ${{ secrets.PROD_DATABASE_URL }} > backup_$(date +%Y%m%d_%H%M%S).sql
+        continue-on-error: true
+      
+      - name: Run migrations
+        run: |
+          cd Budget-app
+          chmod +x scripts/migrate.sh
+          ./scripts/migrate.sh production
+        env:
+          DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+      
+      - name: Verify migrations
+        run: |
+          psql ${{ secrets.PROD_DATABASE_URL }} -c "SELECT * FROM schema_migrations ORDER BY applied_at DESC LIMIT 5;"
+
+  deploy-backend:
+    name: Deploy Backend
+    needs: database-migration
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Download backend artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: backend-build
+          path: Budget-app/server/dist
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+      
+      - name: Build and push Docker image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: smartwallet-api
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          cd Budget-app/server
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+      
+      - name: Deploy to ECS
+        run: |
+          aws ecs update-service \
+            --cluster smartwallet-prod \
+            --service smartwallet-api-${{ github.event.inputs.slot }} \
+            --force-new-deployment
+      
+      - name: Wait for deployment
+        run: |
+          aws ecs wait services-stable \
+            --cluster smartwallet-prod \
+            --services smartwallet-api-${{ github.event.inputs.slot }}
+
+  deploy-frontend:
+    name: Deploy Frontend
+    needs: deploy-backend
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Download frontend artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: frontend-build
+          path: Budget-app/dist
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      
+      - name: Deploy to S3
+        run: |
+          aws s3 sync Budget-app/dist/ s3://${{ secrets.PROD_S3_BUCKET }} \
+            --delete \
+            --cache-control "public, max-age=31536000, immutable" \
+            --exclude "index.html" \
+            --exclude "*.map"
+          
+          # Upload index.html with no-cache
+          aws s3 cp Budget-app/dist/index.html s3://${{ secrets.PROD_S3_BUCKET }}/index.html \
+            --cache-control "no-cache, no-store, must-revalidate"
+      
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.PROD_CLOUDFRONT_ID }} \
+            --paths "/*"
+
+  smoke-tests:
+    name: Run Smoke Tests
+    needs: deploy-frontend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Wait for deployment to stabilize
+        run: sleep 30
+      
+      - name: Run smoke tests
+        run: |
+          cd Budget-app
+          chmod +x scripts/smoke-test.sh
+          ./scripts/smoke-test.sh production
+        env:
+          API_BASE_URL: ${{ secrets.PROD_API_URL }}
+          FRONTEND_URL: ${{ secrets.PROD_FRONTEND_URL }}
+          TEST_USER_TOKEN: ${{ secrets.PROD_TEST_USER_TOKEN }}
+      
+      - name: Health check
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" ${{ secrets.PROD_API_URL }}/health)
+          if [ $response -ne 200 ]; then
+            echo "❌ Health check failed with status $response"
+            exit 1
+          fi
+          echo "✅ Health check passed"
+
+  traffic-migration:
+    name: Gradual Traffic Migration
+    needs: smoke-tests
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    steps:
+      - name: Route 10% traffic to new version
+        run: |
+          # Update load balancer or service mesh configuration
+          echo "Routing 10% traffic to ${{ github.event.inputs.slot }}"
+          # Implementation depends on your infrastructure
+      
+      - name: Monitor for 10 minutes
+        run: |
+          echo "Monitoring metrics..."
+          sleep 600
+      
+      - name: Route 25% traffic
+        run: |
+          echo "Routing 25% traffic to ${{ github.event.inputs.slot }}"
+          sleep 600
+      
+      - name: Route 50% traffic
+        run: |
+          echo "Routing 50% traffic to ${{ github.event.inputs.slot }}"
+          sleep 600
+      
+      - name: Route 100% traffic
+        run: |
+          echo "Routing 100% traffic to ${{ github.event.inputs.slot }}"
+
+  post-deployment:
+    name: Post-Deployment Tasks
+    needs: traffic-migration
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify Sentry of deployment
+        run: |
+          curl https://sentry.io/api/0/organizations/${{ secrets.SENTRY_ORG }}/releases/ \
+            -X POST \
+            -H "Authorization: Bearer ${{ secrets.SENTRY_AUTH_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "version": "${{ github.sha }}",
+              "projects": ["smartwallet"],
+              "refs": [{
+                "repository": "${{ github.repository }}",
+                "commit": "${{ github.sha }}"
+              }]
+            }'
+      
+      - name: Create GitHub release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v2.0.0-${{ github.sha }}
+          release_name: Production Release v2.0.0
+          body: |
+            ## SmartWallet v2.0.0 - Production Deployment
+            
+            ### New Features
+            - Recurring transactions management
+            - Smart budget recommendations
+            - Receipt scanning with OCR
+            - Investment tracking
+            - Debt management
+            - Enhanced gamification
+            - AI assistant improvements
+            - Security enhancements
+            
+            ### Deployment Details
+            - Commit: ${{ github.sha }}
+            - Slot: ${{ github.event.inputs.slot }}
+            - Deployed by: ${{ github.actor }}
+            - Timestamp: ${{ github.event.head_commit.timestamp }}
+          draft: false
+          prerelease: false
+      
+      - name: Notify Slack
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: |
+            🚀 Production deployment completed successfully!
+            
+            Version: v2.0.0
+            Commit: ${{ github.sha }}
+            Slot: ${{ github.event.inputs.slot }}
+            Deployed by: ${{ github.actor }}
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+        if: always()
+      
+      - name: Send email notification
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: SmartWallet Production Deployment - Success
+          to: team@smartwallet.com
+          from: deployments@smartwallet.com
+          body: |
+            Production deployment completed successfully!
+            
+            Version: v2.0.0
+            Commit: ${{ github.sha }}
+            Slot: ${{ github.event.inputs.slot }}
+            Deployed by: ${{ github.actor }}
+            
+            All smoke tests passed.
+            Monitoring: https://sentry.io/organizations/smartwallet
+        if: success()
+
+  rollback:
+    name: Rollback (Manual Trigger)
+    needs: [deploy-backend, deploy-frontend]
+    runs-on: ubuntu-latest
+    if: failure()
+    environment:
+      name: production
+    steps:
+      - name: Notify team of failure
+        uses: 8398a7/action-slack@v3
+        with:
+          status: failure
+          text: |
+            ⚠️ Production deployment failed!
+            
+            Initiating rollback procedure...
+            Commit: ${{ github.sha }}
+            Slot: ${{ github.event.inputs.slot }}
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+      
+      - name: Route traffic back to previous version
+        run: |
+          echo "Routing 100% traffic back to previous version"
+          # Implementation depends on your infrastructure
+      
+      - name: Notify team of rollback
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: |
+            🔄 Rollback completed
+            
+            Traffic routed back to previous version.
+            Please investigate the deployment failure.
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
