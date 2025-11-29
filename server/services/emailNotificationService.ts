@@ -1,4 +1,4 @@
-import { Account } from '../models/Account';
+import { User } from '../models/User';
 
 /**
  * Email notification service
@@ -19,8 +19,8 @@ interface EmailTemplate {
  */
 async function getUserEmail(userId: string): Promise<string | null> {
     try {
-        const account = await Account.findOne({ userId });
-        return account?.email || null;
+        const user = await User.findOne({ clerkId: userId });
+        return user?.email || null;
     } catch (error) {
         console.error('Error fetching user email:', error);
         return null;

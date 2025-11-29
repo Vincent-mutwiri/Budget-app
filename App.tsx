@@ -231,14 +231,14 @@ const TransactionsView = ({
             <div>
               <label className="block text-forest-300 text-sm font-medium mb-2">Amount</label>
               <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-forest-400">$</span>
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-forest-400">KSh</span>
                 <input
                   type="number"
                   step="0.01"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="0.00"
-                  className="w-full bg-forest-950 border border-forest-700 rounded-xl py-3 pl-8 pr-4 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder-forest-500"
+                  className="w-full bg-forest-950 border border-forest-700 rounded-xl py-3 pl-12 pr-4 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder-forest-500"
                   required
                 />
               </div>
@@ -678,7 +678,7 @@ const GamificationView = ({ user, challenges }: { user: UserState, challenges: C
       <div className="bg-forest-800 border border-forest-700 p-8 rounded-3xl">
         <div className="flex flex-col md:flex-row items-center gap-6">
           <div className="w-24 h-24 rounded-full bg-amber-100 flex items-center justify-center overflow-hidden border-4 border-primary shrink-0">
-            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Jane" alt="User" className="w-full h-full" />
+            <img src={clerkUser?.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${clerkUser?.firstName || 'User'}`} alt="User" className="w-full h-full" />
           </div>
           <div className="flex-1 w-full min-w-0">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
@@ -1070,6 +1070,7 @@ const SettingsView = ({ userProfile, onUpdateProfile }: { userProfile: UserProfi
                     onChange={(e) => setCurrency(e.target.value)}
                     className="w-full md:w-52 bg-forest-950 border border-forest-700 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                   >
+                    <option value="KES">KES - Kenyan Shilling</option>
                     <option value="USD">USD - United States Dollar</option>
                     <option value="EUR">EUR - Euro</option>
                     <option value="GBP">GBP - British Pound</option>
@@ -1509,7 +1510,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const { toasts, success, error: showError, closeToast } = useToast();
 
-  const [user, setUser] = useState<UserState>({ xp: 0, level: 1, streak: 0, badges: 0, currency: 'USD', monthlyIncome: 0 });
+  const [user, setUser] = useState<UserState>({ xp: 0, level: 1, streak: 0, badges: 0, currency: 'KES', monthlyIncome: 0 });
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
 
@@ -1527,11 +1528,11 @@ export default function App() {
 
   // User Profile Data
   const [userProfile, setUserProfile] = useState<UserProfile>({
-    fullName: 'Jane Doe',
-    email: 'jane.doe@email.com',
-    avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Jane',
+    fullName: 'User',
+    email: 'user@email.com',
+    avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=User',
     joinedDate: '2023-01-15',
-    currency: 'USD',
+    currency: 'KES',
     theme: 'dark',
     budgetAlerts: true,
     lastPasswordChange: '2024-02-20',
@@ -1555,6 +1556,23 @@ export default function App() {
     const totalExpenses = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
     return { totalIncome, totalExpenses, balance: totalIncome - totalExpenses, savingsRate: 0 }; // calc rate if needed
   }, [transactions]);
+
+  // Update user profile when Clerk user changes
+  useEffect(() => {
+    if (clerkUser) {
+      setUserProfile({
+        fullName: clerkUser.fullName || 'User',
+        email: clerkUser.primaryEmailAddress?.emailAddress || 'user@email.com',
+        avatarUrl: clerkUser.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${clerkUser.firstName || 'User'}`,
+        joinedDate: clerkUser.createdAt ? new Date(clerkUser.createdAt).toISOString().split('T')[0] : '2023-01-15',
+        currency: 'KES',
+        theme: 'dark',
+        budgetAlerts: true,
+        lastPasswordChange: '2024-02-20',
+        twoFactorEnabled: false
+      });
+    }
+  }, [clerkUser]);
 
   // Fetch Data on Load
   useEffect(() => {
@@ -1922,11 +1940,11 @@ export default function App() {
               <div className="p-6">
                 <div className="flex items-center gap-3 p-4 rounded-2xl hover:bg-forest-800 transition-colors cursor-pointer">
                   <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center overflow-hidden border-2 border-white">
-                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Jane" alt="User" />
+                    <img src={clerkUser?.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${clerkUser?.firstName || 'User'}`} alt="User" />
                   </div>
                   <div>
-                    <div className="text-white font-bold text-sm">Jane Doe</div>
-                    <div className="text-forest-400 text-xs">jane.doe@email.com</div>
+                    <div className="text-white font-bold text-sm">{clerkUser?.fullName || 'User'}</div>
+                    <div className="text-forest-400 text-xs">{clerkUser?.primaryEmailAddress?.emailAddress || 'user@email.com'}</div>
                   </div>
                 </div>
               </div>
@@ -1995,7 +2013,7 @@ export default function App() {
               {activeView !== 'insights' && activeView !== 'ai-assistant' && (
                 <div className="px-8 py-6 shrink-0">
                   <h1 className="text-3xl font-bold text-white mb-1">
-                    {activeView === 'dashboard' ? 'Welcome back, Jane!' :
+                    {activeView === 'dashboard' ? `Welcome back, ${clerkUser?.firstName || 'User'}!` :
                       activeView === 'gamification' ? 'Your Gamification Hub' :
                         activeView === 'export' ? 'Export & Reports' :
                           activeView === 'debts' ? 'Debt Tracker' :

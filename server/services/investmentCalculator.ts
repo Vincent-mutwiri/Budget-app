@@ -1,9 +1,18 @@
-import type { Investment, InvestmentMetrics } from '../../types';
+import type { InvestmentMetrics } from '../../types';
+
+// Type for investment data that can come from Mongoose (with _id) or frontend (with id)
+type InvestmentData = {
+    initialAmount: number;
+    currentValue: number;
+    ratePerAnnum: number;
+    purchaseDate: string | Date;
+    [key: string]: any; // Allow additional properties
+};
 
 /**
  * Calculate investment metrics including returns and projections
  */
-export function calculateInvestmentMetrics(investment: Investment): InvestmentMetrics {
+export function calculateInvestmentMetrics(investment: InvestmentData): InvestmentMetrics {
     const { initialAmount, currentValue, ratePerAnnum, purchaseDate } = investment;
 
     // Calculate total return
@@ -40,7 +49,7 @@ export function calculateInvestmentMetrics(investment: Investment): InvestmentMe
 /**
  * Calculate portfolio-level metrics
  */
-export function calculatePortfolioMetrics(investments: Investment[]) {
+export function calculatePortfolioMetrics(investments: InvestmentData[]) {
     if (investments.length === 0) {
         return {
             totalValue: 0,

@@ -1,4 +1,4 @@
-import { Transaction, Budget, Category } from '../../types';
+import { Category } from '../../types';
 
 /**
  * PDF Export Service
@@ -7,12 +7,27 @@ import { Transaction, Budget, Category } from '../../types';
  * In production, you would use a library like pdfkit, puppeteer, or jsPDF
  */
 
+// Flexible types that work with both Mongoose documents and frontend types
+type BudgetData = {
+    category: string | Category;
+    limit: number;
+    [key: string]: any;
+};
+
+type TransactionData = {
+    category: string | Category;
+    type: string;
+    date: string | Date;
+    amount: number;
+    [key: string]: any;
+};
+
 /**
  * Generate HTML for budget report (to be converted to PDF)
  */
 export function generateBudgetReportHTML(
-    budgets: Budget[],
-    transactions: Transaction[],
+    budgets: BudgetData[],
+    transactions: TransactionData[],
     dateRange: { start: string; end: string },
     userName: string = 'User'
 ): string {
@@ -225,8 +240,8 @@ export function generateBudgetReportHTML(
  * Generate HTML for financial summary report (to be converted to PDF)
  */
 export function generateFinancialSummaryHTML(
-    transactions: Transaction[],
-    budgets: Budget[],
+    transactions: TransactionData[],
+    budgets: BudgetData[],
     investments: any[],
     debts: any[],
     dateRange: { start: string; end: string },

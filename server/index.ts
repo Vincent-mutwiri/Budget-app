@@ -4,8 +4,8 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
 
-// Load environment variables from root .env
-dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+// Load environment variables from Budget-app/.env
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 import uploadRoutes from './routes/upload';
 import receiptRoutes from './routes/receipts';
@@ -40,8 +40,24 @@ if (!MONGODB_URI) {
 }
 
 mongoose.connect(MONGODB_URI)
-    .then(() => console.log('Connected to MongoDB'))
-    .catch((err) => console.error('MongoDB connection error:', err));
+    .then(() => {
+        console.log('✅ Connected to MongoDB successfully');
+        console.log('Database:', mongoose.connection.name);
+    })
+    .catch((err) => {
+        console.error('❌ MongoDB connection error:', err);
+        process.exit(1);
+    });
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+    const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+    res.json({
+        status: 'ok',
+        database: dbStatus,
+        timestamp: new Date().toISOString()
+    });
+});
 
 // Routes
 app.use('/api/upload', uploadRoutes);
@@ -65,7 +81,8 @@ app.get('/api/user/:clerkId', async (req, res) => {
         }
         res.json(user);
     } catch (error) {
-        res.status(500).json({ error: 'Server error' });
+        console.error('Error in /api/user/:clerkId:', error);
+        res.status(500).json({ error: 'Server error', details: error instanceof Error ? error.message : 'Unknown error' });
     }
 });
 
@@ -136,6 +153,30 @@ app.post('/api/goals', async (req, res) => {
         const newGoal = new SavingsGoal(req.body);
         await newGoal.save();
         res.status(201).json(newGoal);
+    } catch (error) {
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Get Accounts
+app.get('/api/accounts', async (req, res) => {
+    const { userId } = req.query;
+    if (!userId) return res.status(400).json({ error: 'UserId required' });
+
+    try {
+        const accounts = await Account.find({ userId });
+        res.json(accounts);
+    } catch (error) {
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Add Account
+app.post('/api/accounts', async (req, res) => {
+    try {
+        const newAccount = new Account(req.body);
+        await newAccount.save();
+        res.status(201).json(newAccount);
     } catch (error) {
         res.status(500).json({ error: 'Server error' });
     }

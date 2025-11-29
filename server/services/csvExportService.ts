@@ -1,9 +1,49 @@
-import { Transaction, Investment, Debt, Budget, Category } from '../../types';
+import { Category } from '../../types';
 
 /**
  * CSV Export Service
  * Generates CSV files for various financial data types
  */
+
+// Flexible types that work with both Mongoose documents and frontend types
+type TransactionData = {
+    id?: string;
+    _id?: any;
+    date: string | Date;
+    description: string;
+    category: string | Category;
+    amount: number;
+    type: string;
+    [key: string]: any;
+};
+
+type InvestmentData = {
+    id?: string;
+    _id?: any;
+    name: string;
+    type: string;
+    initialAmount: number;
+    currentValue: number;
+    [key: string]: any;
+};
+
+type DebtData = {
+    id?: string;
+    _id?: any;
+    name: string;
+    type: string;
+    currentBalance: number;
+    [key: string]: any;
+};
+
+type BudgetData = {
+    id?: string;
+    _id?: any;
+    category: string | Category;
+    limit: number;
+    spent: number;
+    [key: string]: any;
+};
 
 /**
  * Convert array of objects to CSV format
@@ -29,11 +69,11 @@ function arrayToCSV(data: any[], headers: string[]): string {
 /**
  * Generate CSV for transactions
  */
-export function generateTransactionsCSV(transactions: Transaction[]): string {
+export function generateTransactionsCSV(transactions: TransactionData[]): string {
     const headers = ['id', 'date', 'description', 'category', 'amount', 'type'];
 
     const formattedData = transactions.map(t => ({
-        id: t.id,
+        id: t.id || t._id?.toString() || '',
         date: new Date(t.date).toISOString().split('T')[0],
         description: t.description,
         category: t.category,
@@ -47,7 +87,7 @@ export function generateTransactionsCSV(transactions: Transaction[]): string {
 /**
  * Generate CSV for investments
  */
-export function generateInvestmentsCSV(investments: any[]): string {
+export function generateInvestmentsCSV(investments: InvestmentData[]): string {
     const headers = [
         'id',
         'name',
@@ -63,7 +103,7 @@ export function generateInvestmentsCSV(investments: any[]): string {
     ];
 
     const formattedData = investments.map(inv => ({
-        id: inv.id,
+        id: inv.id || inv._id?.toString() || '',
         name: inv.name,
         type: inv.type,
         symbol: inv.symbol || '',
@@ -82,7 +122,7 @@ export function generateInvestmentsCSV(investments: any[]): string {
 /**
  * Generate CSV for debts
  */
-export function generateDebtsCSV(debts: any[]): string {
+export function generateDebtsCSV(debts: DebtData[]): string {
     const headers = [
         'id',
         'name',
@@ -98,7 +138,7 @@ export function generateDebtsCSV(debts: any[]): string {
     ];
 
     const formattedData = debts.map(debt => ({
-        id: debt.id,
+        id: debt.id || debt._id?.toString() || '',
         name: debt.name,
         type: debt.type,
         originalAmount: debt.originalAmount.toFixed(2),
@@ -117,7 +157,7 @@ export function generateDebtsCSV(debts: any[]): string {
 /**
  * Generate CSV for budgets
  */
-export function generateBudgetsCSV(budgets: Budget[], transactions: Transaction[]): string {
+export function generateBudgetsCSV(budgets: BudgetData[], transactions: TransactionData[]): string {
     const headers = ['category', 'limit', 'spent', 'remaining', 'percentageUsed'];
 
     const formattedData = budgets.map(budget => {

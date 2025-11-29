@@ -1,9 +1,17 @@
-import { Debt, DebtMetrics, DebtPayment } from '../../types';
+import { DebtMetrics, DebtPayment } from '../../types';
+
+// Type for debt data that can come from Mongoose (with _id) or frontend (with id)
+type DebtData = {
+    currentBalance: number;
+    interestRate: number;
+    minimumPayment: number;
+    [key: string]: any; // Allow additional properties
+};
 
 /**
  * Calculate debt metrics including payoff date, total interest, and months remaining
  */
-export function calculateDebtMetrics(debt: Debt): DebtMetrics {
+export function calculateDebtMetrics(debt: DebtData): DebtMetrics {
     const { currentBalance, interestRate, minimumPayment } = debt;
 
     // Monthly interest rate
@@ -46,7 +54,7 @@ export function calculateDebtMetrics(debt: Debt): DebtMetrics {
  * Calculate accelerated payoff scenarios with extra payments
  */
 export function calculateAcceleratedPayoff(
-    debt: Debt,
+    debt: DebtData,
     extraPayment: number
 ): { acceleratedPayoffDate: string; interestSavings: number; monthsRemaining: number } {
     const { currentBalance, interestRate, minimumPayment } = debt;
@@ -114,11 +122,11 @@ export function calculateAccruedInterest(
  * Process a debt payment and calculate principal/interest split
  */
 export function processDebtPayment(
-    debt: Debt,
+    debt: DebtData & { paymentHistory?: any[]; createdAt?: any },
     paymentAmount: number,
     paymentDate: Date
 ): { principalPaid: number; interestPaid: number; newBalance: number } {
-    const { currentBalance, interestRate, paymentHistory } = debt;
+    const { currentBalance, interestRate, paymentHistory = [] } = debt;
 
     // Get last payment date or creation date
     const lastPaymentDate = paymentHistory.length > 0
@@ -145,7 +153,7 @@ export function processDebtPayment(
 /**
  * Calculate total debt and monthly obligations for multiple debts
  */
-export function calculateDebtSummary(debts: Debt[]): {
+export function calculateDebtSummary(debts: DebtData[]): {
     totalDebt: number;
     monthlyObligations: number;
     totalMonthlyInterest: number;
