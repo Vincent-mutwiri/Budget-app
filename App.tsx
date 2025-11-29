@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import {
   Transaction, UserState, Category, DailyChallenge,
-  FinancialSnapshot, Goal, Notification, Alert, TransactionType, CategoriesList, Budget, Security, Challenge, SavingsGoal
+  FinancialSnapshot, Goal, Notification, Alert, TransactionType, CategoriesList, Budget, Security, Challenge, SavingsGoal, UserProfile
 } from './types';
 import {
   MOCK_TRANSACTIONS, LEVEL_THRESHOLDS, XP_REWARDS,
@@ -860,6 +860,264 @@ const GoalsView = ({ goals }: { goals: SavingsGoal[] }) => {
   );
 };
 
+// --- Settings View Component ---
+
+const SettingsView = ({ userProfile, onUpdateProfile }: { userProfile: UserProfile, onUpdateProfile: (profile: UserProfile) => void }) => {
+  const [activeSection, setActiveSection] = useState<'profile' | 'preferences' | 'security'>('profile');
+  const [fullName, setFullName] = useState(userProfile.fullName);
+  const [currency, setCurrency] = useState(userProfile.currency);
+  const [theme, setTheme] = useState(userProfile.theme);
+  const [budgetAlerts, setBudgetAlerts] = useState(userProfile.budgetAlerts);
+
+  const handleSaveProfile = () => {
+    onUpdateProfile({
+      ...userProfile,
+      fullName,
+      currency,
+      theme,
+      budgetAlerts
+    });
+  };
+
+  return (
+    <div className="flex flex-col md:flex-row w-full gap-8 max-w-full overflow-hidden">
+
+      {/* Side Navigation */}
+      <aside className="w-full md:w-64 flex-shrink-0">
+        <div className="flex flex-col gap-2 p-4 bg-forest-800 border border-forest-700 rounded-3xl">
+          <button
+            onClick={() => setActiveSection('profile')}
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${activeSection === 'profile'
+              ? 'bg-primary/20 text-primary'
+              : 'text-forest-300 hover:bg-forest-700 hover:text-white'
+              }`}
+          >
+            <Settings size={20} className={activeSection === 'profile' ? 'fill-primary' : ''} />
+            <span className="text-sm font-bold">Profile</span>
+          </button>
+          <button
+            onClick={() => setActiveSection('preferences')}
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${activeSection === 'preferences'
+              ? 'bg-primary/20 text-primary'
+              : 'text-forest-300 hover:bg-forest-700 hover:text-white'
+              }`}
+          >
+            <Target size={20} />
+            <span className="text-sm font-medium">Preferences</span>
+          </button>
+          <button
+            onClick={() => setActiveSection('security')}
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${activeSection === 'security'
+              ? 'bg-primary/20 text-primary'
+              : 'text-forest-300 hover:bg-forest-700 hover:text-white'
+              }`}
+          >
+            <AlertCircle size={20} />
+            <span className="text-sm font-medium">Security</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 min-w-0">
+        <div className="flex flex-col gap-8">
+
+          {/* Profile Section */}
+          {activeSection === 'profile' && (
+            <div className="flex flex-col gap-6 p-6 bg-forest-800 border border-forest-700 rounded-3xl">
+              <div className="flex flex-col gap-1 pb-4 border-b border-forest-700">
+                <h2 className="text-2xl font-bold text-white">Profile</h2>
+                <p className="text-forest-400 text-base">Update your photo and personal details here.</p>
+              </div>
+
+              {/* Profile Header */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4">
+                <div className="flex gap-4 items-center">
+                  <div
+                    className="w-24 h-24 rounded-full bg-center bg-cover border-4 border-forest-700"
+                    style={{ backgroundImage: `url("${userProfile.avatarUrl}")` }}
+                  ></div>
+                  <div className="flex flex-col justify-center">
+                    <p className="text-white text-xl font-bold">{userProfile.fullName}</p>
+                    <p className="text-forest-400 text-base">
+                      Joined on {new Date(userProfile.joinedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </p>
+                  </div>
+                </div>
+                <button className="flex items-center justify-center rounded-xl h-10 px-4 bg-forest-900 hover:bg-forest-700 text-white text-sm font-bold transition-colors whitespace-nowrap">
+                  Upload new photo
+                </button>
+              </div>
+
+              {/* Profile Form */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4">
+                <div className="flex flex-col">
+                  <label className="flex flex-col">
+                    <span className="text-white text-sm font-medium mb-2">Full Name</span>
+                    <input
+                      type="text"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      className="w-full bg-forest-950 border border-forest-700 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                    />
+                  </label>
+                </div>
+                <div className="flex flex-col">
+                  <label className="flex flex-col">
+                    <span className="text-white text-sm font-medium mb-2">Email Address</span>
+                    <input
+                      type="email"
+                      value={userProfile.email}
+                      readOnly
+                      className="w-full bg-forest-900 border border-forest-700 rounded-xl py-3 px-4 text-forest-400 cursor-not-allowed"
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex justify-end p-4 border-t border-forest-700">
+                <button
+                  onClick={handleSaveProfile}
+                  className="flex items-center justify-center rounded-xl h-10 px-5 bg-primary hover:bg-primary/90 text-forest-950 text-sm font-bold transition-colors"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Preferences Section */}
+          {activeSection === 'preferences' && (
+            <div className="flex flex-col gap-6 p-6 bg-forest-800 border border-forest-700 rounded-3xl">
+              <div className="flex flex-col gap-1">
+                <h2 className="text-2xl font-bold text-white">Preferences</h2>
+                <p className="text-forest-400 text-base">Manage your currency, theme, and notification settings.</p>
+              </div>
+
+              <div className="flex flex-col gap-6 p-4 border-t border-forest-700">
+                {/* Currency Dropdown */}
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                  <div className="flex flex-col">
+                    <p className="text-white font-medium">Default Currency</p>
+                    <p className="text-forest-400 text-sm">Choose your primary currency for reports and budgets.</p>
+                  </div>
+                  <select
+                    value={currency}
+                    onChange={(e) => setCurrency(e.target.value)}
+                    className="w-full md:w-52 bg-forest-950 border border-forest-700 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                  >
+                    <option value="USD">USD - United States Dollar</option>
+                    <option value="EUR">EUR - Euro</option>
+                    <option value="GBP">GBP - British Pound</option>
+                  </select>
+                </div>
+
+                <hr className="border-forest-700" />
+
+                {/* Theme Toggle */}
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                  <div className="flex flex-col">
+                    <p className="text-white font-medium">Theme</p>
+                    <p className="text-forest-400 text-sm">Switch between light and dark mode.</p>
+                  </div>
+                  <button
+                    onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                    className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${theme === 'dark' ? 'bg-primary' : 'bg-forest-700'
+                      }`}
+                  >
+                    <span
+                      className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${theme === 'dark' ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                    />
+                  </button>
+                </div>
+
+                <hr className="border-forest-700" />
+
+                {/* Budget Alerts Toggle */}
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                  <div className="flex flex-col">
+                    <p className="text-white font-medium">Budget Alerts</p>
+                    <p className="text-forest-400 text-sm">Get notified when you're nearing a budget limit.</p>
+                  </div>
+                  <button
+                    onClick={() => setBudgetAlerts(!budgetAlerts)}
+                    className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${budgetAlerts ? 'bg-primary' : 'bg-forest-700'
+                      }`}
+                  >
+                    <span
+                      className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${budgetAlerts ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                    />
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex justify-end p-4 border-t border-forest-700">
+                <button
+                  onClick={handleSaveProfile}
+                  className="flex items-center justify-center rounded-xl h-10 px-5 bg-primary hover:bg-primary/90 text-forest-950 text-sm font-bold transition-colors"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Security Section */}
+          {activeSection === 'security' && (
+            <div className="flex flex-col gap-6 p-6 bg-forest-800 border border-forest-700 rounded-3xl">
+              <div className="flex flex-col gap-1">
+                <h2 className="text-2xl font-bold text-white">Security & Privacy</h2>
+                <p className="text-forest-400 text-base">Manage your password and account security.</p>
+              </div>
+
+              <div className="flex flex-col gap-6 p-4 border-t border-forest-700">
+                {/* Change Password */}
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                  <div className="flex flex-col">
+                    <p className="text-white font-medium">Password</p>
+                    <p className="text-forest-400 text-sm">
+                      Last changed on {new Date(userProfile.lastPasswordChange).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </p>
+                  </div>
+                  <button className="flex items-center justify-center rounded-xl h-10 px-4 bg-forest-900 hover:bg-forest-700 text-white text-sm font-bold transition-colors whitespace-nowrap">
+                    Change Password
+                  </button>
+                </div>
+
+                <hr className="border-forest-700" />
+
+                {/* 2FA */}
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                  <div className="flex flex-col">
+                    <p className="text-white font-medium">Two-Factor Authentication</p>
+                    <p className="text-forest-400 text-sm">Add an extra layer of security to your account.</p>
+                  </div>
+                  <button className="flex items-center justify-center rounded-xl h-10 px-4 bg-primary hover:bg-primary/90 text-forest-950 text-sm font-bold transition-colors whitespace-nowrap">
+                    {userProfile.twoFactorEnabled ? 'Disable 2FA' : 'Enable 2FA'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Delete Account */}
+              <div className="flex flex-col p-4 border-t border-rose-500/20 bg-rose-500/5 mt-8 rounded-b-3xl">
+                <p className="text-white font-medium">Delete Account</p>
+                <p className="text-forest-400 text-sm mb-3">
+                  Permanently delete your account and all associated data. This action cannot be undone.
+                </p>
+                <button className="text-rose-500 text-sm font-bold self-start hover:underline">
+                  I want to delete my account
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </main>
+    </div>
+  );
+};
+
 // --- Budgets View Component ---
 
 const BudgetsView = ({ budgets }: { budgets: Budget[] }) => {
@@ -1075,6 +1333,19 @@ export default function App() {
       status: 'completed'
     },
   ]);
+
+  // User Profile Data
+  const [userProfile, setUserProfile] = useState<UserProfile>({
+    fullName: 'Jane Doe',
+    email: 'jane.doe@email.com',
+    avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Jane',
+    joinedDate: '2023-01-15',
+    currency: 'USD',
+    theme: 'dark',
+    budgetAlerts: true,
+    lastPasswordChange: '2024-02-20',
+    twoFactorEnabled: false
+  });
 
   // Mock Alerts
   const alerts: Alert[] = [
@@ -1359,6 +1630,8 @@ export default function App() {
             <GamificationView user={user} challenges={challenges} />
           ) : activeView === 'goals' ? (
             <GoalsView goals={savingsGoals} />
+          ) : activeView === 'settings' ? (
+            <SettingsView userProfile={userProfile} onUpdateProfile={setUserProfile} />
           ) : (
             <div className="flex items-center justify-center h-full text-forest-400 italic">
               Work in progress for {activeView} view

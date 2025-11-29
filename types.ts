@@ -134,3 +134,15 @@ export interface SavingsGoal {
   imageUrl: string;
   status: 'in-progress' | 'completed' | 'archived';
 }
+
+export interface UserProfile {
+  fullName: string;
+  email: string;
+  avatarUrl: string;
+  joinedDate: string;
+  currency: string;
+  theme: 'light' | 'dark';
+  budgetAlerts: boolean;
+  lastPasswordChange: string;
+  twoFactorEnabled: boolean;
+}
