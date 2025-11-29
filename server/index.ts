@@ -28,8 +28,12 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
+import { rateLimit } from './middleware/rateLimit';
+import { validateTransaction, validateBudget } from './middleware/validation';
+
 app.use(cors());
 app.use(express.json());
+app.use(rateLimit(100, 60000));
 
 // Database Connection
 const MONGODB_URI = process.env.MONGODB_URI;
@@ -100,7 +104,7 @@ app.get('/api/transactions', async (req, res) => {
 });
 
 // Add Transaction
-app.post('/api/transactions', async (req, res) => {
+app.post('/api/transactions', validateTransaction, async (req, res) => {
     try {
         const newTransaction = new Transaction(req.body);
         await newTransaction.save();
@@ -124,7 +128,7 @@ app.get('/api/budgets', async (req, res) => {
 });
 
 // Add Budget
-app.post('/api/budgets', async (req, res) => {
+app.post('/api/budgets', validateBudget, async (req, res) => {
     try {
         const newBudget = new Budget(req.body);
         await newBudget.save();

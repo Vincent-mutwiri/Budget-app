@@ -49,6 +49,9 @@ import { MetricCard } from './components/shared/MetricCard';
 import { GoalCard } from './components/shared/GoalCard';
 import { useTransactions } from './hooks/useTransactions';
 import { handleApiError } from './utils/errorHandler';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { OfflineIndicator } from './components/OfflineIndicator';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 // --- Components ---
 
@@ -1568,29 +1571,13 @@ export default function App() {
   }, [clerkUser]);
 
   // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey || e.metaKey) {
-        switch (e.key) {
-          case 'n':
-            e.preventDefault();
-            setActiveView('transactions');
-            break;
-          case 'b':
-            e.preventDefault();
-            setActiveView('budgets');
-            break;
-          case 'd':
-            e.preventDefault();
-            setActiveView('dashboard');
-            break;
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  useKeyboardShortcuts([
+    { key: 'n', ctrl: true, action: () => setActiveView('transactions') },
+    { key: 'b', ctrl: true, action: () => setActiveView('budgets') },
+    { key: 'd', ctrl: true, action: () => setActiveView('dashboard') },
+    { key: 'g', ctrl: true, action: () => setActiveView('goals') },
+    { key: 's', ctrl: true, action: () => setActiveView('settings') },
+  ]);
 
   // Fetch Data on Load
   useEffect(() => {
@@ -1905,7 +1892,7 @@ export default function App() {
   );
 
   return (
-    <>
+    <ErrorBoundary>
       <SignedOut>
         <div className="flex items-center justify-center h-screen bg-forest-950 text-white">
           <div className="text-center">
@@ -1921,6 +1908,9 @@ export default function App() {
       <SignedIn>
         {/* Toast Container */}
         <ToastContainer toasts={toasts} onClose={closeToast} />
+        
+        {/* Offline Indicator */}
+        <OfflineIndicator />
 
         {/* Loading State */}
         {isLoading && <LoadingSpinner fullScreen message="Loading your financial data..." />}
@@ -2187,6 +2177,6 @@ export default function App() {
           </div>
         )}
       </SignedIn>
-    </>
+    </ErrorBoundary>
   );
 }
