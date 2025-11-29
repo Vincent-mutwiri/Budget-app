@@ -146,3 +146,14 @@ export interface UserProfile {
   lastPasswordChange: string;
   twoFactorEnabled: boolean;
 }
+
+export interface Account {
+  id: string;
+  name: string;
+  type: 'asset' | 'liability';
+  balance: number;
+  institution: string;
+  logoUrl: string;
+  lastSynced: string;
+  syncStatus: 'success' | 'error';
+}

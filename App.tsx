@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import {
   Transaction, UserState, Category, DailyChallenge,
-  FinancialSnapshot, Goal, Notification, Alert, TransactionType, CategoriesList, Budget, Security, Challenge, SavingsGoal, UserProfile
+  FinancialSnapshot, Goal, Notification, Alert, TransactionType, CategoriesList, Budget, Security, Challenge, SavingsGoal, UserProfile, Account
 } from './types';
 import {
   MOCK_TRANSACTIONS, LEVEL_THRESHOLDS, XP_REWARDS,
@@ -1118,6 +1118,150 @@ const SettingsView = ({ userProfile, onUpdateProfile }: { userProfile: UserProfi
   );
 };
 
+// --- Accounts View Component ---
+
+const AccountsView = ({ accounts }: { accounts: Account[] }) => {
+  const [assetsExpanded, setAssetsExpanded] = useState(true);
+  const [liabilitiesExpanded, setLiabilitiesExpanded] = useState(true);
+
+  const assets = accounts.filter(a => a.type === 'asset');
+  const liabilities = accounts.filter(a => a.type === 'liability');
+
+  const totalAssets = assets.reduce((sum, a) => sum + a.balance, 0);
+  const totalLiabilities = liabilities.reduce((sum, a) => sum + a.balance, 0);
+  const netWorth = totalAssets - totalLiabilities;
+
+  const formatSyncTime = (lastSynced: string) => {
+    const now = new Date();
+    const synced = new Date(lastSynced);
+    const diffMs = now.getTime() - synced.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 60) return `Synced ${diffMins}m ago`;
+    if (diffHours < 24) return `Synced ${diffHours}h ago`;
+    return `Synced ${diffDays}d ago`;
+  };
+
+  const AccountItem = ({ account }: { account: Account }) => (
+    <div className="flex items-center justify-between gap-4 py-4 hover:bg-forest-700/30 -mx-4 px-4 cursor-pointer transition-colors rounded-xl">
+      <div className="flex items-center gap-4">
+        <div
+          className="w-12 h-12 rounded-xl bg-center bg-cover border border-forest-700"
+          style={{ backgroundImage: `url("${account.logoUrl}")` }}
+        ></div>
+        <div className="flex flex-col justify-center">
+          <p className="text-base font-medium text-white">{account.name}</p>
+          <p className={`text-sm font-normal ${account.syncStatus === 'error' ? 'text-rose-500' : 'text-forest-400'
+            }`}>
+            {account.syncStatus === 'error' ? 'Sync error' : formatSyncTime(account.lastSynced)}
+          </p>
+        </div>
+      </div>
+      <div className="text-right">
+        <p className="text-base font-semibold text-white">{formatCurrency(account.balance)}</p>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="flex flex-col gap-8 w-full max-w-full overflow-hidden">
+
+      {/* Header */}
+      <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-3xl font-black text-white tracking-tight">Accounts</h1>
+          <p className="text-forest-400 text-base">A complete overview of your assets and liabilities.</p>
+        </div>
+        <button className="flex items-center justify-center gap-2 rounded-xl h-10 px-4 bg-primary hover:bg-primary/90 text-forest-950 text-sm font-bold whitespace-nowrap">
+          <Plus size={18} strokeWidth={3} />
+          Add Account
+        </button>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="flex flex-col gap-2 rounded-3xl border border-forest-700 bg-forest-800 p-6">
+          <p className="text-base font-medium text-white">Total Assets</p>
+          <p className="text-3xl font-bold text-white">{formatCurrency(totalAssets)}</p>
+          <p className="text-sm font-medium text-primary">+1.2%</p>
+        </div>
+        <div className="flex flex-col gap-2 rounded-3xl border border-forest-700 bg-forest-800 p-6">
+          <p className="text-base font-medium text-white">Total Liabilities</p>
+          <p className="text-3xl font-bold text-white">{formatCurrency(totalLiabilities)}</p>
+          <p className="text-sm font-medium text-rose-500">-0.5%</p>
+        </div>
+        <div className="flex flex-col gap-2 rounded-3xl border border-forest-700 bg-forest-800 p-6">
+          <p className="text-base font-medium text-white">Net Worth</p>
+          <p className="text-3xl font-bold text-white">{formatCurrency(netWorth)}</p>
+          <p className="text-sm font-medium text-primary">+2.1%</p>
+        </div>
+      </div>
+
+      {/* Accounts Sections */}
+      <div className="flex flex-col gap-6">
+
+        {/* Assets */}
+        <div className="flex flex-col rounded-3xl border border-forest-700 bg-forest-800">
+          <div className="p-6">
+            <button
+              onClick={() => setAssetsExpanded(!assetsExpanded)}
+              className="flex w-full cursor-pointer items-center justify-between gap-6 py-2"
+            >
+              <div className="flex items-baseline gap-3">
+                <h2 className="text-lg font-bold text-white">Assets</h2>
+                <p className="text-base font-medium text-forest-400">{formatCurrency(totalAssets)}</p>
+              </div>
+              <ChevronRight
+                size={24}
+                className={`text-forest-400 transition-transform duration-300 ${assetsExpanded ? 'rotate-90' : ''
+                  }`}
+              />
+            </button>
+
+            {assetsExpanded && (
+              <div className="mt-4 flex flex-col divide-y divide-forest-700/50">
+                {assets.map(account => (
+                  <AccountItem key={account.id} account={account} />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Liabilities */}
+        <div className="flex flex-col rounded-3xl border border-forest-700 bg-forest-800">
+          <div className="p-6">
+            <button
+              onClick={() => setLiabilitiesExpanded(!liabilitiesExpanded)}
+              className="flex w-full cursor-pointer items-center justify-between gap-6 py-2"
+            >
+              <div className="flex items-baseline gap-3">
+                <h2 className="text-lg font-bold text-white">Liabilities</h2>
+                <p className="text-base font-medium text-forest-400">{formatCurrency(totalLiabilities)}</p>
+              </div>
+              <ChevronRight
+                size={24}
+                className={`text-forest-400 transition-transform duration-300 ${liabilitiesExpanded ? 'rotate-90' : ''
+                  }`}
+              />
+            </button>
+
+            {liabilitiesExpanded && (
+              <div className="mt-4 flex flex-col divide-y divide-forest-700/50">
+                {liabilities.map(account => (
+                  <AccountItem key={account.id} account={account} />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // --- Budgets View Component ---
 
 const BudgetsView = ({ budgets }: { budgets: Budget[] }) => {
@@ -1347,6 +1491,70 @@ export default function App() {
     twoFactorEnabled: false
   });
 
+  // Mock Accounts Data
+  const [accounts, setAccounts] = useState<Account[]>([
+    {
+      id: '1',
+      name: 'Chase Checking',
+      type: 'asset',
+      balance: 12345.67,
+      institution: 'Chase Bank',
+      logoUrl: 'https://images.unsplash.com/photo-1541354329998-f4d9a9f9297f?w=100&h=100&fit=crop',
+      lastSynced: new Date(Date.now() - 5 * 60000).toISOString(),
+      syncStatus: 'success'
+    },
+    {
+      id: '2',
+      name: 'Vanguard 401(k)',
+      type: 'asset',
+      balance: 88105.08,
+      institution: 'Vanguard',
+      logoUrl: 'https://images.unsplash.com/photo-1559526324-593bc073d938?w=100&h=100&fit=crop',
+      lastSynced: new Date(Date.now() - 60 * 60000).toISOString(),
+      syncStatus: 'success'
+    },
+    {
+      id: '3',
+      name: 'Coinbase Crypto',
+      type: 'asset',
+      balance: 5000.00,
+      institution: 'Coinbase',
+      logoUrl: 'https://images.unsplash.com/photo-1621416894569-0f39ed31d247?w=100&h=100&fit=crop',
+      lastSynced: new Date(Date.now() - 2 * 86400000).toISOString(),
+      syncStatus: 'error'
+    },
+    {
+      id: '4',
+      name: 'Savings Account',
+      type: 'asset',
+      balance: 45000.00,
+      institution: 'Chase Bank',
+      logoUrl: 'https://images.unsplash.com/photo-1541354329998-f4d9a9f9297f?w=100&h=100&fit=crop',
+      lastSynced: new Date(Date.now() - 10 * 60000).toISOString(),
+      syncStatus: 'success'
+    },
+    {
+      id: '5',
+      name: 'Amex Gold Card',
+      type: 'liability',
+      balance: 1120.50,
+      institution: 'American Express',
+      logoUrl: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=100&h=100&fit=crop',
+      lastSynced: new Date(Date.now() - 2 * 60000).toISOString(),
+      syncStatus: 'success'
+    },
+    {
+      id: '6',
+      name: 'Student Loan',
+      type: 'liability',
+      balance: 24000.00,
+      institution: 'SoFi',
+      logoUrl: 'https://images.unsplash.com/photo-1554224311-beee4ece3c5d?w=100&h=100&fit=crop',
+      lastSynced: new Date(Date.now() - 86400000).toISOString(),
+      syncStatus: 'success'
+    }
+  ]);
+
   // Mock Alerts
   const alerts: Alert[] = [
     { id: '1', title: 'Budget', message: "You're close to your 'Dining Out' budget.", type: 'warning', time: '5 minutes ago' },
@@ -1520,6 +1728,7 @@ export default function App() {
 
         <nav className="flex-1 px-6 py-6 overflow-y-auto">
           <SidebarItem id="dashboard" label="Dashboard" icon={LayoutGrid} active={activeView === 'dashboard'} onClick={() => setActiveView('dashboard')} />
+          <SidebarItem id="accounts" label="Accounts" icon={Wallet} active={activeView === 'accounts'} onClick={() => setActiveView('accounts')} />
           <SidebarItem id="transactions" label="Transactions" icon={CreditCard} active={activeView === 'transactions'} onClick={() => setActiveView('transactions')} />
           <SidebarItem id="budgets" label="Budgets" icon={Target} active={activeView === 'budgets'} onClick={() => setActiveView('budgets')} />
           <SidebarItem id="investments" label="Investments" icon={TrendingUp} active={activeView === 'investments'} onClick={() => setActiveView('investments')} />
@@ -1630,6 +1839,8 @@ export default function App() {
             <GamificationView user={user} challenges={challenges} />
           ) : activeView === 'goals' ? (
             <GoalsView goals={savingsGoals} />
+          ) : activeView === 'accounts' ? (
+            <AccountsView accounts={accounts} />
           ) : activeView === 'settings' ? (
             <SettingsView userProfile={userProfile} onUpdateProfile={setUserProfile} />
           ) : (
