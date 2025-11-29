@@ -4,9 +4,9 @@ const UserPreferencesSchema = new mongoose.Schema({
     userId: { type: String, required: true, unique: true, index: true },
     notifications: {
         budgetAlerts: { type: Boolean, default: true },
-        budgetThresholds: { type: [Number], default: [80, 100] },
+        budgetThresholds: { type: [Number], default: [50, 75, 80, 90, 100] },
         billReminders: { type: Boolean, default: true },
-        reminderDaysBefore: { type: [Number], default: [1, 3, 7] },
+        reminderDaysBefore: { type: [Number], default: [1, 3, 7, 14] },
         goalMilestones: { type: Boolean, default: true },
         anomalyAlerts: { type: Boolean, default: true },
         gamificationNotifications: { type: Boolean, default: true },

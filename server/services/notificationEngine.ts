@@ -4,9 +4,11 @@ import { RecurringTransaction } from '../models/RecurringTransaction';
 import { Budget } from '../models/Budget';
 import { Transaction } from '../models/Transaction';
 import { SavingsGoal } from '../models/SavingsGoal';
+import { sendEmailNotification } from './emailNotificationService';
+import { sendPushNotification } from './pushNotificationService';
 
 /**
- * Create a notification in the database
+ * Create a notification in the database and route to delivery methods
  */
 export async function createNotification(
     userId: string,
@@ -18,6 +20,36 @@ export async function createNotification(
     metadata?: Record<string, any>
 ): Promise<void> {
     try {
+        // Check user preferences before creating notification
+        const preferences = await getUserPreferences(userId);
+
+        // Map notification type to preference key
+        const preferenceKeyMap: Record<string, string> = {
+            'bill_reminder': 'billReminders',
+            'budget_alert': 'budgetAlerts',
+            'goal_milestone': 'goalMilestones',
+            'anomaly': 'anomalyAlerts',
+            'gamification': 'gamificationNotifications',
+            'system': 'system' // System notifications are always sent
+        };
+
+        const preferenceKey = preferenceKeyMap[type];
+
+        // Check if this notification type is enabled (system notifications always sent)
+        if (preferenceKey !== 'system' && preferences && preferences[preferenceKey] === false) {
+            console.log(`Notification type ${type} is disabled for user ${userId}`);
+            return;
+        }
+
+        // For budget alerts, check if the threshold is enabled
+        if (type === 'budget_alert' && metadata?.threshold && preferences?.budgetThresholds) {
+            if (!preferences.budgetThresholds.includes(metadata.threshold)) {
+                console.log(`Budget threshold ${metadata.threshold}% is not enabled for user ${userId}`);
+                return;
+            }
+        }
+
+        // Create notification in database
         const notification = new Notification({
             userId,
             type,
@@ -32,6 +64,25 @@ export async function createNotification(
 
         await notification.save();
         console.log(`Created ${type} notification for user ${userId}`);
+
+        // Route to delivery methods based on preferences
+        if (preferences?.emailNotifications) {
+            try {
+                await sendEmailNotification(userId, title, message, actionUrl);
+            } catch (error) {
+                console.error('Error sending email notification:', error);
+                // Don't throw - continue with other delivery methods
+            }
+        }
+
+        if (preferences?.pushNotifications) {
+            try {
+                await sendPushNotification(userId, title, message, actionUrl);
+            } catch (error) {
+                console.error('Error sending push notification:', error);
+                // Don't throw - continue
+            }
+        }
     } catch (error) {
         console.error('Error creating notification:', error);
         throw error;
@@ -65,12 +116,14 @@ async function getUserPreferences(userId: string): Promise<any> {
         const preferences = await UserPreferences.findOne({ userId });
         return preferences?.notifications || {
             budgetAlerts: true,
-            budgetThresholds: [80, 100],
+            budgetThresholds: [50, 75, 80, 90, 100],
             billReminders: true,
-            reminderDaysBefore: [1, 3, 7],
+            reminderDaysBefore: [1, 3, 7, 14],
             goalMilestones: true,
             anomalyAlerts: true,
-            gamificationNotifications: true
+            gamificationNotifications: true,
+            emailNotifications: false,
+            pushNotifications: true
         };
     } catch (error) {
         console.error('Error fetching user preferences:', error);

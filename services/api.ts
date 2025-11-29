@@ -133,6 +133,11 @@ export const updateNotificationPreferences = async (userId: string, preferences:
     return response.data;
 };
 
+export const sendTestNotification = async (userId: string) => {
+    const response = await api.post('/notifications/test', { userId });
+    return response.data;
+};
+
 // Budget Recommendations
 export const generateBudgetRecommendations = async (userId: string) => {
     const response = await api.post('/budget-recommendations/generate', { userId });

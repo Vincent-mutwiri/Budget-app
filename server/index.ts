@@ -405,6 +405,33 @@ app.put('/api/notifications/preferences', async (req, res) => {
     }
 });
 
+// Send test notification
+app.post('/api/notifications/test', async (req, res) => {
+    const { userId } = req.body;
+
+    if (!userId) {
+        return res.status(400).json({ error: 'UserId required' });
+    }
+
+    try {
+        const { createNotification } = await import('./services/notificationEngine');
+
+        await createNotification(
+            userId,
+            'system',
+            'Test Notification',
+            'This is a test notification from SmartWallet. If you received this, your notifications are working correctly!',
+            'low',
+            '/settings'
+        );
+
+        res.json({ success: true, message: 'Test notification sent' });
+    } catch (error) {
+        console.error('Error sending test notification:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
 // Budget Recommendation Routes
 import { generateBudgetRecommendations } from './services/budgetRecommendationEngine';
 

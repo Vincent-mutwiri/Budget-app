@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Bell, DollarSign, Target, AlertTriangle, Trophy, Mail, Smartphone, Save } from 'lucide-react';
+import { X, Bell, DollarSign, Target, AlertTriangle, Trophy, Mail, Smartphone, Save, Send } from 'lucide-react';
 import { NotificationPreferences as NotificationPreferencesType } from '../types';
-import { getNotificationPreferences, updateNotificationPreferences } from '../services/api';
+import { getNotificationPreferences, updateNotificationPreferences, sendTestNotification } from '../services/api';
 
 interface NotificationPreferencesProps {
     userId: string;
@@ -28,6 +28,8 @@ export const NotificationPreferences: React.FC<NotificationPreferencesProps> = (
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
+    const [sendingTest, setSendingTest] = useState(false);
+    const [testSuccess, setTestSuccess] = useState(false);
 
     useEffect(() => {
         if (isOpen && userId) {
@@ -79,6 +81,19 @@ export const NotificationPreferences: React.FC<NotificationPreferencesProps> = (
                 ? prev.reminderDaysBefore.filter(d => d !== day)
                 : [...prev.reminderDaysBefore, day].sort((a, b) => a - b)
         }));
+    };
+
+    const handleTestNotification = async () => {
+        try {
+            setSendingTest(true);
+            await sendTestNotification(userId);
+            setTestSuccess(true);
+            setTimeout(() => setTestSuccess(false), 3000);
+        } catch (error) {
+            console.error('Error sending test notification:', error);
+        } finally {
+            setSendingTest(false);
+        }
     };
 
     if (!isOpen) return null;
@@ -308,6 +323,39 @@ export const NotificationPreferences: React.FC<NotificationPreferencesProps> = (
                                         </label>
                                     </div>
                                 </div>
+                            </div>
+
+                            {/* Test Notification */}
+                            <div className="bg-forest-800/50 rounded-lg p-5 border border-forest-700">
+                                <h3 className="text-white font-semibold text-lg mb-3">Test Notifications</h3>
+                                <p className="text-forest-400 text-sm mb-4">
+                                    Send a test notification to verify your settings are working correctly
+                                </p>
+                                <button
+                                    onClick={handleTestNotification}
+                                    disabled={sendingTest || testSuccess}
+                                    className={`px-6 py-2.5 rounded-lg font-medium transition-colors flex items-center gap-2 ${testSuccess
+                                        ? 'bg-green-600 text-white'
+                                        : 'bg-forest-700 text-white hover:bg-forest-600'
+                                        } disabled:opacity-50 disabled:cursor-not-allowed`}
+                                >
+                                    {sendingTest ? (
+                                        <>
+                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                            Sending...
+                                        </>
+                                    ) : testSuccess ? (
+                                        <>
+                                            <Bell size={18} />
+                                            Test Sent!
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Send size={18} />
+                                            Send Test Notification
+                                        </>
+                                    )}
+                                </button>
                             </div>
                         </div>
                     )}

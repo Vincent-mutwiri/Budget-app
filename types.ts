@@ -213,14 +213,26 @@ export interface NotificationExtended {
 
 export interface NotificationPreferences {
   budgetAlerts: boolean;
-  budgetThresholds: number[];
+  budgetThresholds: number[]; // e.g., [50, 75, 80, 90, 100]
   billReminders: boolean;
-  reminderDaysBefore: number[];
+  reminderDaysBefore: number[]; // e.g., [1, 3, 7, 14]
   goalMilestones: boolean;
   anomalyAlerts: boolean;
   gamificationNotifications: boolean;
   emailNotifications: boolean;
   pushNotifications: boolean;
+}
+
+export interface NotificationPreferencesUpdate {
+  budgetAlerts?: boolean;
+  budgetThresholds?: number[];
+  billReminders?: boolean;
+  reminderDaysBefore?: number[];
+  goalMilestones?: boolean;
+  anomalyAlerts?: boolean;
+  gamificationNotifications?: boolean;
+  emailNotifications?: boolean;
+  pushNotifications?: boolean;
 }
 
 // Investments
