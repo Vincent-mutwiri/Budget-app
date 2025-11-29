@@ -448,3 +448,35 @@ export interface ExportConfig {
     accounts?: string[];
   };
 }
+
+// Security
+export interface MFASetupResponse {
+  secret: string;
+  qrCodeUrl: string;
+  backupCodes: string[];
+}
+
+export interface MFAVerifyRequest {
+  userId: string;
+  code: string;
+  secret?: string;
+}
+
+export interface PasswordChangeRequest {
+  userId: string;
+  currentPassword: string;
+  newPassword: string;
+}
+
+export interface UserSession {
+  id: string;
+  userId: string;
+  deviceInfo: {
+    browser: string;
+    os: string;
+    ip: string;
+  };
+  createdAt: string;
+  lastActivity: string;
+  isActive: boolean;
+}

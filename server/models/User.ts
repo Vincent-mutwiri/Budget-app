@@ -12,7 +12,14 @@ const UserSchema = new mongoose.Schema({
     streak: { type: Number, default: 0 },
     badges: { type: Number, default: 0 },
     monthlyIncome: { type: Number, default: 0 },
-    createdAt: { type: Date, default: Date.now }
+    createdAt: { type: Date, default: Date.now },
+    // Security fields
+    mfaEnabled: { type: Boolean, default: false },
+    mfaSecret: { type: String },
+    mfaMethod: { type: String, enum: ['email', 'sms', 'app'], default: 'app' },
+    backupCodes: [{ type: String }],
+    passwordHash: { type: String },
+    lastPasswordChange: { type: Date, default: Date.now }
 });
 
 export const User = mongoose.model('User', UserSchema);

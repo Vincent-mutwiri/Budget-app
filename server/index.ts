@@ -1207,6 +1207,290 @@ app.get('/api/ai-assistant/context', async (req, res) => {
     }
 });
 
+// Security Routes
+import {
+    generateTOTPSecret,
+    generateQRCode,
+    verifyTOTPCode,
+    generateBackupCodes,
+    hashBackupCode,
+    verifyBackupCode,
+    generateVerificationCode,
+    sendEmailVerificationCode
+} from './services/mfaService';
+import { hashPassword, verifyPassword, validatePasswordStrength } from './services/encryptionService';
+import {
+    createSession,
+    getUserSessions,
+    logoutSession,
+    logoutAllSessions,
+    parseDeviceInfo
+} from './services/sessionService';
+
+// Initiate MFA setup
+app.post('/api/security/mfa/setup', async (req, res) => {
+    const { userId, method = 'app' } = req.body;
+
+    if (!userId) {
+        return res.status(400).json({ error: 'UserId required' });
+    }
+
+    try {
+        const user = await User.findOne({ clerkId: userId });
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        if (method === 'app') {
+            // Generate TOTP secret
+            const { secret, otpauthUrl } = generateTOTPSecret(user.email);
+
+            // Generate QR code
+            const qrCodeUrl = await generateQRCode(otpauthUrl);
+
+            // Generate backup codes
+            const backupCodes = generateBackupCodes();
+
+            // Store hashed backup codes (don't save secret yet - wait for verification)
+            const hashedBackupCodes = backupCodes.map(code => hashBackupCode(code));
+
+            res.json({
+                secret,
+                qrCodeUrl,
+                backupCodes,
+                method: 'app'
+            });
+        } else if (method === 'email') {
+            // Generate and send email verification code
+            const code = generateVerificationCode();
+
+            // Store code temporarily (in production, use Redis or similar)
+            // For now, we'll send it in response (not secure for production)
+            await sendEmailVerificationCode(user.email, code);
+
+            res.json({
+                message: 'Verification code sent to email',
+                method: 'email'
+            });
+        } else {
+            res.status(400).json({ error: 'Invalid MFA method' });
+        }
+    } catch (error) {
+        console.error('Error setting up MFA:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Verify MFA code and enable MFA
+app.post('/api/security/mfa/verify', async (req, res) => {
+    const { userId, code, secret, backupCodes } = req.body;
+
+    if (!userId || !code) {
+        return res.status(400).json({ error: 'UserId and code required' });
+    }
+
+    try {
+        const user = await User.findOne({ clerkId: userId });
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        let isValid = false;
+
+        // Verify TOTP code for app-based MFA
+        if (secret) {
+            isValid = verifyTOTPCode(secret, code);
+
+            if (isValid) {
+                // Save MFA settings
+                user.mfaEnabled = true;
+                user.mfaSecret = secret;
+                user.mfaMethod = 'app';
+
+                if (backupCodes && Array.isArray(backupCodes)) {
+                    user.backupCodes = backupCodes.map(c => hashBackupCode(c));
+                }
+
+                await user.save();
+            }
+        } else if (user.mfaSecret) {
+            // Verify against existing secret
+            isValid = verifyTOTPCode(user.mfaSecret, code);
+        } else if (user.backupCodes && user.backupCodes.length > 0) {
+            // Verify backup code
+            isValid = verifyBackupCode(code, user.backupCodes);
+
+            if (isValid) {
+                // Remove used backup code
+                const hashedCode = hashBackupCode(code);
+                user.backupCodes = user.backupCodes.filter(c => c !== hashedCode);
+                await user.save();
+            }
+        }
+
+        if (isValid) {
+            res.json({
+                success: true,
+                message: 'MFA verification successful'
+            });
+        } else {
+            res.status(401).json({
+                success: false,
+                error: 'Invalid verification code'
+            });
+        }
+    } catch (error) {
+        console.error('Error verifying MFA:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Disable MFA
+app.post('/api/security/mfa/disable', async (req, res) => {
+    const { userId, password } = req.body;
+
+    if (!userId) {
+        return res.status(400).json({ error: 'UserId required' });
+    }
+
+    try {
+        const user = await User.findOne({ clerkId: userId });
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        // Verify password if set
+        if (user.passwordHash && password) {
+            const isValidPassword = verifyPassword(password, user.passwordHash);
+            if (!isValidPassword) {
+                return res.status(401).json({ error: 'Invalid password' });
+            }
+        }
+
+        // Disable MFA
+        user.mfaEnabled = false;
+        user.mfaSecret = undefined;
+        user.backupCodes = [];
+
+        await user.save();
+
+        res.json({
+            success: true,
+            message: 'MFA disabled successfully'
+        });
+    } catch (error) {
+        console.error('Error disabling MFA:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Change password
+app.post('/api/security/password/change', async (req, res) => {
+    const { userId, currentPassword, newPassword } = req.body;
+
+    if (!userId || !newPassword) {
+        return res.status(400).json({ error: 'UserId and newPassword required' });
+    }
+
+    try {
+        const user = await User.findOne({ clerkId: userId });
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        // Verify current password if one exists
+        if (user.passwordHash && currentPassword) {
+            const isValidPassword = verifyPassword(currentPassword, user.passwordHash);
+            if (!isValidPassword) {
+                return res.status(401).json({ error: 'Current password is incorrect' });
+            }
+        }
+
+        // Validate new password strength
+        const validation = validatePasswordStrength(newPassword);
+        if (!validation.isValid) {
+            return res.status(400).json({
+                error: 'Password does not meet requirements',
+                details: validation.errors
+            });
+        }
+
+        // Hash and save new password
+        user.passwordHash = hashPassword(newPassword);
+        user.lastPasswordChange = new Date();
+
+        await user.save();
+
+        res.json({
+            success: true,
+            message: 'Password changed successfully'
+        });
+    } catch (error) {
+        console.error('Error changing password:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Get active sessions
+app.get('/api/security/sessions', async (req, res) => {
+    const { userId } = req.query;
+
+    if (!userId) {
+        return res.status(400).json({ error: 'UserId required' });
+    }
+
+    try {
+        const sessions = await getUserSessions(userId as string);
+        res.json(sessions);
+    } catch (error) {
+        console.error('Error fetching sessions:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Logout specific session
+app.delete('/api/security/sessions/:id', async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const success = await logoutSession(id);
+
+        if (success) {
+            res.json({
+                success: true,
+                message: 'Session logged out successfully'
+            });
+        } else {
+            res.status(404).json({ error: 'Session not found' });
+        }
+    } catch (error) {
+        console.error('Error logging out session:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Logout all sessions
+app.post('/api/security/sessions/logout-all', async (req, res) => {
+    const { userId } = req.body;
+
+    if (!userId) {
+        return res.status(400).json({ error: 'UserId required' });
+    }
+
+    try {
+        const count = await logoutAllSessions(userId);
+
+        res.json({
+            success: true,
+            message: `Logged out ${count} session(s)`,
+            count
+        });
+    } catch (error) {
+        console.error('Error logging out all sessions:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
 // Start Server
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);

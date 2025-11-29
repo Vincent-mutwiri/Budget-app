@@ -300,4 +300,40 @@ export const getAIContext = async (userId: string, type?: string) => {
     return response.data;
 };
 
+// Security
+export const setupMFA = async (userId: string, method: 'app' | 'email' = 'app') => {
+    const response = await api.post('/security/mfa/setup', { userId, method });
+    return response.data;
+};
+
+export const verifyMFA = async (userId: string, code: string, secret?: string, backupCodes?: string[]) => {
+    const response = await api.post('/security/mfa/verify', { userId, code, secret, backupCodes });
+    return response.data;
+};
+
+export const disableMFA = async (userId: string, password?: string) => {
+    const response = await api.post('/security/mfa/disable', { userId, password });
+    return response.data;
+};
+
+export const changePassword = async (userId: string, currentPassword: string | undefined, newPassword: string) => {
+    const response = await api.post('/security/password/change', { userId, currentPassword, newPassword });
+    return response.data;
+};
+
+export const getSessions = async (userId: string) => {
+    const response = await api.get('/security/sessions', { params: { userId } });
+    return response.data;
+};
+
+export const logoutSession = async (sessionId: string) => {
+    const response = await api.delete(`/security/sessions/${sessionId}`);
+    return response.data;
+};
+
+export const logoutAllSessions = async (userId: string) => {
+    const response = await api.post('/security/sessions/logout-all', { userId });
+    return response.data;
+};
+
 export default api;
