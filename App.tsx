@@ -2,11 +2,12 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Plus, Wallet, Target, Brain, CreditCard, Calendar, 
   LayoutGrid, Settings, Folder, ArrowRight, X, DollarSign,
-  TrendingUp, TrendingDown, CheckCircle2, AlertTriangle, AlertCircle, Medal, Flame, ChevronRight
+  TrendingUp, TrendingDown, CheckCircle2, AlertTriangle, AlertCircle, Medal, Flame, ChevronRight,
+  Search, Filter, Pencil, Trash2, Lightbulb
 } from 'lucide-react';
 import { 
   Transaction, UserState, Category, DailyChallenge, 
-  FinancialSnapshot, Goal, Notification, Alert
+  FinancialSnapshot, Goal, Notification, Alert, TransactionType, CategoriesList
 } from './types';
 import { 
   MOCK_TRANSACTIONS, LEVEL_THRESHOLDS, XP_REWARDS, 
@@ -102,6 +103,262 @@ const AlertItem: React.FC<{ alert: Alert }> = ({ alert }) => {
   );
 };
 
+// --- Transactions View Component ---
+
+const TransactionsView = ({ 
+  transactions, 
+  onAdd, 
+  onDelete 
+}: { 
+  transactions: Transaction[], 
+  onAdd: (t: Omit<Transaction, 'id'>) => void,
+  onDelete: (id: string) => void
+}) => {
+  const [type, setType] = useState<TransactionType>('expense');
+  const [amount, setAmount] = useState('');
+  const [category, setCategory] = useState<Category | ''>('');
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [description, setDescription] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showSuggestion, setShowSuggestion] = useState(true);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!amount || !category || !date) return;
+
+    onAdd({
+      amount: parseFloat(amount),
+      category: category as Category,
+      date,
+      description: description || 'Untitled Transaction',
+      type
+    });
+
+    // Reset form
+    setAmount('');
+    setDescription('');
+    setCategory('');
+  };
+
+  const filteredTransactions = transactions.filter(t => 
+    t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    t.category.toLowerCase().includes(searchTerm.toLowerCase())
+  ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
+      {/* Left Column: Add Transaction */}
+      <div className="lg:col-span-1 flex flex-col gap-6">
+        <div className="bg-forest-800 border border-forest-700 rounded-3xl p-6">
+          <h2 className="text-xl font-bold text-white mb-6">Add New Transaction</h2>
+          
+          <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+            {/* Type Toggle */}
+            <div className="bg-forest-900 p-1 rounded-xl flex">
+              <button
+                type="button"
+                onClick={() => setType('expense')}
+                className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                  type === 'expense' 
+                    ? 'bg-forest-800 text-white shadow-sm border border-forest-700' 
+                    : 'text-forest-400 hover:text-white'
+                }`}
+              >
+                Expense
+              </button>
+              <button
+                type="button"
+                onClick={() => setType('income')}
+                className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                  type === 'income' 
+                    ? 'bg-forest-800 text-white shadow-sm border border-forest-700' 
+                    : 'text-forest-400 hover:text-white'
+                }`}
+              >
+                Income
+              </button>
+            </div>
+
+            {/* Amount */}
+            <div>
+              <label className="block text-forest-300 text-sm font-medium mb-2">Amount</label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-forest-400">$</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full bg-forest-950 border border-forest-700 rounded-xl py-3 pl-8 pr-4 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder-forest-500"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Category */}
+            <div>
+              <label className="block text-forest-300 text-sm font-medium mb-2">Category</label>
+              <div className="relative">
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value as Category)}
+                  className="w-full bg-forest-950 border border-forest-700 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary appearance-none cursor-pointer"
+                  required
+                >
+                  <option value="" disabled>Select a category</option>
+                  {CategoriesList.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-forest-400">
+                  <ChevronRight className="rotate-90" size={16} />
+                </div>
+              </div>
+            </div>
+
+            {/* Date */}
+            <div>
+              <label className="block text-forest-300 text-sm font-medium mb-2">Date</label>
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="w-full bg-forest-950 border border-forest-700 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary [color-scheme:dark]"
+                required
+              />
+            </div>
+
+            {/* Description */}
+            <div>
+              <label className="block text-forest-300 text-sm font-medium mb-2">Description <span className="text-forest-500 font-normal">(optional)</span></label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="e.g. Weekly grocery shopping"
+                rows={3}
+                className="w-full bg-forest-950 border border-forest-700 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder-forest-500 resize-none"
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="w-full bg-primary hover:bg-primary/90 text-forest-950 font-bold py-3.5 rounded-xl transition-colors mt-2"
+            >
+              Add Transaction
+            </button>
+          </form>
+        </div>
+
+        {/* Smart Suggestion Alert */}
+        {showSuggestion && (
+          <div className="bg-forest-800/50 border border-primary/20 rounded-2xl p-4 flex gap-4 relative">
+            <button 
+              onClick={() => setShowSuggestion(false)}
+              className="absolute top-3 right-3 text-forest-400 hover:text-white"
+            >
+              <X size={16} />
+            </button>
+            <div className="bg-primary/10 p-2.5 rounded-full h-fit text-primary shrink-0">
+              <Lightbulb size={20} />
+            </div>
+            <div>
+              <h4 className="font-bold text-white mb-1">Smart Suggestion</h4>
+              <p className="text-forest-300 text-sm leading-relaxed">
+                Based on "Weekly grocery shopping", we suggest the 'Groceries' category. <span className="text-primary font-medium cursor-pointer hover:underline">Apply</span>
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Right Column: Transaction History */}
+      <div className="lg:col-span-2 bg-forest-800 border border-forest-700 rounded-3xl p-6 flex flex-col h-full overflow-hidden">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 shrink-0">
+          <h2 className="text-xl font-bold text-white">Transaction History</h2>
+          
+          <div className="flex gap-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-forest-400" size={18} />
+              <input 
+                type="text" 
+                placeholder="Search..." 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="bg-forest-950 border border-forest-700 rounded-xl py-2 pl-10 pr-4 text-white text-sm focus:outline-none focus:border-primary w-full md:w-64"
+              />
+            </div>
+            <button className="flex items-center gap-2 px-4 py-2 bg-forest-950 border border-forest-700 rounded-xl text-forest-300 hover:text-white hover:border-forest-600 transition-colors text-sm font-medium">
+              <Filter size={16} />
+              Filters
+            </button>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-auto -mx-6 px-6 scrollbar-thin scrollbar-thumb-forest-700">
+          <table className="w-full min-w-[600px]">
+            <thead className="sticky top-0 bg-forest-800 z-10 text-forest-400 text-xs uppercase tracking-wider font-semibold text-left">
+              <tr>
+                <th className="pb-4 pl-2">Date</th>
+                <th className="pb-4">Description</th>
+                <th className="pb-4">Category</th>
+                <th className="pb-4 text-right">Amount</th>
+                <th className="pb-4 pr-2 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-forest-700/50">
+              {filteredTransactions.map((t) => (
+                <tr key={t.id} className="group hover:bg-forest-700/30 transition-colors">
+                  <td className="py-4 pl-2 text-forest-300 text-sm">
+                    {new Date(t.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </td>
+                  <td className="py-4 text-white font-medium text-sm">{t.description}</td>
+                  <td className="py-4">
+                    <span className="px-2.5 py-1 rounded-full bg-forest-900 border border-forest-700 text-forest-300 text-xs font-medium">
+                      {t.category}
+                    </span>
+                  </td>
+                  <td className={`py-4 text-right font-medium text-sm ${t.type === 'income' ? 'text-primary' : 'text-rose-400'}`}>
+                    {t.type === 'expense' ? '-' : '+'}{formatCurrency(t.amount)}
+                  </td>
+                  <td className="py-4 pr-2 text-right">
+                    <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button className="p-1.5 text-forest-400 hover:text-primary transition-colors rounded-lg hover:bg-forest-900">
+                        <Pencil size={16} />
+                      </button>
+                      <button 
+                        onClick={() => onDelete(t.id)}
+                        className="p-1.5 text-forest-400 hover:text-rose-500 transition-colors rounded-lg hover:bg-forest-900"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {filteredTransactions.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="py-12 text-center text-forest-400 italic">
+                    No transactions found.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        
+        {filteredTransactions.length > 5 && (
+          <div className="pt-4 border-t border-forest-700 shrink-0 flex justify-center">
+            <button className="text-sm font-medium text-forest-300 hover:text-white transition-colors py-2 px-4 rounded-lg hover:bg-forest-900">
+              Load More
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // --- Main App ---
 
 export default function App() {
@@ -132,6 +389,34 @@ export default function App() {
     const totalExpenses = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
     return { totalIncome, totalExpenses, balance: totalIncome - totalExpenses, savingsRate: 0 }; // calc rate if needed
   }, [transactions]);
+
+  // Persist Data
+  useEffect(() => {
+    localStorage.setItem('smartwallet_transactions', JSON.stringify(transactions));
+  }, [transactions]);
+  
+  useEffect(() => {
+    localStorage.setItem('smartwallet_user', JSON.stringify(user));
+  }, [user]);
+
+  // Handlers
+  const handleAddTransaction = (newTx: Omit<Transaction, 'id'>) => {
+    const transaction = {
+      ...newTx,
+      id: Math.random().toString(36).substr(2, 9),
+    };
+    setTransactions(prev => [transaction, ...prev]);
+    
+    // Gamification: Add XP
+    setUser(prev => ({
+      ...prev,
+      xp: prev.xp + XP_REWARDS.ADD_TRANSACTION
+    }));
+  };
+
+  const handleDeleteTransaction = (id: string) => {
+    setTransactions(prev => prev.filter(t => t.id !== id));
+  };
 
   // --- Views ---
 
@@ -288,8 +573,12 @@ export default function App() {
          {/* Header */}
          <header className="px-8 py-8 flex justify-between items-start shrink-0">
             <div>
-               <h1 className="text-3xl font-bold text-white mb-1">Welcome back, Alex!</h1>
-               <p className="text-forest-400">Here's a summary of your financial activity.</p>
+               <h1 className="text-3xl font-bold text-white mb-1">
+                 {activeView === 'dashboard' ? 'Welcome back, Alex!' : activeView.charAt(0).toUpperCase() + activeView.slice(1)}
+               </h1>
+               <p className="text-forest-400">
+                 {activeView === 'dashboard' ? "Here's a summary of your financial activity." : 'Manage your financial records.'}
+               </p>
             </div>
             
             {/* Mobile Menu Toggle would go here */}
@@ -299,6 +588,12 @@ export default function App() {
          <div className="flex-1 overflow-y-auto px-8 pb-8 scrollbar-thin scrollbar-thumb-forest-700 scrollbar-track-transparent">
             {activeView === 'dashboard' ? (
               <DashboardContent />
+            ) : activeView === 'transactions' ? (
+              <TransactionsView 
+                transactions={transactions} 
+                onAdd={handleAddTransaction} 
+                onDelete={handleDeleteTransaction}
+              />
             ) : (
               <div className="flex items-center justify-center h-full text-forest-400 italic">
                  Work in progress for {activeView} view

@@ -14,6 +14,20 @@ export enum Category {
   Other = 'Other'
 }
 
+export const CategoriesList = [
+  Category.Housing,
+  Category.Food,
+  Category.Transport,
+  Category.Utilities,
+  Category.Entertainment,
+  Category.Health,
+  Category.Shopping,
+  Category.Savings,
+  Category.Investment,
+  Category.Income,
+  Category.Other
+];
+
 export interface Transaction {
   id: string;
   amount: number;
