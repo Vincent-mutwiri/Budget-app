@@ -7,7 +7,14 @@ import {
   Search, Filter, Pencil, Trash2, Lightbulb,
   ShoppingCart, Bus, Film, Zap, ShoppingBag, PlusCircle
 } from 'lucide-react';
-import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/clerk-react";
+import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from "@clerk/clerk-react";
+import {
+  getTransactions, createTransaction,
+  getBudgets,
+  getGoals,
+  getAccounts,
+  getUser
+} from './services/api';
 import {
   Transaction, UserState, Category, DailyChallenge,
   FinancialSnapshot, Goal, Notification, Alert, TransactionType, CategoriesList, Budget, Security, Challenge, SavingsGoal, UserProfile, Account, ChatMessage
@@ -1615,18 +1622,13 @@ const BudgetsView = ({ budgets }: { budgets: Budget[] }) => {
 
 export default function App() {
   // --- State & Setup ---
+  const { user: clerkUser } = useUser();
   const [activeView, setActiveView] = useState('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const [user, setUser] = useState<UserState>(() => {
-    const saved = localStorage.getItem('smartwallet_user');
-    return saved ? JSON.parse(saved) : { xp: 150, level: 12, streak: 12, badges: 8, currency: 'USD', monthlyIncome: 4500 };
-  });
+  const [user, setUser] = useState<UserState>({ xp: 0, level: 1, streak: 0, badges: 0, currency: 'USD', monthlyIncome: 0 });
 
-  const [transactions, setTransactions] = useState<Transaction[]>(() => {
-    const saved = localStorage.getItem('smartwallet_transactions');
-    return saved ? JSON.parse(saved) : MOCK_TRANSACTIONS;
-  });
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
 
   // Budgets Data
   const [budgets, setBudgets] = useState<Budget[]>([]);
@@ -1665,28 +1667,59 @@ export default function App() {
     return { totalIncome, totalExpenses, balance: totalIncome - totalExpenses, savingsRate: 0 }; // calc rate if needed
   }, [transactions]);
 
-  // Persist Data
+  // Fetch Data on Load
   useEffect(() => {
-    localStorage.setItem('smartwallet_transactions', JSON.stringify(transactions));
-  }, [transactions]);
+    if (clerkUser) {
+      const fetchData = async () => {
+        try {
+          // Sync User
+          const userData = await getUser(
+            clerkUser.id,
+            clerkUser.primaryEmailAddress?.emailAddress,
+            clerkUser.fullName || ''
+          );
+          setUser(prev => ({ ...prev, ...userData }));
 
-  useEffect(() => {
-    localStorage.setItem('smartwallet_user', JSON.stringify(user));
-  }, [user]);
+          // Fetch Resources
+          const [txs, bgs, gls, accs] = await Promise.all([
+            getTransactions(clerkUser.id),
+            getBudgets(clerkUser.id),
+            getGoals(clerkUser.id),
+            getAccounts(clerkUser.id)
+          ]);
+
+          setTransactions(txs);
+          setBudgets(bgs);
+          setSavingsGoals(gls);
+          setAccounts(accs);
+        } catch (error) {
+          console.error("Failed to fetch data:", error);
+        }
+      };
+      fetchData();
+    }
+  }, [clerkUser]);
 
   // Handlers
-  const handleAddTransaction = (newTx: Omit<Transaction, 'id'>) => {
-    const transaction = {
-      ...newTx,
-      id: Math.random().toString(36).substr(2, 9),
-    };
-    setTransactions(prev => [transaction, ...prev]);
+  const handleAddTransaction = async (newTx: Omit<Transaction, 'id'>) => {
+    if (!clerkUser) return;
 
-    // Gamification: Add XP
-    setUser(prev => ({
-      ...prev,
-      xp: prev.xp + XP_REWARDS.ADD_TRANSACTION
-    }));
+    try {
+      const savedTx = await createTransaction({
+        ...newTx,
+        userId: clerkUser.id
+      });
+
+      setTransactions(prev => [savedTx, ...prev]);
+
+      // Gamification: Add XP (Optimistic update)
+      setUser(prev => ({
+        ...prev,
+        xp: prev.xp + XP_REWARDS.ADD_TRANSACTION
+      }));
+    } catch (error) {
+      console.error("Failed to add transaction:", error);
+    }
   };
 
   const handleDeleteTransaction = (id: string) => {
