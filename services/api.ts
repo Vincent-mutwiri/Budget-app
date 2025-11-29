@@ -287,4 +287,17 @@ export const calculateAcceleratedPayoff = async (id: string, extraPayment: numbe
     return response.data;
 };
 
+// AI Assistant
+export const queryAIAssistant = async (userId: string, query: string) => {
+    const response = await api.post('/ai-assistant/query', { userId, query });
+    return response.data;
+};
+
+export const getAIContext = async (userId: string, type?: string) => {
+    const params: any = { userId };
+    if (type) params.type = type;
+    const response = await api.get('/ai-assistant/context', { params });
+    return response.data;
+};
+
 export default api;

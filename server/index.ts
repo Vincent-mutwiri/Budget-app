@@ -1170,6 +1170,43 @@ app.get('/api/gamification/state', async (req, res) => {
     }
 });
 
+// AI Assistant Routes
+import { processAIQuery, getContextualData } from './services/aiQueryProcessor';
+
+// Process natural language query
+app.post('/api/ai-assistant/query', async (req, res) => {
+    const { userId, query } = req.body;
+
+    if (!userId || !query) {
+        return res.status(400).json({ error: 'UserId and query required' });
+    }
+
+    try {
+        const response = await processAIQuery(userId, query);
+        res.json(response);
+    } catch (error) {
+        console.error('Error processing AI query:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Get contextual data for query
+app.get('/api/ai-assistant/context', async (req, res) => {
+    const { userId, type } = req.query;
+
+    if (!userId) {
+        return res.status(400).json({ error: 'UserId required' });
+    }
+
+    try {
+        const contextData = await getContextualData(userId as string, type as string);
+        res.json(contextData);
+    } catch (error) {
+        console.error('Error fetching contextual data:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
 // Start Server
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
