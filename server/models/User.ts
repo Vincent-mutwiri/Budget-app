@@ -12,6 +12,7 @@ const UserSchema = new mongoose.Schema({
     streak: { type: Number, default: 0 },
     badges: { type: Number, default: 0 },
     monthlyIncome: { type: Number, default: 0 },
+    customCategories: [{ name: String, type: { type: String, enum: ['income', 'expense'] } }],
     createdAt: { type: Date, default: Date.now },
     // Security fields
     mfaEnabled: { type: Boolean, default: false },

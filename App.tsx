@@ -13,7 +13,11 @@ import {
   getBudgets,
   getGoals,
   getAccounts,
-  getUser
+  getUser,
+  createAccount,
+  getCustomCategories,
+  addCustomCategory,
+  deleteCustomCategory
 } from './services/api';
 import {
   Transaction, UserState, Category, DailyChallenge,
@@ -27,6 +31,8 @@ import { ExpensePieChart, TrendChart } from './components/Charts';
 import { generateFinancialAdvice } from './services/geminiService';
 import { Modal } from './components/Modal';
 import { AddBudgetForm, AddGoalForm } from './components/Forms';
+import { AddAccountForm } from './components/AddAccountForm';
+import { CategoryManager } from './components/CategoryManager';
 import { createBudget, createGoal, getRecurringTransactions, createRecurringTransaction, updateRecurringTransaction, deleteRecurringTransaction, toggleRecurringTransaction } from './services/api';
 import { RecurringTransactionsView } from './components/RecurringTransactionsView';
 import type { RecurringTransaction, RecurringTransactionInput } from './types';
@@ -105,11 +111,13 @@ const AlertItem: React.FC<{ alert: Alert }> = ({ alert }) => {
 const TransactionsView = ({
   transactions,
   onAdd,
-  onDelete
+  onDelete,
+  onOpenCategoryManager
 }: {
   transactions: Transaction[],
   onAdd: (t: Omit<Transaction, 'id'>) => void,
-  onDelete: (id: string) => void
+  onDelete: (id: string) => void,
+  onOpenCategoryManager: () => void
 }) => {
   const [type, setType] = useState<TransactionType>('expense');
   const [amount, setAmount] = useState('');
@@ -121,15 +129,18 @@ const TransactionsView = ({
   const [amountFilter, setAmountFilter] = useState({ min: '', max: '' });
   const [showSuggestion, setShowSuggestion] = useState(true);
   const [showReceiptScanner, setShowReceiptScanner] = useState(false);
+  const [customCategory, setCustomCategory] = useState('');
   const { user: clerkUser } = useUser();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!amount || !category || !date) return;
 
+    const finalCategory = customCategory.trim() || category;
+
     onAdd({
       amount: parseFloat(amount),
-      category: category as Category,
+      category: finalCategory as Category,
       date,
       description: description || 'Untitled Transaction',
       type
@@ -139,6 +150,7 @@ const TransactionsView = ({
     setAmount('');
     setDescription('');
     setCategory('');
+    setCustomCategory('');
   };
 
   const handleReceiptTransaction = (transactionData: any) => {
@@ -153,52 +165,62 @@ const TransactionsView = ({
 
   const filteredTransactions = transactions.filter(t => {
     const matchesSearch = t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         t.category.toLowerCase().includes(searchTerm.toLowerCase());
+      t.category.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = !categoryFilter || t.category === categoryFilter;
     const matchesAmount = (!amountFilter.min || t.amount >= parseFloat(amountFilter.min)) &&
-                         (!amountFilter.max || t.amount <= parseFloat(amountFilter.max));
+      (!amountFilter.max || t.amount <= parseFloat(amountFilter.max));
     return matchesSearch && matchesCategory && matchesAmount;
   }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Left Column: Add Transaction */}
       <div className="lg:col-span-1 flex flex-col gap-6">
         <div className="bg-forest-800 border border-forest-700 rounded-3xl p-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-bold text-white">Add New Transaction</h2>
-            <button
-              type="button"
-              onClick={() => setShowReceiptScanner(true)}
-              className="flex items-center gap-2 px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg transition-colors text-sm font-medium"
-            >
-              <ShoppingCart size={16} />
-              Scan Receipt
-            </button>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={onOpenCategoryManager}
+                className="flex items-center gap-2 px-3 py-2 bg-forest-900 hover:bg-forest-700 text-forest-300 hover:text-white rounded-lg transition-colors text-sm font-medium"
+              >
+                <Settings size={16} />
+                Categories
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowReceiptScanner(true)}
+                className="flex items-center gap-2 px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg transition-colors text-sm font-medium"
+              >
+                <ShoppingCart size={16} />
+                Scan Receipt
+              </button>
+            </div>
           </div>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-5">
             {/* Type Toggle */}
-            <div className="bg-forest-900 p-1 rounded-xl flex">
+            <div className="bg-forest-900 p-1.5 rounded-xl flex gap-2">
               <button
                 type="button"
                 onClick={() => setType('expense')}
-                className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${type === 'expense'
-                  ? 'bg-forest-800 text-white shadow-sm border border-forest-700'
-                  : 'text-forest-400 hover:text-white'
+                className={`flex-1 py-3 rounded-lg font-bold transition-all ${type === 'expense'
+                  ? 'bg-rose-500 text-white shadow-lg'
+                  : 'bg-forest-800 text-forest-400 hover:text-white hover:bg-forest-700'
                   }`}
               >
-                Expense
+                💸 Expense
               </button>
               <button
                 type="button"
                 onClick={() => setType('income')}
-                className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${type === 'income'
-                  ? 'bg-forest-800 text-white shadow-sm border border-forest-700'
-                  : 'text-forest-400 hover:text-white'
+                className={`flex-1 py-3 rounded-lg font-bold transition-all ${type === 'income'
+                  ? 'bg-primary text-forest-950 shadow-lg'
+                  : 'bg-forest-800 text-forest-400 hover:text-white hover:bg-forest-700'
                   }`}
               >
-                Income
+                💰 Income
               </button>
             </div>
 
@@ -236,8 +258,16 @@ const TransactionsView = ({
               <label className="block text-forest-300 text-sm font-medium mb-2">Category</label>
               <div className="relative">
                 <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value as Category)}
+                  value={category === 'custom' || (category && !CategoriesList.includes(category as Category)) ? 'custom' : category}
+                  onChange={(e) => {
+                    if (e.target.value === 'custom') {
+                      setCategory('custom' as Category);
+                      setCustomCategory('');
+                    } else {
+                      setCategory(e.target.value as Category);
+                      setCustomCategory('');
+                    }
+                  }}
                   className="w-full bg-forest-950 border border-forest-700 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary appearance-none cursor-pointer"
                   required
                 >
@@ -245,11 +275,28 @@ const TransactionsView = ({
                   {CategoriesList.map(cat => (
                     <option key={cat} value={cat}>{cat}</option>
                   ))}
+                  <option value="custom">+ Add Custom Category</option>
                 </select>
                 <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-forest-400">
                   <ChevronRight className="rotate-90" size={16} />
                 </div>
               </div>
+              {category === 'custom' && (
+                <input
+                  type="text"
+                  value={customCategory}
+                  placeholder="Enter custom category name"
+                  onChange={(e) => setCustomCategory(e.target.value)}
+                  onBlur={(e) => {
+                    if (e.target.value.trim()) {
+                      setCategory(e.target.value.trim() as Category);
+                    }
+                  }}
+                  className="w-full bg-forest-950 border border-forest-700 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary mt-2"
+                  autoFocus
+                  required
+                />
+              )}
             </div>
 
             {/* Date */}
@@ -308,7 +355,7 @@ const TransactionsView = ({
       </div>
 
       {/* Right Column: Transaction History */}
-      <div className="lg:col-span-2 bg-forest-800 border border-forest-700 rounded-3xl p-6 flex flex-col h-full overflow-hidden">
+      <div className="lg:col-span-2 bg-forest-800 border border-forest-700 rounded-3xl p-6 flex flex-col max-h-[800px]">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 shrink-0">
           <h2 className="text-xl font-bold text-white">Transaction History</h2>
 
@@ -330,7 +377,7 @@ const TransactionsView = ({
           </div>
         </div>
 
-        <div className="flex-1 overflow-auto -mx-6 px-6 scrollbar-thin scrollbar-thumb-forest-700">
+        <div className="flex-1 overflow-y-auto -mx-6 px-6 scrollbar-thin scrollbar-thumb-forest-700 min-h-0">
           <table className="w-full min-w-[600px]">
             <thead className="sticky top-0 bg-forest-800 z-10 text-forest-400 text-xs uppercase tracking-wider font-semibold text-left">
               <tr>
@@ -372,7 +419,7 @@ const TransactionsView = ({
                 </tr>
               ))}
               {filteredTransactions.length === 0 && (
-                <tr>
+                <tr key="no-transactions">
                   <td colSpan={5} className="py-12 text-center text-forest-400 italic">
                     No transactions found.
                   </td>
@@ -1172,7 +1219,7 @@ const SettingsView = ({ userProfile, onUpdateProfile }: { userProfile: UserProfi
 
 // --- Accounts View Component ---
 
-const AccountsView = ({ accounts }: { accounts: Account[] }) => {
+const AccountsView = ({ accounts, onAddAccount }: { accounts: Account[], onAddAccount: () => void }) => {
   const [assetsExpanded, setAssetsExpanded] = useState(true);
   const [liabilitiesExpanded, setLiabilitiesExpanded] = useState(true);
 
@@ -1226,7 +1273,10 @@ const AccountsView = ({ accounts }: { accounts: Account[] }) => {
           <h1 className="text-3xl font-black text-white tracking-tight">Accounts</h1>
           <p className="text-forest-400 text-base">A complete overview of your assets and liabilities.</p>
         </div>
-        <button className="flex items-center justify-center gap-2 rounded-xl h-10 px-4 bg-primary hover:bg-primary/90 text-forest-950 text-sm font-bold whitespace-nowrap">
+        <button
+          onClick={onAddAccount}
+          className="flex items-center justify-center gap-2 rounded-xl h-10 px-4 bg-primary hover:bg-primary/90 text-forest-950 text-sm font-bold whitespace-nowrap"
+        >
           <Plus size={18} strokeWidth={3} />
           Add Account
         </button>
@@ -1374,15 +1424,15 @@ const BudgetsView = ({ budgets, onAdd }: { budgets: Budget[], onAdd: () => void 
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-forest-800 border border-forest-700 p-6 rounded-3xl">
+          <div key="total-budgeted" className="bg-forest-800 border border-forest-700 p-6 rounded-3xl">
             <div className="text-forest-300 text-sm font-medium mb-1">Total Budgeted</div>
             <div className="text-3xl font-bold text-white">{formatCurrency(totalBudgeted)}</div>
           </div>
-          <div className="bg-forest-800 border border-forest-700 p-6 rounded-3xl">
+          <div key="total-spent" className="bg-forest-800 border border-forest-700 p-6 rounded-3xl">
             <div className="text-forest-300 text-sm font-medium mb-1">Total Spent</div>
             <div className="text-3xl font-bold text-white">{formatCurrency(totalSpent)}</div>
           </div>
-          <div className="bg-forest-800 border border-forest-700 p-6 rounded-3xl">
+          <div key="remaining" className="bg-forest-800 border border-forest-700 p-6 rounded-3xl">
             <div className="text-forest-300 text-sm font-medium mb-1">Remaining</div>
             <div className={`text-3xl font-bold ${remaining >= 0 ? 'text-primary' : 'text-rose-500'}`}>
               {formatCurrency(remaining)}
@@ -1491,6 +1541,9 @@ export default function App() {
   // Modal States
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
   const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
+  const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
+  const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
+  const [customCategories, setCustomCategories] = useState<Array<{ name: string; type: 'income' | 'expense' }>>([]);
 
   // Loading and Error States
   const [isLoading, setIsLoading] = useState(true);
@@ -1544,14 +1597,14 @@ export default function App() {
     return { totalIncome, totalExpenses, balance: totalIncome - totalExpenses, savingsRate: 0 };
   }, [transactions]);
 
-  const expensesByCategory = useMemo(() => 
+  const expensesByCategory = useMemo(() =>
     transactions.filter(t => t.type === 'expense')
       .reduce((acc, t) => ({ ...acc, [t.category]: (acc[t.category] || 0) + t.amount }), {})
-  , [transactions]);
+    , [transactions]);
 
-  const recentTransactions = useMemo(() => 
+  const recentTransactions = useMemo(() =>
     transactions.slice(0, 10)
-  , [transactions]);
+    , [transactions]);
 
   // Update user profile when Clerk user changes
   useEffect(() => {
@@ -1579,6 +1632,40 @@ export default function App() {
     { key: 's', ctrl: true, action: () => setActiveView('settings') },
   ]);
 
+  // Periodic sync every 5 minutes
+  useEffect(() => {
+    if (!clerkUser) return;
+
+    const syncData = async () => {
+      try {
+        const [txs, bgs, gls, accs, recTxs] = await Promise.all([
+          getTransactions(clerkUser.id),
+          getBudgets(clerkUser.id),
+          getGoals(clerkUser.id),
+          getAccounts(clerkUser.id),
+          getRecurringTransactions(clerkUser.id)
+        ]);
+
+        setTransactions(txs);
+        setBudgets(bgs);
+        setSavingsGoals(gls);
+        setAccounts(accs);
+        setRecurringTransactions(recTxs);
+
+        cache.set(`transactions_${clerkUser.id}`, txs);
+        cache.set(`budgets_${clerkUser.id}`, bgs);
+        cache.set(`goals_${clerkUser.id}`, gls);
+        cache.set(`accounts_${clerkUser.id}`, accs);
+        cache.set(`recurring_${clerkUser.id}`, recTxs);
+      } catch (err) {
+        console.error('Sync failed:', err);
+      }
+    };
+
+    const interval = setInterval(syncData, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [clerkUser]);
+
   // Fetch Data on Load
   useEffect(() => {
     if (clerkUser) {
@@ -1592,8 +1679,10 @@ export default function App() {
         const cachedGoals = cache.get<SavingsGoal[]>(`goals_${clerkUser.id}`);
         const cachedAccounts = cache.get<Account[]>(`accounts_${clerkUser.id}`);
         const cachedRecTxs = cache.get<RecurringTransaction[]>(`recurring_${clerkUser.id}`);
+        const cachedCustomCategories = cache.get<Array<{ name: string; type: 'income' | 'expense' }>>(`customCategories_${clerkUser.id}`);
 
         if (cachedTransactions) setTransactions(cachedTransactions);
+        if (cachedCustomCategories) setCustomCategories(cachedCustomCategories);
         if (cachedBudgets) setBudgets(cachedBudgets);
         if (cachedGoals) setSavingsGoals(cachedGoals);
         if (cachedAccounts) setAccounts(cachedAccounts);
@@ -1609,12 +1698,13 @@ export default function App() {
           setUser(prev => ({ ...prev, ...userData }));
 
           // Fetch Resources
-          const [txs, bgs, gls, accs, recTxs] = await Promise.all([
+          const [txs, bgs, gls, accs, recTxs, customCats] = await Promise.all([
             getTransactions(clerkUser.id),
             getBudgets(clerkUser.id),
             getGoals(clerkUser.id),
             getAccounts(clerkUser.id),
-            getRecurringTransactions(clerkUser.id)
+            getRecurringTransactions(clerkUser.id),
+            getCustomCategories(clerkUser.id)
           ]);
 
           // Update state and cache
@@ -1623,12 +1713,14 @@ export default function App() {
           setSavingsGoals(gls);
           setAccounts(accs);
           setRecurringTransactions(recTxs);
+          setCustomCategories(customCats);
 
           cache.set(`transactions_${clerkUser.id}`, txs);
           cache.set(`budgets_${clerkUser.id}`, bgs);
           cache.set(`goals_${clerkUser.id}`, gls);
           cache.set(`accounts_${clerkUser.id}`, accs);
           cache.set(`recurring_${clerkUser.id}`, recTxs);
+          cache.set(`customCategories_${clerkUser.id}`, customCats);
 
           setIsLoading(false);
         } catch (err) {
@@ -1651,7 +1743,6 @@ export default function App() {
   const handleAddTransaction = async (newTx: Omit<Transaction, 'id'>) => {
     if (!clerkUser) return;
 
-    // Optimistic update
     const tempId = `temp_${Date.now()}`;
     const optimisticTx = { ...newTx, id: tempId };
     setTransactions(prev => [optimisticTx as Transaction, ...prev]);
@@ -1662,37 +1753,87 @@ export default function App() {
         userId: clerkUser.id
       });
 
-      // Replace optimistic transaction with real one
       setTransactions(prev => prev.map(t => t.id === tempId ? savedTx : t));
+      cache.set(`transactions_${clerkUser.id}`, [savedTx, ...transactions.filter(t => t.id !== tempId)]);
 
-      // Update cache
-      const updatedTransactions = [savedTx, ...transactions.filter(t => t.id !== tempId)];
-      cache.set(`transactions_${clerkUser.id}`, updatedTransactions);
+      // Track custom category
+      if (!CategoriesList.includes(newTx.category as any) && !customCategories.find(c => c.name === newTx.category)) {
+        const updated = await addCustomCategory(clerkUser.id, newTx.category, newTx.type);
+        setCustomCategories(updated);
+        cache.set(`customCategories_${clerkUser.id}`, updated);
+      }
 
-      // Gamification: Add XP
-      setUser(prev => ({
-        ...prev,
-        xp: prev.xp + XP_REWARDS.ADD_TRANSACTION
-      }));
+      // Update budgets spent amount
+      const categoryBudget = budgets.find(b => b.category === newTx.category);
+      if (categoryBudget && newTx.type === 'expense') {
+        const updatedBudgets = budgets.map(b =>
+          b.id === categoryBudget.id
+            ? { ...b, spent: b.spent + newTx.amount }
+            : b
+        );
+        setBudgets(updatedBudgets);
+        cache.set(`budgets_${clerkUser.id}`, updatedBudgets);
+      }
 
+      setUser(prev => ({ ...prev, xp: prev.xp + XP_REWARDS.ADD_TRANSACTION }));
       success('Transaction added successfully!');
     } catch (err) {
-      console.error("Failed to add transaction:", err);
-      // Revert optimistic update
       setTransactions(prev => prev.filter(t => t.id !== tempId));
       showError('Failed to add transaction. Please try again.');
+    }
+  };
+
+  const handleDeleteCategory = async (categoryName: string) => {
+    if (!clerkUser) return;
+    try {
+      const updated = await deleteCustomCategory(clerkUser.id, categoryName);
+      setCustomCategories(updated);
+      cache.set(`customCategories_${clerkUser.id}`, updated);
+      success('Category deleted successfully!');
+    } catch (err) {
+      showError('Failed to delete category.');
+    }
+  };
+
+  const handleAddToDefault = async (categoryName: string) => {
+    if (!clerkUser) return;
+    try {
+      // Add to CategoriesList by updating types
+      if (!CategoriesList.includes(categoryName as any)) {
+        CategoriesList.push(categoryName as any);
+      }
+      // Remove from custom categories
+      const updated = await deleteCustomCategory(clerkUser.id, categoryName);
+      setCustomCategories(updated);
+      cache.set(`customCategories_${clerkUser.id}`, updated);
+      success(`"${categoryName}" added to default categories!`);
+    } catch (err) {
+      showError('Failed to add to default categories.');
+    }
+  };
+
+  const handleAddCategory = async (name: string, type: 'income' | 'expense') => {
+    if (!clerkUser) return;
+    try {
+      const updated = await addCustomCategory(clerkUser.id, name, type);
+      setCustomCategories(updated);
+      cache.set(`customCategories_${clerkUser.id}`, updated);
+      success(`Category "${name}" added successfully!`);
+    } catch (err) {
+      showError('Failed to add category.');
     }
   };
 
   const handleAddBudget = async (newBudget: any) => {
     if (!clerkUser) return;
     try {
-      const savedBudget = await createBudget({ ...newBudget, userId: clerkUser.id });
-      setBudgets(prev => [...prev, savedBudget]);
+      const savedBudget = await createBudget({ ...newBudget, userId: clerkUser.id, spent: 0 });
+      const updatedBudgets = [...budgets, savedBudget];
+      setBudgets(updatedBudgets);
+      cache.set(`budgets_${clerkUser.id}`, updatedBudgets);
       success('Budget created successfully!');
       setIsBudgetModalOpen(false);
     } catch (err) {
-      console.error("Failed to add budget:", err);
       showError('Failed to create budget. Please try again.');
     }
   };
@@ -1701,21 +1842,59 @@ export default function App() {
     if (!clerkUser) return;
     try {
       const savedGoal = await createGoal({ ...newGoal, userId: clerkUser.id });
-      setSavingsGoals(prev => [...prev, savedGoal]);
+      const updatedGoals = [...savingsGoals, savedGoal];
+      setSavingsGoals(updatedGoals);
+      cache.set(`goals_${clerkUser.id}`, updatedGoals);
       success('Goal created successfully!');
       setIsGoalModalOpen(false);
     } catch (err) {
-      console.error("Failed to add goal:", err);
       showError('Failed to create goal. Please try again.');
     }
   };
 
-  const handleDeleteTransaction = (id: string) => {
+  const handleAddAccount = async (newAccount: any) => {
+    if (!clerkUser) return;
     try {
-      setTransactions(prev => prev.filter(t => t.id !== id));
+      const savedAccount = await createAccount({ ...newAccount, userId: clerkUser.id });
+      const updatedAccounts = [...accounts, savedAccount];
+      setAccounts(updatedAccounts);
+      cache.set(`accounts_${clerkUser.id}`, updatedAccounts);
+      success('Account added successfully!');
+      setIsAccountModalOpen(false);
+    } catch (err) {
+      showError('Failed to add account. Please try again.');
+    }
+  };
+
+  const handleDeleteTransaction = async (id: string) => {
+    if (!clerkUser) return;
+
+    const transaction = transactions.find(t => t.id === id);
+    if (!transaction) return;
+
+    setTransactions(prev => prev.filter(t => t.id !== id));
+
+    try {
+      const updatedTransactions = transactions.filter(t => t.id !== id);
+      cache.set(`transactions_${clerkUser.id}`, updatedTransactions);
+
+      // Update budget spent amount
+      if (transaction.type === 'expense') {
+        const categoryBudget = budgets.find(b => b.category === transaction.category);
+        if (categoryBudget) {
+          const updatedBudgets = budgets.map(b =>
+            b.id === categoryBudget.id
+              ? { ...b, spent: Math.max(0, b.spent - transaction.amount) }
+              : b
+          );
+          setBudgets(updatedBudgets);
+          cache.set(`budgets_${clerkUser.id}`, updatedBudgets);
+        }
+      }
+
       success('Transaction deleted successfully!');
     } catch (err) {
-      console.error("Failed to delete transaction:", err);
+      setTransactions(prev => [...prev, transaction]);
       showError('Failed to delete transaction. Please try again.');
     }
   };
@@ -1725,43 +1904,50 @@ export default function App() {
     if (!clerkUser) return;
     try {
       const savedRecTx = await createRecurringTransaction({ ...data, userId: clerkUser.id });
-      setRecurringTransactions(prev => [savedRecTx, ...prev]);
+      const updated = [savedRecTx, ...recurringTransactions];
+      setRecurringTransactions(updated);
+      cache.set(`recurring_${clerkUser.id}`, updated);
       success('Recurring transaction created successfully!');
     } catch (err) {
-      console.error("Failed to add recurring transaction:", err);
       showError('Failed to create recurring transaction. Please try again.');
     }
   };
 
   const handleUpdateRecurringTransaction = async (id: string, data: RecurringTransactionInput) => {
+    if (!clerkUser) return;
     try {
       const updatedRecTx = await updateRecurringTransaction(id, data);
-      setRecurringTransactions(prev => prev.map(rt => rt.id === id ? updatedRecTx : rt));
+      const updated = recurringTransactions.map(rt => rt.id === id ? updatedRecTx : rt);
+      setRecurringTransactions(updated);
+      cache.set(`recurring_${clerkUser.id}`, updated);
       success('Recurring transaction updated successfully!');
     } catch (err) {
-      console.error("Failed to update recurring transaction:", err);
       showError('Failed to update recurring transaction. Please try again.');
     }
   };
 
   const handleDeleteRecurringTransaction = async (id: string) => {
+    if (!clerkUser) return;
     try {
       await deleteRecurringTransaction(id);
-      setRecurringTransactions(prev => prev.filter(rt => rt.id !== id));
+      const updated = recurringTransactions.filter(rt => rt.id !== id);
+      setRecurringTransactions(updated);
+      cache.set(`recurring_${clerkUser.id}`, updated);
       success('Recurring transaction deleted successfully!');
     } catch (err) {
-      console.error("Failed to delete recurring transaction:", err);
       showError('Failed to delete recurring transaction. Please try again.');
     }
   };
 
   const handleToggleRecurringTransaction = async (id: string, isActive: boolean) => {
+    if (!clerkUser) return;
     try {
       const updatedRecTx = await toggleRecurringTransaction(id, isActive);
-      setRecurringTransactions(prev => prev.map(rt => rt.id === id ? updatedRecTx : rt));
+      const updated = recurringTransactions.map(rt => rt.id === id ? updatedRecTx : rt);
+      setRecurringTransactions(updated);
+      cache.set(`recurring_${clerkUser.id}`, updated);
       success(`Recurring transaction ${isActive ? 'activated' : 'deactivated'} successfully!`);
     } catch (err) {
-      console.error("Failed to toggle recurring transaction:", err);
       showError('Failed to update recurring transaction. Please try again.');
     }
   };
@@ -1786,19 +1972,19 @@ export default function App() {
               <MetricCard
                 title="Total Balance"
                 value={formatCurrency(snapshot.balance)}
-                subValue="+2.5%"
-                trend="up"
+                subValue={snapshot.balance > 0 ? `KSh ${snapshot.balance.toFixed(0)}` : undefined}
+                trend={snapshot.balance > 0 ? 'up' : undefined}
               />
               <MetricCard
                 title="This Month's Spending"
                 value={formatCurrency(snapshot.totalExpenses)}
-                subValue="-10.2%"
-                trend="down"
+                subValue={snapshot.totalExpenses > 0 ? `${transactions.filter(t => t.type === 'expense').length} transactions` : undefined}
+                trend={snapshot.totalExpenses > 0 ? 'down' : undefined}
               />
               <MetricCard
                 title="Remaining Budget"
                 value={formatCurrency(snapshot.totalIncome - snapshot.totalExpenses)}
-                subValue="On Track"
+                subValue={budgets.length > 0 ? `${budgets.length} budgets` : 'No budgets set'}
                 trend="neutral"
               />
             </>
@@ -1908,7 +2094,7 @@ export default function App() {
       <SignedIn>
         {/* Toast Container */}
         <ToastContainer toasts={toasts} onClose={closeToast} />
-        
+
         {/* Offline Indicator */}
         <OfflineIndicator />
 
@@ -2003,7 +2189,7 @@ export default function App() {
               {/* Top Navigation Bar */}
               <header className="bg-forest-900 border-b border-forest-800 px-4 md:px-8 py-4 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-4 md:gap-8">
-                  <button 
+                  <button
                     className="md:hidden p-2 text-white hover:bg-forest-800 rounded-lg transition-colors"
                     onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                   >
@@ -2101,6 +2287,7 @@ export default function App() {
                     transactions={transactions}
                     onAdd={handleAddTransaction}
                     onDelete={handleDeleteTransaction}
+                    onOpenCategoryManager={() => setIsCategoryManagerOpen(true)}
                   />
                 ) : activeView === 'recurring' ? (
                   <RecurringTransactionsView
@@ -2133,7 +2320,7 @@ export default function App() {
                     <GoalsView goals={savingsGoals} />
                   </>
                 ) : activeView === 'accounts' ? (
-                  <AccountsView accounts={accounts} />
+                  <AccountsView accounts={accounts} onAddAccount={() => setIsAccountModalOpen(true)} />
                 ) : activeView === 'ai-assistant' ? (
                   clerkUser ? <AIAssistantView userId={clerkUser.id} /> : <div>Loading...</div>
                 ) : activeView === 'export' ? (
@@ -2163,6 +2350,28 @@ export default function App() {
               title="Set Savings Goal"
             >
               <AddGoalForm onAdd={handleAddGoal} onClose={() => setIsGoalModalOpen(false)} />
+            </Modal>
+
+            <Modal
+              isOpen={isAccountModalOpen}
+              onClose={() => setIsAccountModalOpen(false)}
+              title="Add Account"
+            >
+              <AddAccountForm onAdd={handleAddAccount} onClose={() => setIsAccountModalOpen(false)} />
+            </Modal>
+
+            <Modal
+              isOpen={isCategoryManagerOpen}
+              onClose={() => setIsCategoryManagerOpen(false)}
+              title=""
+            >
+              <CategoryManager
+                onClose={() => setIsCategoryManagerOpen(false)}
+                customCategories={customCategories}
+                onDeleteCategory={handleDeleteCategory}
+                onAddToDefault={handleAddToDefault}
+                onAddCategory={handleAddCategory}
+              />
             </Modal>
 
             {/* Notification Preferences Modal */}

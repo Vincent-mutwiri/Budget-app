@@ -375,4 +375,20 @@ export const exportSummary = async (config: any) => {
     return response.data;
 };
 
+// Custom Categories
+export const getCustomCategories = async (userId: string) => {
+    const response = await api.get('/categories/custom', { params: { userId } });
+    return response.data;
+};
+
+export const addCustomCategory = async (userId: string, category: string, type: 'income' | 'expense') => {
+    const response = await api.post('/categories/custom', { userId, category, type });
+    return response.data;
+};
+
+export const deleteCustomCategory = async (userId: string, category: string) => {
+    const response = await api.delete(`/categories/custom/${encodeURIComponent(category)}`, { params: { userId } });
+    return response.data;
+};
+
 export default api;

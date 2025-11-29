@@ -78,7 +78,8 @@ app.get('/api/user/:clerkId', async (req, res) => {
             const newUser = new User({
                 clerkId: req.params.clerkId,
                 email: req.query.email || '',
-                fullName: req.query.fullName || ''
+                fullName: req.query.fullName || '',
+                customCategories: []
             });
             await newUser.save();
             return res.json(newUser);
@@ -87,6 +88,57 @@ app.get('/api/user/:clerkId', async (req, res) => {
     } catch (error) {
         console.error('Error in /api/user/:clerkId:', error);
         res.status(500).json({ error: 'Server error', details: error instanceof Error ? error.message : 'Unknown error' });
+    }
+});
+
+// Get Custom Categories
+app.get('/api/categories/custom', async (req, res) => {
+    const { userId } = req.query;
+    if (!userId) return res.status(400).json({ error: 'UserId required' });
+
+    try {
+        const user = await User.findOne({ clerkId: userId });
+        res.json(user?.customCategories || []);
+    } catch (error) {
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Add Custom Category
+app.post('/api/categories/custom', async (req, res) => {
+    const { userId, category, type } = req.body;
+    if (!userId || !category || !type) return res.status(400).json({ error: 'UserId, category, and type required' });
+
+    try {
+        const user = await User.findOne({ clerkId: userId });
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        if (!user.customCategories) user.customCategories = [];
+        if (!user.customCategories.find((c: any) => c.name === category)) {
+            user.customCategories.push({ name: category, type });
+            await user.save();
+        }
+        res.json(user.customCategories);
+    } catch (error) {
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Delete Custom Category
+app.delete('/api/categories/custom/:category', async (req, res) => {
+    const { userId } = req.query;
+    const { category } = req.params;
+    if (!userId) return res.status(400).json({ error: 'UserId required' });
+
+    try {
+        const user = await User.findOne({ clerkId: userId });
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        user.customCategories = (user.customCategories || []).filter((c: any) => c.name !== category);
+        await user.save();
+        res.json(user.customCategories);
+    } catch (error) {
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
