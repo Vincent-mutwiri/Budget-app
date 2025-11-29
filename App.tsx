@@ -38,6 +38,12 @@ import { ReceiptScanner } from './components/ReceiptScanner';
 import { InvestmentsView as NewInvestmentsView } from './components/InvestmentsView';
 import { DebtTracker } from './components/DebtTracker';
 import { ExportReports } from './components/ExportReports';
+import AIAssistantView from './components/AIAssistantView';
+import { ToastContainer } from './components/Toast';
+import { LoadingSpinner } from './components/LoadingSpinner';
+import { ErrorMessage } from './components/ErrorMessage';
+import { useToast } from './hooks/useToast';
+import { cache } from './utils/cache';
 
 // --- Components ---
 
@@ -1320,212 +1326,7 @@ const AccountsView = ({ accounts }: { accounts: Account[] }) => {
   );
 };
 
-// --- AI Assistant View Component ---
 
-const AIAssistantView = ({ transactions }: { transactions: Transaction[] }) => {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: '1',
-      role: 'assistant',
-      content: "Hello! I'm your financial assistant. How can I help you today? You can ask things like \"How much did I spend on groceries last month?\" or \"Show me my spending by category.\"",
-      timestamp: new Date().toISOString()
-    }
-  ]);
-  const [inputValue, setInputValue] = useState('');
-  const [showInsight, setShowInsight] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  const handleSendMessage = () => {
-    if (!inputValue.trim()) return;
-
-    const userMessage: ChatMessage = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: inputValue,
-      timestamp: new Date().toISOString()
-    };
-
-    setMessages(prev => [...prev, userMessage]);
-    setInputValue('');
-    setShowInsight(true);
-
-    // Simulate AI response
-    setTimeout(() => {
-      const aiMessage: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: "You spent $450.32 on groceries last month. I've broken it down for you in the panel on the right.",
-        timestamp: new Date().toISOString()
-      };
-      setMessages(prev => [...prev, aiMessage]);
-    }, 1000);
-  };
-
-  const handleQuickQuestion = (question: string) => {
-    setInputValue(question);
-  };
-
-  return (
-    <div className="flex h-full w-full max-w-full overflow-hidden">
-
-      {/* Chat Area */}
-      <div className="flex flex-1 flex-col min-w-0">
-
-        {/* Header */}
-        <header className="flex-shrink-0 p-6 border-b border-forest-700">
-          <div className="flex flex-col gap-2">
-            <h1 className="text-3xl font-bold text-white tracking-tight">AI Assistant</h1>
-            <p className="text-forest-400 text-base">Ask me anything about your finances.</p>
-          </div>
-        </header>
-
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex items-start gap-4 ${message.role === 'user' ? 'justify-end' : ''}`}
-            >
-              {message.role === 'assistant' && (
-                <div className="w-10 h-10 rounded-full bg-primary/20 text-primary flex items-center justify-center shrink-0">
-                  <Brain size={20} />
-                </div>
-              )}
-
-              <div className={`flex flex-1 flex-col gap-2 ${message.role === 'user' ? 'items-end' : 'items-start'}`}>
-                <p className="text-forest-400 text-xs font-medium">
-                  {message.role === 'assistant' ? 'SmartWallet AI' : 'You'}
-                </p>
-                <div className={`text-base font-normal max-w-lg rounded-2xl px-4 py-3 ${message.role === 'assistant'
-                  ? 'bg-forest-800 text-white border border-forest-700 rounded-tl-none'
-                  : 'bg-primary text-forest-950 rounded-tr-none'
-                  }`}>
-                  <p>{message.content}</p>
-                </div>
-              </div>
-
-              {message.role === 'user' && (
-                <div
-                  className="w-10 h-10 rounded-full bg-center bg-cover shrink-0"
-                  style={{ backgroundImage: 'url("https://api.dicebear.com/7.x/avataaars/svg?seed=Jane")' }}
-                ></div>
-              )}
-            </div>
-          ))}
-          <div ref={messagesEndRef} />
-        </div>
-
-        {/* Chat Input */}
-        <footer className="flex-shrink-0 p-6 border-t border-forest-700">
-          <div className="flex items-center gap-2 mb-3 flex-wrap">
-            <button
-              onClick={() => handleQuickQuestion('How much did I spend on coffee?')}
-              className="px-3 py-1.5 text-sm text-forest-300 bg-forest-800 border border-forest-700 rounded-full hover:bg-forest-700 hover:text-white transition-colors"
-            >
-              How much did I spend on coffee?
-            </button>
-            <button
-              onClick={() => handleQuickQuestion("What's my biggest expense?")}
-              className="px-3 py-1.5 text-sm text-forest-300 bg-forest-800 border border-forest-700 rounded-full hover:bg-forest-700 hover:text-white transition-colors"
-            >
-              What's my biggest expense?
-            </button>
-            <button
-              onClick={() => handleQuickQuestion('Show my budget status')}
-              className="px-3 py-1.5 text-sm text-forest-300 bg-forest-800 border border-forest-700 rounded-full hover:bg-forest-700 hover:text-white transition-colors"
-            >
-              Show my budget status
-            </button>
-          </div>
-          <div className="relative">
-            <input
-              type="text"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-              placeholder="Ask me anything..."
-              className="w-full pl-4 pr-12 py-3 rounded-xl bg-forest-800 text-white border border-forest-700 focus:ring-2 focus:ring-primary focus:border-primary focus:outline-none transition-all placeholder-forest-500"
-            />
-            <button
-              onClick={handleSendMessage}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-primary text-forest-950 hover:bg-primary/90 transition-colors"
-            >
-              <ArrowRight size={20} />
-            </button>
-          </div>
-        </footer>
-      </div>
-
-      {/* Contextual Insight Panel */}
-      {showInsight && (
-        <aside className="w-96 bg-forest-800 flex-shrink-0 border-l border-forest-700 p-6 flex flex-col gap-6 overflow-y-auto">
-          <h2 className="text-xl font-bold text-white">Contextual Insight</h2>
-
-          {/* Data Snippet Card */}
-          <div className="bg-forest-900 p-4 rounded-2xl border border-forest-700">
-            <p className="text-sm text-forest-400 mb-1">Groceries Spending (Last Month)</p>
-            <p className="text-3xl font-bold text-primary">$450.32</p>
-          </div>
-
-          {/* Chart Widget */}
-          <div className="bg-forest-900 p-4 rounded-2xl border border-forest-700 flex flex-col">
-            <p className="text-base font-semibold text-white mb-4">Breakdown by Retailer</p>
-            <div className="flex flex-col gap-4">
-              {/* Chart Item */}
-              <div className="flex flex-col gap-1">
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-forest-300">SuperMart</span>
-                  <span className="text-forest-400">$210.15</span>
-                </div>
-                <div className="w-full bg-forest-950 h-2 rounded-full overflow-hidden">
-                  <div className="bg-primary h-2 rounded-full" style={{ width: '46%' }}></div>
-                </div>
-              </div>
-
-              {/* Chart Item */}
-              <div className="flex flex-col gap-1">
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-forest-300">Fresh Foods</span>
-                  <span className="text-forest-400">$155.67</span>
-                </div>
-                <div className="w-full bg-forest-950 h-2 rounded-full overflow-hidden">
-                  <div className="bg-primary h-2 rounded-full" style={{ width: '34%' }}></div>
-                </div>
-              </div>
-
-              {/* Chart Item */}
-              <div className="flex flex-col gap-1">
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-forest-300">Corner Store</span>
-                  <span className="text-forest-400">$84.50</span>
-                </div>
-                <div className="w-full bg-forest-950 h-2 rounded-full overflow-hidden">
-                  <div className="bg-primary h-2 rounded-full" style={{ width: '20%' }}></div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Quick Action Button */}
-          <div className="mt-auto">
-            <button className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-primary/20 text-primary font-semibold hover:bg-primary/30 transition-colors">
-              <CreditCard size={20} />
-              <span>View Full Transaction List</span>
-            </button>
-          </div>
-        </aside>
-      )}
-    </div>
-  );
-};
 
 // --- Budgets View Component ---
 
@@ -1703,6 +1504,11 @@ export default function App() {
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
   const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
 
+  // Loading and Error States
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { toasts, success, error: showError, closeToast } = useToast();
+
   const [user, setUser] = useState<UserState>({ xp: 0, level: 1, streak: 0, badges: 0, currency: 'USD', monthlyIncome: 0 });
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -1754,6 +1560,22 @@ export default function App() {
   useEffect(() => {
     if (clerkUser) {
       const fetchData = async () => {
+        setIsLoading(true);
+        setError(null);
+
+        // Try to load from cache first
+        const cachedTransactions = cache.get<Transaction[]>(`transactions_${clerkUser.id}`);
+        const cachedBudgets = cache.get<Budget[]>(`budgets_${clerkUser.id}`);
+        const cachedGoals = cache.get<SavingsGoal[]>(`goals_${clerkUser.id}`);
+        const cachedAccounts = cache.get<Account[]>(`accounts_${clerkUser.id}`);
+        const cachedRecTxs = cache.get<RecurringTransaction[]>(`recurring_${clerkUser.id}`);
+
+        if (cachedTransactions) setTransactions(cachedTransactions);
+        if (cachedBudgets) setBudgets(cachedBudgets);
+        if (cachedGoals) setSavingsGoals(cachedGoals);
+        if (cachedAccounts) setAccounts(cachedAccounts);
+        if (cachedRecTxs) setRecurringTransactions(cachedRecTxs);
+
         try {
           // Sync User
           const userData = await getUser(
@@ -1772,22 +1594,44 @@ export default function App() {
             getRecurringTransactions(clerkUser.id)
           ]);
 
+          // Update state and cache
           setTransactions(txs);
           setBudgets(bgs);
           setSavingsGoals(gls);
           setAccounts(accs);
           setRecurringTransactions(recTxs);
-        } catch (error) {
-          console.error("Failed to fetch data:", error);
+
+          cache.set(`transactions_${clerkUser.id}`, txs);
+          cache.set(`budgets_${clerkUser.id}`, bgs);
+          cache.set(`goals_${clerkUser.id}`, gls);
+          cache.set(`accounts_${clerkUser.id}`, accs);
+          cache.set(`recurring_${clerkUser.id}`, recTxs);
+
+          setIsLoading(false);
+        } catch (err) {
+          console.error("Failed to fetch data:", err);
+          // If we have cached data, don't show error
+          if (!cachedTransactions && !cachedBudgets) {
+            setError("Failed to load your financial data. Please try again.");
+            showError("Failed to load your financial data. Please try again.");
+          } else {
+            showError("Using cached data. Some information may be outdated.");
+          }
+          setIsLoading(false);
         }
       };
       fetchData();
     }
-  }, [clerkUser]);
+  }, [clerkUser, showError]);
 
   // Handlers
   const handleAddTransaction = async (newTx: Omit<Transaction, 'id'>) => {
     if (!clerkUser) return;
+
+    // Optimistic update
+    const tempId = `temp_${Date.now()}`;
+    const optimisticTx = { ...newTx, id: tempId };
+    setTransactions(prev => [optimisticTx as Transaction, ...prev]);
 
     try {
       const savedTx = await createTransaction({
@@ -1795,32 +1639,62 @@ export default function App() {
         userId: clerkUser.id
       });
 
-      setTransactions(prev => [savedTx, ...prev]);
+      // Replace optimistic transaction with real one
+      setTransactions(prev => prev.map(t => t.id === tempId ? savedTx : t));
 
-      // Gamification: Add XP (Optimistic update)
+      // Update cache
+      const updatedTransactions = [savedTx, ...transactions.filter(t => t.id !== tempId)];
+      cache.set(`transactions_${clerkUser.id}`, updatedTransactions);
+
+      // Gamification: Add XP
       setUser(prev => ({
         ...prev,
         xp: prev.xp + XP_REWARDS.ADD_TRANSACTION
       }));
-    } catch (error) {
-      console.error("Failed to add transaction:", error);
+
+      success('Transaction added successfully!');
+    } catch (err) {
+      console.error("Failed to add transaction:", err);
+      // Revert optimistic update
+      setTransactions(prev => prev.filter(t => t.id !== tempId));
+      showError('Failed to add transaction. Please try again.');
     }
   };
 
   const handleAddBudget = async (newBudget: any) => {
     if (!clerkUser) return;
-    const savedBudget = await createBudget({ ...newBudget, userId: clerkUser.id });
-    setBudgets(prev => [...prev, savedBudget]);
+    try {
+      const savedBudget = await createBudget({ ...newBudget, userId: clerkUser.id });
+      setBudgets(prev => [...prev, savedBudget]);
+      success('Budget created successfully!');
+      setIsBudgetModalOpen(false);
+    } catch (err) {
+      console.error("Failed to add budget:", err);
+      showError('Failed to create budget. Please try again.');
+    }
   };
 
   const handleAddGoal = async (newGoal: any) => {
     if (!clerkUser) return;
-    const savedGoal = await createGoal({ ...newGoal, userId: clerkUser.id });
-    setSavingsGoals(prev => [...prev, savedGoal]);
+    try {
+      const savedGoal = await createGoal({ ...newGoal, userId: clerkUser.id });
+      setSavingsGoals(prev => [...prev, savedGoal]);
+      success('Goal created successfully!');
+      setIsGoalModalOpen(false);
+    } catch (err) {
+      console.error("Failed to add goal:", err);
+      showError('Failed to create goal. Please try again.');
+    }
   };
 
   const handleDeleteTransaction = (id: string) => {
-    setTransactions(prev => prev.filter(t => t.id !== id));
+    try {
+      setTransactions(prev => prev.filter(t => t.id !== id));
+      success('Transaction deleted successfully!');
+    } catch (err) {
+      console.error("Failed to delete transaction:", err);
+      showError('Failed to delete transaction. Please try again.');
+    }
   };
 
   // Recurring Transaction Handlers
@@ -1829,8 +1703,10 @@ export default function App() {
     try {
       const savedRecTx = await createRecurringTransaction({ ...data, userId: clerkUser.id });
       setRecurringTransactions(prev => [savedRecTx, ...prev]);
-    } catch (error) {
-      console.error("Failed to add recurring transaction:", error);
+      success('Recurring transaction created successfully!');
+    } catch (err) {
+      console.error("Failed to add recurring transaction:", err);
+      showError('Failed to create recurring transaction. Please try again.');
     }
   };
 
@@ -1838,8 +1714,10 @@ export default function App() {
     try {
       const updatedRecTx = await updateRecurringTransaction(id, data);
       setRecurringTransactions(prev => prev.map(rt => rt.id === id ? updatedRecTx : rt));
-    } catch (error) {
-      console.error("Failed to update recurring transaction:", error);
+      success('Recurring transaction updated successfully!');
+    } catch (err) {
+      console.error("Failed to update recurring transaction:", err);
+      showError('Failed to update recurring transaction. Please try again.');
     }
   };
 
@@ -1847,8 +1725,10 @@ export default function App() {
     try {
       await deleteRecurringTransaction(id);
       setRecurringTransactions(prev => prev.filter(rt => rt.id !== id));
-    } catch (error) {
-      console.error("Failed to delete recurring transaction:", error);
+      success('Recurring transaction deleted successfully!');
+    } catch (err) {
+      console.error("Failed to delete recurring transaction:", err);
+      showError('Failed to delete recurring transaction. Please try again.');
     }
   };
 
@@ -1856,8 +1736,10 @@ export default function App() {
     try {
       const updatedRecTx = await toggleRecurringTransaction(id, isActive);
       setRecurringTransactions(prev => prev.map(rt => rt.id === id ? updatedRecTx : rt));
-    } catch (error) {
-      console.error("Failed to toggle recurring transaction:", error);
+      success(`Recurring transaction ${isActive ? 'activated' : 'deactivated'} successfully!`);
+    } catch (err) {
+      console.error("Failed to toggle recurring transaction:", err);
+      showError('Failed to update recurring transaction. Please try again.');
     }
   };
 
@@ -1991,208 +1873,237 @@ export default function App() {
         </div>
       </SignedOut>
       <SignedIn>
-        <div className="flex h-screen bg-forest-950 text-forest-100 font-inter selection:bg-primary/30 overflow-hidden">
+        {/* Toast Container */}
+        <ToastContainer toasts={toasts} onClose={closeToast} />
 
-          {/* Sidebar - Desktop */}
-          <aside className="w-72 bg-forest-900 hidden md:flex flex-col border-r border-forest-800">
-            <div className="p-8 pb-4">
-              <div className="flex items-center gap-3 text-white font-bold text-2xl">
-                <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-forest-900">
-                  <Wallet size={24} strokeWidth={2.5} />
-                </div>
-                SmartWallet
-              </div>
-            </div>
+        {/* Loading State */}
+        {isLoading && <LoadingSpinner fullScreen message="Loading your financial data..." />}
 
-            <nav className="flex-1 px-6 py-6 overflow-y-auto">
-              <SidebarItem id="dashboard" label="Dashboard" icon={LayoutGrid} active={activeView === 'dashboard'} onClick={() => setActiveView('dashboard')} />
-              <SidebarItem id="accounts" label="Accounts" icon={Wallet} active={activeView === 'accounts'} onClick={() => setActiveView('accounts')} />
-              <SidebarItem id="transactions" label="Transactions" icon={CreditCard} active={activeView === 'transactions'} onClick={() => setActiveView('transactions')} />
-              <SidebarItem id="recurring" label="Recurring" icon={Calendar} active={activeView === 'recurring'} onClick={() => setActiveView('recurring')} />
-              <SidebarItem id="budgets" label="Budgets" icon={Target} active={activeView === 'budgets'} onClick={() => setActiveView('budgets')} />
-              <SidebarItem id="insights" label="Insights" icon={TrendingUp} active={activeView === 'insights'} onClick={() => setActiveView('insights')} />
-              <SidebarItem id="investments" label="Investments" icon={TrendingUp} active={activeView === 'investments'} onClick={() => setActiveView('investments')} />
-              <SidebarItem id="debts" label="Debt Tracker" icon={CreditCard} active={activeView === 'debts'} onClick={() => setActiveView('debts')} />
-              <SidebarItem id="ai-assistant" label="AI Assistant" icon={Brain} active={activeView === 'ai-assistant'} onClick={() => setActiveView('ai-assistant')} />
-              <SidebarItem id="gamification" label="Gamification" icon={Medal} active={activeView === 'gamification'} onClick={() => setActiveView('gamification')} />
-              <SidebarItem id="goals" label="Goals" icon={Target} active={activeView === 'goals'} onClick={() => setActiveView('goals')} />
-              <SidebarItem id="export" label="Export" icon={Download} active={activeView === 'export'} onClick={() => setActiveView('export')} />
-              <SidebarItem id="settings" label="Settings" icon={Settings} active={activeView === 'settings'} onClick={() => setActiveView('settings')} />
-            </nav>
-
-            <div className="p-6">
-              <div className="flex items-center gap-3 p-4 rounded-2xl hover:bg-forest-800 transition-colors cursor-pointer">
-                <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center overflow-hidden border-2 border-white">
-                  <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Jane" alt="User" />
-                </div>
-                <div>
-                  <div className="text-white font-bold text-sm">Jane Doe</div>
-                  <div className="text-forest-400 text-xs">jane.doe@email.com</div>
-                </div>
-              </div>
-            </div>
-          </aside>
-
-          {/* Main Content */}
-          <main className="flex-1 flex flex-col relative h-full overflow-hidden">
-            {/* Top Navigation Bar */}
-            <header className="bg-forest-900 border-b border-forest-800 px-8 py-4 flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-8">
-                <div className="flex items-center gap-3 text-white font-bold text-xl md:hidden">
-                  <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-forest-900">
-                    <Wallet size={20} strokeWidth={2.5} />
-                  </div>
-                  SmartWallet
-                </div>
-                <nav className="hidden md:flex items-center gap-6">
-                  <button
-                    onClick={() => setActiveView('dashboard')}
-                    className={`text-sm font-medium transition-colors ${activeView === 'dashboard' ? 'text-white' : 'text-forest-400 hover:text-white'}`}
-                  >
-                    Dashboard
-                  </button>
-                  <button
-                    onClick={() => setActiveView('budgets')}
-                    className={`text-sm font-medium transition-colors ${activeView === 'budgets' ? 'text-white' : 'text-forest-400 hover:text-white'}`}
-                  >
-                    Budgets
-                  </button>
-                  <button
-                    onClick={() => setActiveView('transactions')}
-                    className={`text-sm font-medium transition-colors ${activeView === 'transactions' ? 'text-white' : 'text-forest-400 hover:text-white'}`}
-                  >
-                    Transactions
-                  </button>
-                  <button
-                    onClick={() => setActiveView('goals')}
-                    className={`text-sm font-medium transition-colors ${activeView === 'goals' ? 'text-white' : 'text-forest-400 hover:text-white'}`}
-                  >
-                    Goals
-                  </button>
-                  <button
-                    onClick={() => setActiveView('gamification')}
-                    className={`text-sm font-medium transition-colors ${activeView === 'gamification' ? 'text-white' : 'text-forest-400 hover:text-white'}`}
-                  >
-                    Gamification
-                  </button>
-                </nav>
-              </div>
-              <div className="flex items-center gap-4">
-                {clerkUser && <NotificationCenter userId={clerkUser.id} />}
-                <button
-                  onClick={() => setIsNotificationPrefsOpen(true)}
-                  className="p-2 text-forest-400 hover:text-white hover:bg-forest-800 rounded-lg transition-colors"
-                  title="Notification Settings"
-                >
-                  <Settings size={20} />
-                </button>
-                <div className="flex items-center justify-center">
-                  <UserButton />
-                </div>
-              </div>
-            </header>
-
-            {/* Page Header */}
-            {activeView !== 'insights' && (
-              <div className="px-8 py-6 shrink-0">
-                <h1 className="text-3xl font-bold text-white mb-1">
-                  {activeView === 'dashboard' ? 'Welcome back, Jane!' :
-                    activeView === 'gamification' ? 'Your Gamification Hub' :
-                      activeView === 'export' ? 'Export & Reports' :
-                        activeView.charAt(0).toUpperCase() + activeView.slice(1)}
-                </h1>
-                <p className="text-forest-400">
-                  {activeView === 'dashboard' ? "Here's a summary of your financial activity." :
-                    activeView === 'gamification' ? 'Track your progress, earn badges, and complete challenges to level up your finances.' :
-                      activeView === 'export' ? 'Generate and download reports for your financial data.' :
-                        'Manage your financial records.'}
-                </p>
-              </div>
-            )}
-
-            {/* Scrollable Content */}
-            <div className={`flex-1 ${activeView === 'ai-assistant' || activeView === 'insights' ? 'overflow-hidden' : 'overflow-y-auto px-8 pb-8'} scrollbar-thin scrollbar-thumb-forest-700 scrollbar-track-transparent`}>
-              {activeView === 'dashboard' ? (
-                <DashboardContent />
-              ) : activeView === 'transactions' ? (
-                <TransactionsView
-                  transactions={transactions}
-                  onAdd={handleAddTransaction}
-                  onDelete={handleDeleteTransaction}
-                />
-              ) : activeView === 'recurring' ? (
-                <RecurringTransactionsView
-                  recurringTransactions={recurringTransactions}
-                  onAdd={handleAddRecurringTransaction}
-                  onUpdate={handleUpdateRecurringTransaction}
-                  onDelete={handleDeleteRecurringTransaction}
-                  onToggleActive={handleToggleRecurringTransaction}
-                />
-              ) : activeView === 'budgets' ? (
-                <BudgetsView budgets={budgets} onAdd={() => setIsBudgetModalOpen(true)} />
-              ) : activeView === 'insights' ? (
-                <InsightsDashboard />
-              ) : activeView === 'investments' ? (
-                clerkUser ? <NewInvestmentsView userId={clerkUser.id} /> : <div>Loading...</div>
-              ) : activeView === 'debts' ? (
-                clerkUser ? <DebtTracker userId={clerkUser.id} /> : <div>Loading...</div>
-              ) : activeView === 'gamification' ? (
-                <GamificationView user={user} challenges={challenges} />
-              ) : activeView === 'goals' ? (
-                <>
-                  <div className="flex justify-end mb-4 px-8">
-                    <button
-                      onClick={() => setIsGoalModalOpen(true)}
-                      className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-forest-950 font-bold py-2.5 px-5 rounded-xl transition-colors"
-                    >
-                      <Plus size={18} strokeWidth={3} /> Add New Goal
-                    </button>
-                  </div>
-                  <GoalsView goals={savingsGoals} />
-                </>
-              ) : activeView === 'accounts' ? (
-                <AccountsView accounts={accounts} />
-              ) : activeView === 'ai-assistant' ? (
-                <AIAssistantView transactions={transactions} />
-              ) : activeView === 'export' ? (
-                clerkUser ? <ExportReports userId={clerkUser.id} /> : <div>Loading...</div>
-              ) : activeView === 'settings' ? (
-                <SettingsView userProfile={userProfile} onUpdateProfile={setUserProfile} />
-              ) : (
-                <div className="flex items-center justify-center h-full text-forest-400 italic">
-                  Work in progress for {activeView} view
-                </div>
-              )}
-            </div>
-          </main>
-        </div>
-
-        {/* Modals */}
-        <Modal
-          isOpen={isBudgetModalOpen}
-          onClose={() => setIsBudgetModalOpen(false)}
-          title="Create New Budget"
-        >
-          <AddBudgetForm onAdd={handleAddBudget} onClose={() => setIsBudgetModalOpen(false)} />
-        </Modal>
-
-        <Modal
-          isOpen={isGoalModalOpen}
-          onClose={() => setIsGoalModalOpen(false)}
-          title="Set Savings Goal"
-        >
-          <AddGoalForm onAdd={handleAddGoal} onClose={() => setIsGoalModalOpen(false)} />
-        </Modal>
-
-        {/* Notification Preferences Modal */}
-        {clerkUser && (
-          <NotificationPreferences
-            userId={clerkUser.id}
-            isOpen={isNotificationPrefsOpen}
-            onClose={() => setIsNotificationPrefsOpen(false)}
+        {/* Error State with Retry */}
+        {error && !isLoading && (
+          <ErrorMessage
+            message={error}
+            onRetry={() => window.location.reload()}
+            fullScreen
           />
         )}
 
+        {/* Main App */}
+        {!isLoading && !error && (
+          <div className="flex h-screen bg-forest-950 text-forest-100 font-inter selection:bg-primary/30 overflow-hidden">
+
+            {/* Sidebar - Desktop */}
+            <aside className="w-72 bg-forest-900 hidden md:flex flex-col border-r border-forest-800">
+              <div className="p-8 pb-4">
+                <div className="flex items-center gap-3 text-white font-bold text-2xl">
+                  <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-forest-900">
+                    <Wallet size={24} strokeWidth={2.5} />
+                  </div>
+                  SmartWallet
+                </div>
+              </div>
+
+              <nav className="flex-1 px-6 py-6 overflow-y-auto">
+                <SidebarItem id="dashboard" label="Dashboard" icon={LayoutGrid} active={activeView === 'dashboard'} onClick={() => setActiveView('dashboard')} />
+                <SidebarItem id="accounts" label="Accounts" icon={Wallet} active={activeView === 'accounts'} onClick={() => setActiveView('accounts')} />
+                <SidebarItem id="transactions" label="Transactions" icon={CreditCard} active={activeView === 'transactions'} onClick={() => setActiveView('transactions')} />
+                <SidebarItem id="recurring" label="Recurring" icon={Calendar} active={activeView === 'recurring'} onClick={() => setActiveView('recurring')} />
+                <SidebarItem id="budgets" label="Budgets" icon={Target} active={activeView === 'budgets'} onClick={() => setActiveView('budgets')} />
+                <SidebarItem id="insights" label="Insights" icon={TrendingUp} active={activeView === 'insights'} onClick={() => setActiveView('insights')} />
+                <SidebarItem id="investments" label="Investments" icon={TrendingUp} active={activeView === 'investments'} onClick={() => setActiveView('investments')} />
+                <SidebarItem id="debts" label="Debt Tracker" icon={CreditCard} active={activeView === 'debts'} onClick={() => setActiveView('debts')} />
+                <SidebarItem id="ai-assistant" label="AI Assistant" icon={Brain} active={activeView === 'ai-assistant'} onClick={() => setActiveView('ai-assistant')} />
+                <SidebarItem id="gamification" label="Gamification" icon={Medal} active={activeView === 'gamification'} onClick={() => setActiveView('gamification')} />
+                <SidebarItem id="goals" label="Goals" icon={Target} active={activeView === 'goals'} onClick={() => setActiveView('goals')} />
+                <SidebarItem id="export" label="Export" icon={Download} active={activeView === 'export'} onClick={() => setActiveView('export')} />
+                <SidebarItem id="settings" label="Settings" icon={Settings} active={activeView === 'settings'} onClick={() => setActiveView('settings')} />
+              </nav>
+
+              <div className="p-6">
+                <div className="flex items-center gap-3 p-4 rounded-2xl hover:bg-forest-800 transition-colors cursor-pointer">
+                  <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center overflow-hidden border-2 border-white">
+                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Jane" alt="User" />
+                  </div>
+                  <div>
+                    <div className="text-white font-bold text-sm">Jane Doe</div>
+                    <div className="text-forest-400 text-xs">jane.doe@email.com</div>
+                  </div>
+                </div>
+              </div>
+            </aside>
+
+            {/* Main Content */}
+            <main className="flex-1 flex flex-col relative h-full overflow-hidden">
+              {/* Top Navigation Bar */}
+              <header className="bg-forest-900 border-b border-forest-800 px-8 py-4 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-8">
+                  <div className="flex items-center gap-3 text-white font-bold text-xl md:hidden">
+                    <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-forest-900">
+                      <Wallet size={20} strokeWidth={2.5} />
+                    </div>
+                    SmartWallet
+                  </div>
+                  <nav className="hidden md:flex items-center gap-6">
+                    <button
+                      onClick={() => setActiveView('dashboard')}
+                      className={`text-sm font-medium transition-colors ${activeView === 'dashboard' ? 'text-white' : 'text-forest-400 hover:text-white'}`}
+                    >
+                      Dashboard
+                    </button>
+                    <button
+                      onClick={() => setActiveView('budgets')}
+                      className={`text-sm font-medium transition-colors ${activeView === 'budgets' ? 'text-white' : 'text-forest-400 hover:text-white'}`}
+                    >
+                      Budgets
+                    </button>
+                    <button
+                      onClick={() => setActiveView('transactions')}
+                      className={`text-sm font-medium transition-colors ${activeView === 'transactions' ? 'text-white' : 'text-forest-400 hover:text-white'}`}
+                    >
+                      Transactions
+                    </button>
+                    <button
+                      onClick={() => setActiveView('goals')}
+                      className={`text-sm font-medium transition-colors ${activeView === 'goals' ? 'text-white' : 'text-forest-400 hover:text-white'}`}
+                    >
+                      Goals
+                    </button>
+                    <button
+                      onClick={() => setActiveView('gamification')}
+                      className={`text-sm font-medium transition-colors ${activeView === 'gamification' ? 'text-white' : 'text-forest-400 hover:text-white'}`}
+                    >
+                      Gamification
+                    </button>
+                  </nav>
+                </div>
+                <div className="flex items-center gap-4">
+                  {clerkUser && <NotificationCenter userId={clerkUser.id} />}
+                  <button
+                    onClick={() => setIsNotificationPrefsOpen(true)}
+                    className="p-2 text-forest-400 hover:text-white hover:bg-forest-800 rounded-lg transition-colors"
+                    title="Notification Settings"
+                  >
+                    <Settings size={20} />
+                  </button>
+                  <div className="flex items-center justify-center">
+                    <UserButton />
+                  </div>
+                </div>
+              </header>
+
+              {/* Page Header */}
+              {activeView !== 'insights' && activeView !== 'ai-assistant' && (
+                <div className="px-8 py-6 shrink-0">
+                  <h1 className="text-3xl font-bold text-white mb-1">
+                    {activeView === 'dashboard' ? 'Welcome back, Jane!' :
+                      activeView === 'gamification' ? 'Your Gamification Hub' :
+                        activeView === 'export' ? 'Export & Reports' :
+                          activeView === 'debts' ? 'Debt Tracker' :
+                            activeView === 'recurring' ? 'Recurring Transactions' :
+                              activeView === 'investments' ? 'Investments & Holdings' :
+                                activeView.charAt(0).toUpperCase() + activeView.slice(1)}
+                  </h1>
+                  <p className="text-forest-400">
+                    {activeView === 'dashboard' ? "Here's a summary of your financial activity." :
+                      activeView === 'gamification' ? 'Track your progress, earn badges, and complete challenges to level up your finances.' :
+                        activeView === 'export' ? 'Generate and download reports for your financial data.' :
+                          activeView === 'debts' ? 'Track your debts with reduction calculations and payoff projections.' :
+                            activeView === 'recurring' ? 'Manage your recurring income and expenses.' :
+                              activeView === 'investments' ? 'Track your portfolio performance and manage securities.' :
+                                activeView === 'accounts' ? 'A complete overview of your assets and liabilities.' :
+                                  activeView === 'transactions' ? 'View and manage all your transactions.' :
+                                    activeView === 'budgets' ? 'Set and track your monthly budgets.' :
+                                      activeView === 'goals' ? 'Create and track your progress towards your financial goals.' :
+                                        activeView === 'settings' ? 'Manage your profile and preferences.' :
+                                          'Manage your financial records.'}
+                  </p>
+                </div>
+              )}
+
+              {/* Scrollable Content */}
+              <div className={`flex-1 ${activeView === 'ai-assistant' || activeView === 'insights' ? 'overflow-hidden' : 'overflow-y-auto px-8 pb-8'} scrollbar-thin scrollbar-thumb-forest-700 scrollbar-track-transparent`}>
+                {activeView === 'dashboard' ? (
+                  <DashboardContent />
+                ) : activeView === 'transactions' ? (
+                  <TransactionsView
+                    transactions={transactions}
+                    onAdd={handleAddTransaction}
+                    onDelete={handleDeleteTransaction}
+                  />
+                ) : activeView === 'recurring' ? (
+                  <RecurringTransactionsView
+                    recurringTransactions={recurringTransactions}
+                    onAdd={handleAddRecurringTransaction}
+                    onUpdate={handleUpdateRecurringTransaction}
+                    onDelete={handleDeleteRecurringTransaction}
+                    onToggleActive={handleToggleRecurringTransaction}
+                  />
+                ) : activeView === 'budgets' ? (
+                  <BudgetsView budgets={budgets} onAdd={() => setIsBudgetModalOpen(true)} />
+                ) : activeView === 'insights' ? (
+                  <InsightsDashboard />
+                ) : activeView === 'investments' ? (
+                  clerkUser ? <NewInvestmentsView userId={clerkUser.id} /> : <div>Loading...</div>
+                ) : activeView === 'debts' ? (
+                  clerkUser ? <DebtTracker userId={clerkUser.id} /> : <div>Loading...</div>
+                ) : activeView === 'gamification' ? (
+                  <GamificationView user={user} challenges={challenges} />
+                ) : activeView === 'goals' ? (
+                  <>
+                    <div className="flex justify-end mb-4 px-8">
+                      <button
+                        onClick={() => setIsGoalModalOpen(true)}
+                        className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-forest-950 font-bold py-2.5 px-5 rounded-xl transition-colors"
+                      >
+                        <Plus size={18} strokeWidth={3} /> Add New Goal
+                      </button>
+                    </div>
+                    <GoalsView goals={savingsGoals} />
+                  </>
+                ) : activeView === 'accounts' ? (
+                  <AccountsView accounts={accounts} />
+                ) : activeView === 'ai-assistant' ? (
+                  clerkUser ? <AIAssistantView userId={clerkUser.id} /> : <div>Loading...</div>
+                ) : activeView === 'export' ? (
+                  clerkUser ? <ExportReports userId={clerkUser.id} /> : <div>Loading...</div>
+                ) : activeView === 'settings' ? (
+                  <SettingsView userProfile={userProfile} onUpdateProfile={setUserProfile} />
+                ) : (
+                  <div className="flex items-center justify-center h-full text-forest-400 italic">
+                    Work in progress for {activeView} view
+                  </div>
+                )}
+              </div>
+            </main>
+
+            {/* Modals */}
+            <Modal
+              isOpen={isBudgetModalOpen}
+              onClose={() => setIsBudgetModalOpen(false)}
+              title="Create New Budget"
+            >
+              <AddBudgetForm onAdd={handleAddBudget} onClose={() => setIsBudgetModalOpen(false)} />
+            </Modal>
+
+            <Modal
+              isOpen={isGoalModalOpen}
+              onClose={() => setIsGoalModalOpen(false)}
+              title="Set Savings Goal"
+            >
+              <AddGoalForm onAdd={handleAddGoal} onClose={() => setIsGoalModalOpen(false)} />
+            </Modal>
+
+            {/* Notification Preferences Modal */}
+            {clerkUser && (
+              <NotificationPreferences
+                userId={clerkUser.id}
+                isOpen={isNotificationPrefsOpen}
+                onClose={() => setIsNotificationPrefsOpen(false)}
+              />
+            )}
+
+          </div>
+        )}
       </SignedIn>
     </>
   );
