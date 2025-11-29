@@ -34,6 +34,7 @@ import { NotificationCenter } from './components/NotificationCenter';
 import { NotificationPreferences } from './components/NotificationPreferences';
 import BudgetRecommendations from './components/BudgetRecommendations';
 import InsightsDashboard from './components/InsightsDashboard';
+import { ReceiptScanner } from './components/ReceiptScanner';
 
 // --- Components ---
 
@@ -139,6 +140,8 @@ const TransactionsView = ({
   const [description, setDescription] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [showSuggestion, setShowSuggestion] = useState(true);
+  const [showReceiptScanner, setShowReceiptScanner] = useState(false);
+  const { user: clerkUser } = useUser();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -158,6 +161,16 @@ const TransactionsView = ({
     setCategory('');
   };
 
+  const handleReceiptTransaction = (transactionData: any) => {
+    onAdd({
+      amount: transactionData.amount,
+      category: transactionData.category,
+      date: transactionData.date,
+      description: transactionData.description,
+      type: transactionData.type || 'expense'
+    });
+  };
+
   const filteredTransactions = transactions.filter(t =>
     t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
     t.category.toLowerCase().includes(searchTerm.toLowerCase())
@@ -168,7 +181,17 @@ const TransactionsView = ({
       {/* Left Column: Add Transaction */}
       <div className="lg:col-span-1 flex flex-col gap-6">
         <div className="bg-forest-800 border border-forest-700 rounded-3xl p-6">
-          <h2 className="text-xl font-bold text-white mb-6">Add New Transaction</h2>
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-bold text-white">Add New Transaction</h2>
+            <button
+              type="button"
+              onClick={() => setShowReceiptScanner(true)}
+              className="flex items-center gap-2 px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg transition-colors text-sm font-medium"
+            >
+              <ShoppingCart size={16} />
+              Scan Receipt
+            </button>
+          </div>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-5">
             {/* Type Toggle */}
@@ -371,6 +394,21 @@ const TransactionsView = ({
           </div>
         )}
       </div>
+
+      {/* Receipt Scanner Modal */}
+      {showReceiptScanner && clerkUser && (
+        <Modal
+          isOpen={showReceiptScanner}
+          onClose={() => setShowReceiptScanner(false)}
+          title=""
+        >
+          <ReceiptScanner
+            userId={clerkUser.id}
+            onTransactionCreated={handleReceiptTransaction}
+            onClose={() => setShowReceiptScanner(false)}
+          />
+        </Modal>
+      )}
     </div>
   );
 };

@@ -182,4 +182,42 @@ export const getAnomalies = async (userId: string) => {
     return response.data;
 };
 
+// Receipts
+export const uploadReceipt = async (file: File, userId: string) => {
+    const formData = new FormData();
+    formData.append('receipt', file);
+    formData.append('userId', userId);
+
+    const response = await api.post('/receipts/upload', formData, {
+        headers: {
+            'Content-Type': 'multipart/form-data',
+        },
+    });
+    return response.data;
+};
+
+export const processReceipt = async (receiptId: string) => {
+    const response = await api.post(`/receipts/${receiptId}/process`);
+    return response.data;
+};
+
+export const getReceipt = async (receiptId: string) => {
+    const response = await api.get(`/receipts/${receiptId}`);
+    return response.data;
+};
+
+export const getReceipts = async (userId: string, status?: string, limit?: number) => {
+    const params: any = { userId };
+    if (status) params.status = status;
+    if (limit) params.limit = limit;
+
+    const response = await api.get('/receipts', { params });
+    return response.data;
+};
+
+export const deleteReceipt = async (receiptId: string) => {
+    const response = await api.delete(`/receipts/${receiptId}`);
+    return response.data;
+};
+
 export default api;

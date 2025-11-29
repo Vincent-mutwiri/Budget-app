@@ -8,6 +8,7 @@ import path from 'path';
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 import uploadRoutes from './routes/upload';
+import receiptRoutes from './routes/receipts';
 import { User } from './models/User';
 import { Transaction } from './models/Transaction';
 import { Budget } from './models/Budget';
@@ -44,6 +45,7 @@ mongoose.connect(MONGODB_URI)
 
 // Routes
 app.use('/api/upload', uploadRoutes);
+app.use('/api/receipts', receiptRoutes);
 
 // Basic CRUD Routes (Examples)
 
