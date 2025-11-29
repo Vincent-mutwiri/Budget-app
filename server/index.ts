@@ -1781,6 +1781,11 @@ app.post('/api/export/summary', async (req, res) => {
     }
 });
 
+// Error handling
+import { errorHandler, notFound } from './middleware/errorHandler';
+app.use(notFound);
+app.use(errorHandler);
+
 // Start Server
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);

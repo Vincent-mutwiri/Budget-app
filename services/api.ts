@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { handleApiError } from '../utils/errorHandler';
 
 const api = axios.create({
     baseURL: '/api',
@@ -7,13 +8,17 @@ const api = axios.create({
     },
 });
 
-// Add auth token to requests if available
 api.interceptors.request.use((config) => {
-    // You can get the token from Clerk here if needed
-    // const token = await window.Clerk.session.getToken();
-    // config.headers.Authorization = `Bearer ${token}`;
     return config;
 });
+
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        handleApiError(error);
+        return Promise.reject(error);
+    }
+);
 
 export const uploadFile = async (file: File) => {
     const formData = new FormData();

@@ -45,6 +45,10 @@ import { ErrorMessage } from './components/ErrorMessage';
 import { useToast } from './hooks/useToast';
 import { cache } from './utils/cache';
 import { SkeletonCard, SkeletonMetric, SkeletonTable } from './components/SkeletonLoader';
+import { MetricCard } from './components/shared/MetricCard';
+import { GoalCard } from './components/shared/GoalCard';
+import { useTransactions } from './hooks/useTransactions';
+import { handleApiError } from './utils/errorHandler';
 
 // --- Components ---
 
@@ -64,45 +68,6 @@ const SidebarItem = ({
     <span className="tracking-wide">{label}</span>
   </button>
 );
-
-const MetricCard = ({ title, value, subValue, trend }: { title: string, value: string, subValue?: string, trend?: 'up' | 'down' | 'neutral' }) => (
-  <div className="bg-forest-800 border border-forest-700 p-6 rounded-3xl flex flex-col justify-between h-40 relative overflow-hidden group hover:border-forest-600 transition-colors">
-    <div className="z-10">
-      <h3 className="text-forest-300 text-sm font-medium mb-2">{title}</h3>
-      <div className="text-3xl font-bold text-white mb-2">{value}</div>
-      {subValue && (
-        <div className={`flex items-center text-sm font-medium ${trend === 'up' ? 'text-primary' : trend === 'down' ? 'text-rose-500' : 'text-primary'}`}>
-          {trend === 'up' && <TrendingUp size={16} className="mr-1" />}
-          {trend === 'down' && <TrendingDown size={16} className="mr-1" />}
-          {trend === 'neutral' && <CheckCircle2 size={16} className="mr-1" />}
-          {subValue}
-        </div>
-      )}
-    </div>
-    {/* Decorative BG */}
-    <div className="absolute right-0 bottom-0 opacity-5 group-hover:opacity-10 transition-opacity transform translate-x-1/4 translate-y-1/4">
-      <Wallet size={120} />
-    </div>
-  </div>
-);
-
-const GoalCard = ({ title, current, target, colorClass }: { title: string, current: number, target: number, colorClass: string }) => {
-  const percent = Math.min(100, Math.round((current / target) * 100));
-  return (
-    <div className="bg-forest-800 border border-forest-700 p-6 rounded-3xl">
-      <div className="flex justify-between items-end mb-4">
-        <div>
-          <h4 className="font-bold text-white text-lg">{title}</h4>
-          <div className="text-forest-400 text-sm mt-1">{formatCurrency(current)} / {formatCurrency(target)}</div>
-        </div>
-        <div className="text-xl font-bold text-forest-200">{percent}%</div>
-      </div>
-      <div className="w-full bg-forest-900 rounded-full h-3 overflow-hidden">
-        <div className={`h-full rounded-full ${colorClass}`} style={{ width: `${percent}%` }}></div>
-      </div>
-    </div>
-  );
-};
 
 const AlertItem: React.FC<{ alert: Alert }> = ({ alert }) => {
   const icons = {
