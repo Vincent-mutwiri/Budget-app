@@ -2,10 +2,13 @@
 export type TransactionType = 'income' | 'expense';
 
 export enum Category {
-  Housing = 'Housing',
+  Housing = 'Rent/Kodi',
   Food = 'Food & Dining',
-  Transport = 'Transportation',
-  Utilities = 'Utilities',
+  Transport = 'Matatu/Transport',
+  Utilities = 'Electricity/KPLC',
+  Water = 'Water/NCWSC',
+  Mobile = 'Safaricom/Airtel',
+  MPesa = 'M-Pesa Charges',
   Entertainment = 'Entertainment',
   Health = 'Health',
   Shopping = 'Shopping',
@@ -20,6 +23,9 @@ export const CategoriesList = [
   Category.Food,
   Category.Transport,
   Category.Utilities,
+  Category.Water,
+  Category.Mobile,
+  Category.MPesa,
   Category.Entertainment,
   Category.Health,
   Category.Shopping,

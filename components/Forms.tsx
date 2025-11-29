@@ -47,13 +47,13 @@ export const AddBudgetForm = ({ onAdd, onClose }: { onAdd: (budget: any) => Prom
             <div>
                 <label className="block text-forest-300 text-sm font-medium mb-2">Monthly Limit</label>
                 <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-forest-400">$</span>
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-forest-400">KSh</span>
                     <input
                         type="number"
                         value={limit}
                         onChange={(e) => setLimit(e.target.value)}
                         placeholder="0.00"
-                        className="w-full bg-forest-950 border border-forest-700 rounded-xl py-3 pl-8 pr-4 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                        className="w-full bg-forest-950 border border-forest-700 rounded-xl py-3 pl-12 pr-4 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                         required
                     />
                 </div>
@@ -115,7 +115,7 @@ export const AddGoalForm = ({ onAdd, onClose }: { onAdd: (goal: any) => Promise<
                     type="text"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    placeholder="e.g. New Car"
+                    placeholder="e.g. Emergency Fund"
                     className="w-full bg-forest-950 border border-forest-700 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                     required
                 />
@@ -123,13 +123,13 @@ export const AddGoalForm = ({ onAdd, onClose }: { onAdd: (goal: any) => Promise<
             <div>
                 <label className="block text-forest-300 text-sm font-medium mb-2">Target Amount</label>
                 <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-forest-400">$</span>
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-forest-400">KSh</span>
                     <input
                         type="number"
                         value={targetAmount}
                         onChange={(e) => setTargetAmount(e.target.value)}
                         placeholder="0.00"
-                        className="w-full bg-forest-950 border border-forest-700 rounded-xl py-3 pl-8 pr-4 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                        className="w-full bg-forest-950 border border-forest-700 rounded-xl py-3 pl-12 pr-4 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                         required
                     />
                 </div>
@@ -140,6 +140,7 @@ export const AddGoalForm = ({ onAdd, onClose }: { onAdd: (goal: any) => Promise<
                     type="date"
                     value={deadline}
                     onChange={(e) => setDeadline(e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
                     className="w-full bg-forest-950 border border-forest-700 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary [color-scheme:dark]"
                     required
                 />

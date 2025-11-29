@@ -5,7 +5,7 @@ import {
   LayoutGrid, Settings, Folder, ArrowRight, X, DollarSign,
   TrendingUp, TrendingDown, CheckCircle2, AlertTriangle, AlertCircle, Medal, Flame, ChevronRight,
   Search, Filter, Pencil, Trash2, Lightbulb,
-  ShoppingCart, Bus, Film, Zap, ShoppingBag, PlusCircle, Download
+  ShoppingCart, Bus, Film, Zap, ShoppingBag, PlusCircle, Download, Menu
 } from 'lucide-react';
 import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from "@clerk/clerk-react";
 import {
@@ -44,6 +44,7 @@ import { LoadingSpinner } from './components/LoadingSpinner';
 import { ErrorMessage } from './components/ErrorMessage';
 import { useToast } from './hooks/useToast';
 import { cache } from './utils/cache';
+import { SkeletonCard, SkeletonMetric, SkeletonTable } from './components/SkeletonLoader';
 
 // --- Components ---
 
@@ -145,9 +146,11 @@ const TransactionsView = ({
   const [type, setType] = useState<TransactionType>('expense');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState<Category | ''>('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [description, setDescription] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<Category | ''>('');
+  const [amountFilter, setAmountFilter] = useState({ min: '', max: '' });
   const [showSuggestion, setShowSuggestion] = useState(true);
   const [showReceiptScanner, setShowReceiptScanner] = useState(false);
   const { user: clerkUser } = useUser();
@@ -180,10 +183,14 @@ const TransactionsView = ({
     });
   };
 
-  const filteredTransactions = transactions.filter(t =>
-    t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    t.category.toLowerCase().includes(searchTerm.toLowerCase())
-  ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const filteredTransactions = transactions.filter(t => {
+    const matchesSearch = t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         t.category.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = !categoryFilter || t.category === categoryFilter;
+    const matchesAmount = (!amountFilter.min || t.amount >= parseFloat(amountFilter.min)) &&
+                         (!amountFilter.max || t.amount <= parseFloat(amountFilter.max));
+    return matchesSearch && matchesCategory && matchesAmount;
+  }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
@@ -241,6 +248,18 @@ const TransactionsView = ({
                   className="w-full bg-forest-950 border border-forest-700 rounded-xl py-3 pl-12 pr-4 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder-forest-500"
                   required
                 />
+              </div>
+              <div className="flex gap-2 mt-2 flex-wrap">
+                {[50, 100, 200, 500, 1000, 2000, 5000].map(amt => (
+                  <button
+                    key={amt}
+                    type="button"
+                    onClick={() => setAmount(amt.toString())}
+                    className="px-3 py-1 text-xs bg-forest-900 hover:bg-forest-700 text-forest-300 hover:text-white rounded-lg transition-colors"
+                  >
+                    {amt}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -603,7 +622,7 @@ const InvestmentsView = ({ securities }: { securities: Security[] }) => {
 
 // --- Gamification View Component ---
 
-const GamificationView = ({ user, challenges }: { user: UserState, challenges: Challenge[] }) => {
+const GamificationView = ({ user, challenges, clerkUser }: { user: UserState, challenges: Challenge[], clerkUser: any }) => {
   const [activeTab, setActiveTab] = useState<'challenges' | 'achievements' | 'leaderboards'>('challenges');
 
   const currentLevel = calculateLevel(user.xp);
@@ -1376,7 +1395,7 @@ const BudgetsView = ({ budgets, onAdd }: { budgets: Budget[], onAdd: () => void 
         <div className="flex justify-between items-center">
           <div>
             <h2 className="text-3xl font-bold text-white mb-1">Monthly Budgets</h2>
-            <p className="text-forest-400">October 2024</p>
+            <p className="text-forest-400">{new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
           </div>
           <button
             onClick={onAdd}
@@ -1554,8 +1573,17 @@ export default function App() {
   const snapshot: FinancialSnapshot = useMemo(() => {
     const totalIncome = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
     const totalExpenses = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
-    return { totalIncome, totalExpenses, balance: totalIncome - totalExpenses, savingsRate: 0 }; // calc rate if needed
+    return { totalIncome, totalExpenses, balance: totalIncome - totalExpenses, savingsRate: 0 };
   }, [transactions]);
+
+  const expensesByCategory = useMemo(() => 
+    transactions.filter(t => t.type === 'expense')
+      .reduce((acc, t) => ({ ...acc, [t.category]: (acc[t.category] || 0) + t.amount }), {})
+  , [transactions]);
+
+  const recentTransactions = useMemo(() => 
+    transactions.slice(0, 10)
+  , [transactions]);
 
   // Update user profile when Clerk user changes
   useEffect(() => {
@@ -1573,6 +1601,31 @@ export default function App() {
       });
     }
   }, [clerkUser]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        switch (e.key) {
+          case 'n':
+            e.preventDefault();
+            setActiveView('transactions');
+            break;
+          case 'b':
+            e.preventDefault();
+            setActiveView('budgets');
+            break;
+          case 'd':
+            e.preventDefault();
+            setActiveView('dashboard');
+            break;
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Fetch Data on Load
   useEffect(() => {
@@ -1770,24 +1823,34 @@ export default function App() {
 
         {/* Metrics Row */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <MetricCard
-            title="Total Balance"
-            value={formatCurrency(snapshot.balance)}
-            subValue="+2.5%"
-            trend="up"
-          />
-          <MetricCard
-            title="This Month's Spending"
-            value={formatCurrency(snapshot.totalExpenses)}
-            subValue="-10.2%"
-            trend="down"
-          />
-          <MetricCard
-            title="Remaining Budget"
-            value={formatCurrency(snapshot.totalIncome - snapshot.totalExpenses)}
-            subValue="On Track"
-            trend="neutral"
-          />
+          {isLoading ? (
+            <>
+              <SkeletonMetric />
+              <SkeletonMetric />
+              <SkeletonMetric />
+            </>
+          ) : (
+            <>
+              <MetricCard
+                title="Total Balance"
+                value={formatCurrency(snapshot.balance)}
+                subValue="+2.5%"
+                trend="up"
+              />
+              <MetricCard
+                title="This Month's Spending"
+                value={formatCurrency(snapshot.totalExpenses)}
+                subValue="-10.2%"
+                trend="down"
+              />
+              <MetricCard
+                title="Remaining Budget"
+                value={formatCurrency(snapshot.totalIncome - snapshot.totalExpenses)}
+                subValue="On Track"
+                trend="neutral"
+              />
+            </>
+          )}
         </div>
 
         {/* Charts Row */}
@@ -1820,8 +1883,8 @@ export default function App() {
         <div>
           <h3 className="text-xl font-bold text-white mb-4">Monthly Goals</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <GoalCard title="Vacation Fund" current={1500} target={2000} colorClass="bg-primary" />
-            <GoalCard title="New Laptop" current={600} target={1500} colorClass="bg-primary" />
+            <GoalCard title="Emergency Fund" current={75000} target={100000} colorClass="bg-primary" />
+            <GoalCard title="House Deposit" current={300000} target={500000} colorClass="bg-primary" />
           </div>
         </div>
       </div>
@@ -1910,6 +1973,36 @@ export default function App() {
         {!isLoading && !error && (
           <div className="flex h-screen bg-forest-950 text-forest-100 font-inter selection:bg-primary/30 overflow-hidden">
 
+            {/* Mobile Sidebar Overlay */}
+            {isMobileMenuOpen && (
+              <div className="fixed inset-0 z-50 md:hidden">
+                <div className="absolute inset-0 bg-black/50" onClick={() => setIsMobileMenuOpen(false)} />
+                <aside className="absolute left-0 top-0 h-full w-72 bg-forest-900 border-r border-forest-800 flex flex-col animate-slide-in">
+                  <div className="p-8 pb-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3 text-white font-bold text-2xl">
+                        <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-forest-900">
+                          <Wallet size={24} strokeWidth={2.5} />
+                        </div>
+                        SmartWallet
+                      </div>
+                      <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 text-forest-400 hover:text-white">
+                        <X size={20} />
+                      </button>
+                    </div>
+                  </div>
+                  <nav className="flex-1 px-6 py-6 overflow-y-auto">
+                    <SidebarItem id="dashboard" label="Dashboard" icon={LayoutGrid} active={activeView === 'dashboard'} onClick={() => { setActiveView('dashboard'); setIsMobileMenuOpen(false); }} />
+                    <SidebarItem id="accounts" label="Accounts" icon={Wallet} active={activeView === 'accounts'} onClick={() => { setActiveView('accounts'); setIsMobileMenuOpen(false); }} />
+                    <SidebarItem id="transactions" label="Transactions" icon={CreditCard} active={activeView === 'transactions'} onClick={() => { setActiveView('transactions'); setIsMobileMenuOpen(false); }} />
+                    <SidebarItem id="budgets" label="Budgets" icon={Target} active={activeView === 'budgets'} onClick={() => { setActiveView('budgets'); setIsMobileMenuOpen(false); }} />
+                    <SidebarItem id="goals" label="Goals" icon={Target} active={activeView === 'goals'} onClick={() => { setActiveView('goals'); setIsMobileMenuOpen(false); }} />
+                    <SidebarItem id="settings" label="Settings" icon={Settings} active={activeView === 'settings'} onClick={() => { setActiveView('settings'); setIsMobileMenuOpen(false); }} />
+                  </nav>
+                </aside>
+              </div>
+            )}
+
             {/* Sidebar - Desktop */}
             <aside className="w-72 bg-forest-900 hidden md:flex flex-col border-r border-forest-800">
               <div className="p-8 pb-4">
@@ -1953,8 +2046,14 @@ export default function App() {
             {/* Main Content */}
             <main className="flex-1 flex flex-col relative h-full overflow-hidden">
               {/* Top Navigation Bar */}
-              <header className="bg-forest-900 border-b border-forest-800 px-8 py-4 flex items-center justify-between shrink-0">
-                <div className="flex items-center gap-8">
+              <header className="bg-forest-900 border-b border-forest-800 px-4 md:px-8 py-4 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-4 md:gap-8">
+                  <button 
+                    className="md:hidden p-2 text-white hover:bg-forest-800 rounded-lg transition-colors"
+                    onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                  >
+                    <Menu size={24} />
+                  </button>
                   <div className="flex items-center gap-3 text-white font-bold text-xl md:hidden">
                     <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-forest-900">
                       <Wallet size={20} strokeWidth={2.5} />
@@ -2065,7 +2164,7 @@ export default function App() {
                 ) : activeView === 'debts' ? (
                   clerkUser ? <DebtTracker userId={clerkUser.id} /> : <div>Loading...</div>
                 ) : activeView === 'gamification' ? (
-                  <GamificationView user={user} challenges={challenges} />
+                  <GamificationView user={user} challenges={challenges} clerkUser={clerkUser} />
                 ) : activeView === 'goals' ? (
                   <>
                     <div className="flex justify-end mb-4 px-8">
