@@ -30,6 +30,8 @@ import { AddBudgetForm, AddGoalForm } from './components/Forms';
 import { createBudget, createGoal, getRecurringTransactions, createRecurringTransaction, updateRecurringTransaction, deleteRecurringTransaction, toggleRecurringTransaction } from './services/api';
 import { RecurringTransactionsView } from './components/RecurringTransactionsView';
 import type { RecurringTransaction, RecurringTransactionInput } from './types';
+import { NotificationCenter } from './components/NotificationCenter';
+import { NotificationPreferences } from './components/NotificationPreferences';
 
 // --- Components ---
 
@@ -1676,6 +1678,9 @@ export default function App() {
   // Recurring Transactions Data
   const [recurringTransactions, setRecurringTransactions] = useState<RecurringTransaction[]>([]);
 
+  // Notification Preferences Modal
+  const [isNotificationPrefsOpen, setIsNotificationPrefsOpen] = useState(false);
+
   // Alerts
   const alerts: Alert[] = [];
 
@@ -2010,10 +2015,12 @@ export default function App() {
                 </nav>
               </div>
               <div className="flex items-center gap-4">
-                <button className="p-2 text-forest-400 hover:text-white transition-colors">
-                  <AlertCircle size={20} />
-                </button>
-                <button className="p-2 text-forest-400 hover:text-white transition-colors">
+                {clerkUser && <NotificationCenter userId={clerkUser.id} />}
+                <button
+                  onClick={() => setIsNotificationPrefsOpen(true)}
+                  className="p-2 text-forest-400 hover:text-white hover:bg-forest-800 rounded-lg transition-colors"
+                  title="Notification Settings"
+                >
                   <Settings size={20} />
                 </button>
                 <div className="flex items-center justify-center">
@@ -2103,6 +2110,15 @@ export default function App() {
         >
           <AddGoalForm onAdd={handleAddGoal} onClose={() => setIsGoalModalOpen(false)} />
         </Modal>
+
+        {/* Notification Preferences Modal */}
+        {clerkUser && (
+          <NotificationPreferences
+            userId={clerkUser.id}
+            isOpen={isNotificationPrefsOpen}
+            onClose={() => setIsNotificationPrefsOpen(false)}
+          />
+        )}
 
       </SignedIn>
     </>

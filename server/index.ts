@@ -21,6 +21,7 @@ import { BudgetRecommendation } from './models/BudgetRecommendation';
 import { Receipt } from './models/Receipt';
 import { UserPreferences } from './models/UserPreferences';
 import { startRecurringTransactionScheduler } from './services/recurringTransactionScheduler';
+import { startNotificationEngine } from './services/notificationEngine';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -266,10 +267,149 @@ app.patch('/api/recurring-transactions/:id/toggle', async (req, res) => {
     }
 });
 
+// Notification Routes
+
+// Get notifications with filters
+app.get('/api/notifications', async (req, res) => {
+    const { userId, type, isRead, limit = '50' } = req.query;
+
+    if (!userId) {
+        return res.status(400).json({ error: 'UserId required' });
+    }
+
+    try {
+        const query: any = { userId };
+
+        // Apply filters
+        if (type) {
+            query.type = type;
+        }
+        if (isRead !== undefined) {
+            query.isRead = isRead === 'true';
+        }
+
+        const notifications = await Notification.find(query)
+            .sort({ createdAt: -1 })
+            .limit(parseInt(limit as string));
+
+        res.json(notifications);
+    } catch (error) {
+        console.error('Error fetching notifications:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Mark notification as read
+app.patch('/api/notifications/:id/read', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const notification = await Notification.findById(id);
+        if (!notification) {
+            return res.status(404).json({ error: 'Notification not found' });
+        }
+
+        notification.isRead = true;
+        await notification.save();
+
+        res.json(notification);
+    } catch (error) {
+        console.error('Error marking notification as read:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Mark all notifications as read
+app.patch('/api/notifications/read-all', async (req, res) => {
+    const { userId } = req.body;
+
+    if (!userId) {
+        return res.status(400).json({ error: 'UserId required' });
+    }
+
+    try {
+        const result = await Notification.updateMany(
+            { userId, isRead: false },
+            { $set: { isRead: true } }
+        );
+
+        res.json({
+            message: 'All notifications marked as read',
+            modifiedCount: result.modifiedCount
+        });
+    } catch (error) {
+        console.error('Error marking all notifications as read:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Get notification preferences
+app.get('/api/notifications/preferences', async (req, res) => {
+    const { userId } = req.query;
+
+    if (!userId) {
+        return res.status(400).json({ error: 'UserId required' });
+    }
+
+    try {
+        let preferences = await UserPreferences.findOne({ userId });
+
+        // Create default preferences if they don't exist
+        if (!preferences) {
+            preferences = new UserPreferences({ userId });
+            await preferences.save();
+        }
+
+        res.json(preferences.notifications);
+    } catch (error) {
+        console.error('Error fetching notification preferences:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Update notification preferences
+app.put('/api/notifications/preferences', async (req, res) => {
+    const { userId, preferences } = req.body;
+
+    if (!userId) {
+        return res.status(400).json({ error: 'UserId required' });
+    }
+
+    if (!preferences) {
+        return res.status(400).json({ error: 'Preferences object required' });
+    }
+
+    try {
+        let userPreferences = await UserPreferences.findOne({ userId });
+
+        // Create new preferences if they don't exist
+        if (!userPreferences) {
+            userPreferences = new UserPreferences({ userId });
+        }
+
+        // Update notification preferences
+        userPreferences.notifications = {
+            ...userPreferences.notifications,
+            ...preferences
+        };
+        userPreferences.updatedAt = new Date();
+
+        await userPreferences.save();
+
+        res.json(userPreferences.notifications);
+    } catch (error) {
+        console.error('Error updating notification preferences:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
 // Start Server
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 
     // Start the recurring transaction scheduler
     startRecurringTransactionScheduler();
+
+    // Start the notification engine
+    startNotificationEngine();
 });

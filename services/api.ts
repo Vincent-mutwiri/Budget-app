@@ -102,4 +102,35 @@ export const toggleRecurringTransaction = async (id: string, isActive: boolean) 
     return response.data;
 };
 
+// Notifications
+export const getNotifications = async (userId: string, filters?: { type?: string; isRead?: boolean; limit?: number }) => {
+    const params: any = { userId };
+    if (filters?.type) params.type = filters.type;
+    if (filters?.isRead !== undefined) params.isRead = filters.isRead;
+    if (filters?.limit) params.limit = filters.limit;
+
+    const response = await api.get('/notifications', { params });
+    return response.data;
+};
+
+export const markNotificationAsRead = async (id: string) => {
+    const response = await api.patch(`/notifications/${id}/read`);
+    return response.data;
+};
+
+export const markAllNotificationsAsRead = async (userId: string) => {
+    const response = await api.patch('/notifications/read-all', { userId });
+    return response.data;
+};
+
+export const getNotificationPreferences = async (userId: string) => {
+    const response = await api.get('/notifications/preferences', { params: { userId } });
+    return response.data;
+};
+
+export const updateNotificationPreferences = async (userId: string, preferences: any) => {
+    const response = await api.put('/notifications/preferences', { userId, preferences });
+    return response.data;
+};
+
 export default api;
