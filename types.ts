@@ -1,3 +1,4 @@
+
 export type TransactionType = 'income' | 'expense';
 
 export enum Category {
@@ -77,6 +78,14 @@ export interface Goal {
   currentAmount: number;
   icon: string;
   color: string;
+}
+
+export interface Budget {
+  id: string;
+  category: Category | string;
+  limit: number;
+  spent: number;
+  icon: string; // Identifier for the icon component
 }
 
 export interface Alert {

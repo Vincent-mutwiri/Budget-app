@@ -1,13 +1,15 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Plus, Wallet, Target, Brain, CreditCard, Calendar, 
   LayoutGrid, Settings, Folder, ArrowRight, X, DollarSign,
   TrendingUp, TrendingDown, CheckCircle2, AlertTriangle, AlertCircle, Medal, Flame, ChevronRight,
-  Search, Filter, Pencil, Trash2, Lightbulb
+  Search, Filter, Pencil, Trash2, Lightbulb,
+  ShoppingCart, Bus, Film, Zap, ShoppingBag, PlusCircle
 } from 'lucide-react';
 import { 
   Transaction, UserState, Category, DailyChallenge, 
-  FinancialSnapshot, Goal, Notification, Alert, TransactionType, CategoriesList
+  FinancialSnapshot, Goal, Notification, Alert, TransactionType, CategoriesList, Budget
 } from './types';
 import { 
   MOCK_TRANSACTIONS, LEVEL_THRESHOLDS, XP_REWARDS, 
@@ -359,6 +361,147 @@ const TransactionsView = ({
   );
 };
 
+// --- Budgets View Component ---
+
+const BudgetsView = ({ budgets }: { budgets: Budget[] }) => {
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Calculate totals for summary cards
+  const totalBudgeted = budgets.reduce((sum, b) => sum + b.limit, 0);
+  const totalSpent = budgets.reduce((sum, b) => sum + b.spent, 0);
+  const remaining = totalBudgeted - totalSpent;
+
+  // Icon mapping
+  const getIcon = (iconName: string) => {
+    switch (iconName) {
+      case 'cart': return <ShoppingCart size={24} />;
+      case 'bus': return <Bus size={24} />;
+      case 'film': return <Film size={24} />;
+      case 'zap': return <Zap size={24} />;
+      case 'bag': return <ShoppingBag size={24} />;
+      default: return <Wallet size={24} />;
+    }
+  };
+
+  // Color mapping based on icon/category logic
+  const getIconColor = (iconName: string) => {
+    switch (iconName) {
+      case 'cart': return 'bg-emerald-500/20 text-emerald-500';
+      case 'bus': return 'bg-rose-500/20 text-rose-500'; // Reddish for contrast in demo
+      case 'film': return 'bg-purple-500/20 text-purple-500';
+      case 'zap': return 'bg-yellow-500/20 text-yellow-500';
+      case 'bag': return 'bg-blue-500/20 text-blue-500';
+      default: return 'bg-forest-700 text-forest-300';
+    }
+  };
+
+  const filteredBudgets = budgets.filter(b => 
+    b.category.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <div className="flex flex-col gap-8">
+      
+      {/* Top Section: Header & Summary Cards */}
+      <div className="flex flex-col gap-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-3xl font-bold text-white mb-1">Monthly Budgets</h2>
+            <p className="text-forest-400">October 2024</p>
+          </div>
+          <button className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-forest-950 font-bold py-2.5 px-5 rounded-xl transition-colors">
+            <Plus size={18} strokeWidth={3} /> Add New Budget
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+           <div className="bg-forest-800 border border-forest-700 p-6 rounded-3xl">
+              <div className="text-forest-300 text-sm font-medium mb-1">Total Budgeted</div>
+              <div className="text-3xl font-bold text-white">{formatCurrency(totalBudgeted)}</div>
+           </div>
+           <div className="bg-forest-800 border border-forest-700 p-6 rounded-3xl">
+              <div className="text-forest-300 text-sm font-medium mb-1">Total Spent</div>
+              <div className="text-3xl font-bold text-white">{formatCurrency(totalSpent)}</div>
+           </div>
+           <div className="bg-forest-800 border border-forest-700 p-6 rounded-3xl">
+              <div className="text-forest-300 text-sm font-medium mb-1">Remaining</div>
+              <div className={`text-3xl font-bold ${remaining >= 0 ? 'text-primary' : 'text-rose-500'}`}>
+                {formatCurrency(remaining)}
+              </div>
+           </div>
+        </div>
+      </div>
+
+      {/* Main Grid Section */}
+      <div className="flex flex-col gap-6">
+        <div className="flex justify-between items-center">
+          <h3 className="text-xl font-bold text-white">Your Budgets</h3>
+          <div className="relative">
+             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-forest-400" size={16} />
+             <input 
+                type="text" 
+                placeholder="Find a budget category..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="bg-forest-800 border border-forest-700 rounded-xl py-2 pl-9 pr-4 text-white text-sm focus:outline-none focus:border-primary w-64"
+             />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+           {filteredBudgets.map((budget) => {
+             const percent = Math.min(100, Math.round((budget.spent / budget.limit) * 100));
+             const isOver = budget.spent > budget.limit;
+             const isWarning = !isOver && percent > 80;
+             const overAmount = budget.spent - budget.limit;
+             const leftAmount = budget.limit - budget.spent;
+
+             let statusColor = 'bg-primary';
+             if (isOver) statusColor = 'bg-rose-500';
+             else if (isWarning) statusColor = 'bg-amber-500';
+
+             return (
+               <div key={budget.id} className="bg-forest-800 border border-forest-700 p-6 rounded-3xl hover:border-forest-600 transition-colors">
+                  <div className="flex justify-between items-start mb-6">
+                     <div className="flex items-center gap-4">
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${getIconColor(budget.icon)}`}>
+                           {getIcon(budget.icon)}
+                        </div>
+                        <span className="font-bold text-lg text-white">{budget.category}</span>
+                     </div>
+                     {isOver && <span className="text-xs font-bold text-rose-500 bg-rose-500/10 px-2 py-1 rounded-lg">error</span>}
+                     {isWarning && <span className="text-xs font-bold text-amber-500 bg-amber-500/10 px-2 py-1 rounded-lg">warning</span>}
+                  </div>
+
+                  <div className="mb-2 w-full bg-forest-950 rounded-full h-3 overflow-hidden">
+                     <div className={`h-full rounded-full ${statusColor}`} style={{ width: `${percent}%` }}></div>
+                  </div>
+
+                  <div className="flex justify-between items-center text-sm">
+                     <div className="text-forest-300">
+                        Spent <span className="text-white font-medium">{formatCurrency(budget.spent)}</span> of {formatCurrency(budget.limit)}
+                     </div>
+                     <div className={`font-bold ${isOver ? 'text-rose-500' : isWarning ? 'text-amber-500' : 'text-primary'}`}>
+                        {isOver ? `-${formatCurrency(overAmount)} Over` : `${Math.round((leftAmount / budget.limit) * 100)}% Left`}
+                     </div>
+                  </div>
+               </div>
+             );
+           })}
+
+           {/* Add New Placeholder Card */}
+           <button className="border-2 border-dashed border-forest-700 rounded-3xl p-6 flex flex-col items-center justify-center gap-4 text-forest-400 hover:text-white hover:border-forest-500 hover:bg-forest-800/30 transition-all group min-h-[180px]">
+              <div className="w-14 h-14 rounded-full bg-forest-900 flex items-center justify-center group-hover:scale-110 transition-transform">
+                 <PlusCircle size={32} className="text-primary" />
+              </div>
+              <span className="font-medium">Add a new budget category</span>
+           </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // --- Main App ---
 
 export default function App() {
@@ -375,6 +518,15 @@ export default function App() {
      const saved = localStorage.getItem('smartwallet_transactions');
      return saved ? JSON.parse(saved) : MOCK_TRANSACTIONS;
   });
+
+  // Mock Budgets Data
+  const [budgets, setBudgets] = useState<Budget[]>([
+    { id: '1', category: 'Groceries', limit: 500, spent: 425.00, icon: 'cart' },
+    { id: '2', category: 'Transport', limit: 150, spent: 162.30, icon: 'bus' },
+    { id: '3', category: 'Entertainment', limit: 250, spent: 100.00, icon: 'film' },
+    { id: '4', category: 'Utilities', limit: 150, spent: 112.50, icon: 'zap' },
+    { id: '5', category: 'Shopping', limit: 400, spent: 200.00, icon: 'bag' },
+  ]);
 
   // Mock Alerts
   const alerts: Alert[] = [
@@ -594,6 +746,8 @@ export default function App() {
                 onAdd={handleAddTransaction} 
                 onDelete={handleDeleteTransaction}
               />
+            ) : activeView === 'budgets' ? (
+               <BudgetsView budgets={budgets} />
             ) : (
               <div className="flex items-center justify-center h-full text-forest-400 italic">
                  Work in progress for {activeView} view
