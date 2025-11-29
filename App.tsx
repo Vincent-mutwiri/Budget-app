@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import {
   Transaction, UserState, Category, DailyChallenge,
-  FinancialSnapshot, Goal, Notification, Alert, TransactionType, CategoriesList, Budget, Security, Challenge, SavingsGoal, UserProfile, Account
+  FinancialSnapshot, Goal, Notification, Alert, TransactionType, CategoriesList, Budget, Security, Challenge, SavingsGoal, UserProfile, Account, ChatMessage
 } from './types';
 import {
   MOCK_TRANSACTIONS, LEVEL_THRESHOLDS, XP_REWARDS,
@@ -1262,6 +1262,213 @@ const AccountsView = ({ accounts }: { accounts: Account[] }) => {
   );
 };
 
+// --- AI Assistant View Component ---
+
+const AIAssistantView = ({ transactions }: { transactions: Transaction[] }) => {
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      id: '1',
+      role: 'assistant',
+      content: "Hello! I'm your financial assistant. How can I help you today? You can ask things like \"How much did I spend on groceries last month?\" or \"Show me my spending by category.\"",
+      timestamp: new Date().toISOString()
+    }
+  ]);
+  const [inputValue, setInputValue] = useState('');
+  const [showInsight, setShowInsight] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const handleSendMessage = () => {
+    if (!inputValue.trim()) return;
+
+    const userMessage: ChatMessage = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: inputValue,
+      timestamp: new Date().toISOString()
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    setInputValue('');
+    setShowInsight(true);
+
+    // Simulate AI response
+    setTimeout(() => {
+      const aiMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: "You spent $450.32 on groceries last month. I've broken it down for you in the panel on the right.",
+        timestamp: new Date().toISOString()
+      };
+      setMessages(prev => [...prev, aiMessage]);
+    }, 1000);
+  };
+
+  const handleQuickQuestion = (question: string) => {
+    setInputValue(question);
+  };
+
+  return (
+    <div className="flex h-full w-full max-w-full overflow-hidden">
+
+      {/* Chat Area */}
+      <div className="flex flex-1 flex-col min-w-0">
+
+        {/* Header */}
+        <header className="flex-shrink-0 p-6 border-b border-forest-700">
+          <div className="flex flex-col gap-2">
+            <h1 className="text-3xl font-bold text-white tracking-tight">AI Assistant</h1>
+            <p className="text-forest-400 text-base">Ask me anything about your finances.</p>
+          </div>
+        </header>
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className={`flex items-start gap-4 ${message.role === 'user' ? 'justify-end' : ''}`}
+            >
+              {message.role === 'assistant' && (
+                <div className="w-10 h-10 rounded-full bg-primary/20 text-primary flex items-center justify-center shrink-0">
+                  <Brain size={20} />
+                </div>
+              )}
+
+              <div className={`flex flex-1 flex-col gap-2 ${message.role === 'user' ? 'items-end' : 'items-start'}`}>
+                <p className="text-forest-400 text-xs font-medium">
+                  {message.role === 'assistant' ? 'SmartWallet AI' : 'You'}
+                </p>
+                <div className={`text-base font-normal max-w-lg rounded-2xl px-4 py-3 ${message.role === 'assistant'
+                  ? 'bg-forest-800 text-white border border-forest-700 rounded-tl-none'
+                  : 'bg-primary text-forest-950 rounded-tr-none'
+                  }`}>
+                  <p>{message.content}</p>
+                </div>
+              </div>
+
+              {message.role === 'user' && (
+                <div
+                  className="w-10 h-10 rounded-full bg-center bg-cover shrink-0"
+                  style={{ backgroundImage: 'url("https://api.dicebear.com/7.x/avataaars/svg?seed=Jane")' }}
+                ></div>
+              )}
+            </div>
+          ))}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Chat Input */}
+        <footer className="flex-shrink-0 p-6 border-t border-forest-700">
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
+            <button
+              onClick={() => handleQuickQuestion('How much did I spend on coffee?')}
+              className="px-3 py-1.5 text-sm text-forest-300 bg-forest-800 border border-forest-700 rounded-full hover:bg-forest-700 hover:text-white transition-colors"
+            >
+              How much did I spend on coffee?
+            </button>
+            <button
+              onClick={() => handleQuickQuestion("What's my biggest expense?")}
+              className="px-3 py-1.5 text-sm text-forest-300 bg-forest-800 border border-forest-700 rounded-full hover:bg-forest-700 hover:text-white transition-colors"
+            >
+              What's my biggest expense?
+            </button>
+            <button
+              onClick={() => handleQuickQuestion('Show my budget status')}
+              className="px-3 py-1.5 text-sm text-forest-300 bg-forest-800 border border-forest-700 rounded-full hover:bg-forest-700 hover:text-white transition-colors"
+            >
+              Show my budget status
+            </button>
+          </div>
+          <div className="relative">
+            <input
+              type="text"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+              placeholder="Ask me anything..."
+              className="w-full pl-4 pr-12 py-3 rounded-xl bg-forest-800 text-white border border-forest-700 focus:ring-2 focus:ring-primary focus:border-primary focus:outline-none transition-all placeholder-forest-500"
+            />
+            <button
+              onClick={handleSendMessage}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-primary text-forest-950 hover:bg-primary/90 transition-colors"
+            >
+              <ArrowRight size={20} />
+            </button>
+          </div>
+        </footer>
+      </div>
+
+      {/* Contextual Insight Panel */}
+      {showInsight && (
+        <aside className="w-96 bg-forest-800 flex-shrink-0 border-l border-forest-700 p-6 flex flex-col gap-6 overflow-y-auto">
+          <h2 className="text-xl font-bold text-white">Contextual Insight</h2>
+
+          {/* Data Snippet Card */}
+          <div className="bg-forest-900 p-4 rounded-2xl border border-forest-700">
+            <p className="text-sm text-forest-400 mb-1">Groceries Spending (Last Month)</p>
+            <p className="text-3xl font-bold text-primary">$450.32</p>
+          </div>
+
+          {/* Chart Widget */}
+          <div className="bg-forest-900 p-4 rounded-2xl border border-forest-700 flex flex-col">
+            <p className="text-base font-semibold text-white mb-4">Breakdown by Retailer</p>
+            <div className="flex flex-col gap-4">
+              {/* Chart Item */}
+              <div className="flex flex-col gap-1">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-forest-300">SuperMart</span>
+                  <span className="text-forest-400">$210.15</span>
+                </div>
+                <div className="w-full bg-forest-950 h-2 rounded-full overflow-hidden">
+                  <div className="bg-primary h-2 rounded-full" style={{ width: '46%' }}></div>
+                </div>
+              </div>
+
+              {/* Chart Item */}
+              <div className="flex flex-col gap-1">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-forest-300">Fresh Foods</span>
+                  <span className="text-forest-400">$155.67</span>
+                </div>
+                <div className="w-full bg-forest-950 h-2 rounded-full overflow-hidden">
+                  <div className="bg-primary h-2 rounded-full" style={{ width: '34%' }}></div>
+                </div>
+              </div>
+
+              {/* Chart Item */}
+              <div className="flex flex-col gap-1">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-forest-300">Corner Store</span>
+                  <span className="text-forest-400">$84.50</span>
+                </div>
+                <div className="w-full bg-forest-950 h-2 rounded-full overflow-hidden">
+                  <div className="bg-primary h-2 rounded-full" style={{ width: '20%' }}></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Action Button */}
+          <div className="mt-auto">
+            <button className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-primary/20 text-primary font-semibold hover:bg-primary/30 transition-colors">
+              <CreditCard size={20} />
+              <span>View Full Transaction List</span>
+            </button>
+          </div>
+        </aside>
+      )}
+    </div>
+  );
+};
+
 // --- Budgets View Component ---
 
 const BudgetsView = ({ budgets }: { budgets: Budget[] }) => {
@@ -1732,6 +1939,7 @@ export default function App() {
           <SidebarItem id="transactions" label="Transactions" icon={CreditCard} active={activeView === 'transactions'} onClick={() => setActiveView('transactions')} />
           <SidebarItem id="budgets" label="Budgets" icon={Target} active={activeView === 'budgets'} onClick={() => setActiveView('budgets')} />
           <SidebarItem id="investments" label="Investments" icon={TrendingUp} active={activeView === 'investments'} onClick={() => setActiveView('investments')} />
+          <SidebarItem id="ai-assistant" label="AI Assistant" icon={Brain} active={activeView === 'ai-assistant'} onClick={() => setActiveView('ai-assistant')} />
           <SidebarItem id="gamification" label="Gamification" icon={Medal} active={activeView === 'gamification'} onClick={() => setActiveView('gamification')} />
           <SidebarItem id="goals" label="Goals" icon={Target} active={activeView === 'goals'} onClick={() => setActiveView('goals')} />
           <SidebarItem id="settings" label="Settings" icon={Settings} active={activeView === 'settings'} onClick={() => setActiveView('settings')} />
@@ -1822,7 +2030,7 @@ export default function App() {
         </div>
 
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto px-8 pb-8 scrollbar-thin scrollbar-thumb-forest-700 scrollbar-track-transparent">
+        <div className={`flex-1 ${activeView === 'ai-assistant' ? 'overflow-hidden' : 'overflow-y-auto px-8 pb-8'} scrollbar-thin scrollbar-thumb-forest-700 scrollbar-track-transparent`}>
           {activeView === 'dashboard' ? (
             <DashboardContent />
           ) : activeView === 'transactions' ? (
@@ -1841,6 +2049,8 @@ export default function App() {
             <GoalsView goals={savingsGoals} />
           ) : activeView === 'accounts' ? (
             <AccountsView accounts={accounts} />
+          ) : activeView === 'ai-assistant' ? (
+            <AIAssistantView transactions={transactions} />
           ) : activeView === 'settings' ? (
             <SettingsView userProfile={userProfile} onUpdateProfile={setUserProfile} />
           ) : (

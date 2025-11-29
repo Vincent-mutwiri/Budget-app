@@ -157,3 +157,10 @@ export interface Account {
   lastSynced: string;
   syncStatus: 'success' | 'error';
 }
+
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+}
