@@ -13,14 +13,7 @@ export const LEVEL_THRESHOLDS: LevelData[] = [
   { level: 10, name: 'Wealth Wizard', minXP: 5501, maxXP: 100000 },
 ];
 
-export const MOCK_TRANSACTIONS: Transaction[] = [
-  { id: '1', amount: 4500, description: 'Monthly Salary', category: Category.Income, date: new Date().toISOString(), type: 'income' },
-  { id: '2', amount: 1200, description: 'Rent Payment', category: Category.Housing, date: new Date(Date.now() - 86400000 * 2).toISOString(), type: 'expense' },
-  { id: '3', amount: 150, description: 'Weekly Groceries', category: Category.Food, date: new Date(Date.now() - 86400000 * 5).toISOString(), type: 'expense' },
-  { id: '4', amount: 45, description: 'Gas Station', category: Category.Transport, date: new Date(Date.now() - 86400000 * 1).toISOString(), type: 'expense' },
-  { id: '5', amount: 60, description: 'Internet Bill', category: Category.Utilities, date: new Date(Date.now() - 86400000 * 10).toISOString(), type: 'expense' },
-  { id: '6', amount: 120, description: 'Dinner Date', category: Category.Entertainment, date: new Date(Date.now() - 86400000 * 3).toISOString(), type: 'expense' },
-];
+export const MOCK_TRANSACTIONS: Transaction[] = [];
 
 export const XP_REWARDS = {
   ADD_TRANSACTION: 10,

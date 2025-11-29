@@ -7,6 +7,7 @@ import {
   Search, Filter, Pencil, Trash2, Lightbulb,
   ShoppingCart, Bus, Film, Zap, ShoppingBag, PlusCircle
 } from 'lucide-react';
+import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/clerk-react";
 import {
   Transaction, UserState, Category, DailyChallenge,
   FinancialSnapshot, Goal, Notification, Alert, TransactionType, CategoriesList, Budget, Security, Challenge, SavingsGoal, UserProfile, Account, ChatMessage
@@ -1627,63 +1628,17 @@ export default function App() {
     return saved ? JSON.parse(saved) : MOCK_TRANSACTIONS;
   });
 
-  // Mock Budgets Data
-  const [budgets, setBudgets] = useState<Budget[]>([
-    { id: '1', category: 'Groceries', limit: 500, spent: 425.00, icon: 'cart' },
-    { id: '2', category: 'Transport', limit: 150, spent: 162.30, icon: 'bus' },
-    { id: '3', category: 'Entertainment', limit: 250, spent: 100.00, icon: 'film' },
-    { id: '4', category: 'Utilities', limit: 150, spent: 112.50, icon: 'zap' },
-    { id: '5', category: 'Shopping', limit: 400, spent: 200.00, icon: 'bag' },
-  ]);
+  // Budgets Data
+  const [budgets, setBudgets] = useState<Budget[]>([]);
 
-  // Mock Securities Data
-  const [securities, setSecurities] = useState<Security[]>([
-    { id: '1', name: 'Apple Inc.', symbol: 'AAPL', shares: 50.00, marketPrice: 214.29, marketValue: 10714.50, change24h: 1.25, totalReturn: 1500.25 },
-    { id: '2', name: 'Tech Innovators ETF', symbol: 'INVT', shares: 200.00, marketPrice: 152.80, marketValue: 30560.00, change24h: -0.50, totalReturn: 5820.00 },
-    { id: '3', name: 'Microsoft Corp.', symbol: 'MSFT', shares: 25.00, marketPrice: 447.67, marketValue: 11191.75, change24h: 2.10, totalReturn: 2101.50 },
-    { id: '4', name: 'Global Growth Fund', symbol: 'GGF', shares: 1000.00, marketPrice: 73.36, marketValue: 73363.95, change24h: 0.80, totalReturn: 16408.45 },
-  ]);
+  // Securities Data
+  const [securities, setSecurities] = useState<Security[]>([]);
 
-  // Mock Challenges Data
-  const [challenges, setChallenges] = useState<Challenge[]>([
-    { id: '1', title: 'Log a transaction today', description: '', progress: 1, target: 1, xpReward: 50, type: 'daily', resetTime: '12 hours', completed: true },
-    { id: '2', title: 'Categorize 5 expenses', description: '', progress: 3, target: 5, xpReward: 75, type: 'daily', resetTime: '12 hours', completed: false },
-    { id: '3', title: "Stay under 'Dining Out' budget", description: '', progress: 1, target: 1, xpReward: 300, type: 'weekly', resetTime: '4 days', completed: false },
-    { id: '4', title: 'Complete daily challenges 3 times', description: '', progress: 1, target: 3, xpReward: 150, type: 'weekly', resetTime: '4 days', completed: false },
-    { id: '5', title: 'Achieve a 90% savings goal', description: '', progress: 85, target: 90, xpReward: 500, type: 'monthly', resetTime: '22 days', completed: false },
-    { id: '6', title: 'End with a positive cash flow', description: '', progress: 1, target: 1, xpReward: 400, type: 'monthly', resetTime: '22 days', completed: false },
-  ]);
+  // Challenges Data
+  const [challenges, setChallenges] = useState<Challenge[]>([]);
 
-  // Mock Savings Goals Data
-  const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([
-    {
-      id: '1',
-      title: 'Trip to Japan',
-      targetAmount: 5000,
-      currentAmount: 3500,
-      deadline: '2024-12-31',
-      imageUrl: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=800&h=600&fit=crop',
-      status: 'in-progress'
-    },
-    {
-      id: '2',
-      title: 'New Laptop',
-      targetAmount: 2000,
-      currentAmount: 900,
-      deadline: '2025-03-31',
-      imageUrl: 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=800&h=600&fit=crop',
-      status: 'in-progress'
-    },
-    {
-      id: '3',
-      title: 'Emergency Fund',
-      targetAmount: 10000,
-      currentAmount: 10000,
-      deadline: '2024-06-30',
-      imageUrl: 'https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?w=800&h=600&fit=crop',
-      status: 'completed'
-    },
-  ]);
+  // Savings Goals Data
+  const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([]);
 
   // User Profile Data
   const [userProfile, setUserProfile] = useState<UserProfile>({
@@ -1698,77 +1653,11 @@ export default function App() {
     twoFactorEnabled: false
   });
 
-  // Mock Accounts Data
-  const [accounts, setAccounts] = useState<Account[]>([
-    {
-      id: '1',
-      name: 'Chase Checking',
-      type: 'asset',
-      balance: 12345.67,
-      institution: 'Chase Bank',
-      logoUrl: 'https://images.unsplash.com/photo-1541354329998-f4d9a9f9297f?w=100&h=100&fit=crop',
-      lastSynced: new Date(Date.now() - 5 * 60000).toISOString(),
-      syncStatus: 'success'
-    },
-    {
-      id: '2',
-      name: 'Vanguard 401(k)',
-      type: 'asset',
-      balance: 88105.08,
-      institution: 'Vanguard',
-      logoUrl: 'https://images.unsplash.com/photo-1559526324-593bc073d938?w=100&h=100&fit=crop',
-      lastSynced: new Date(Date.now() - 60 * 60000).toISOString(),
-      syncStatus: 'success'
-    },
-    {
-      id: '3',
-      name: 'Coinbase Crypto',
-      type: 'asset',
-      balance: 5000.00,
-      institution: 'Coinbase',
-      logoUrl: 'https://images.unsplash.com/photo-1621416894569-0f39ed31d247?w=100&h=100&fit=crop',
-      lastSynced: new Date(Date.now() - 2 * 86400000).toISOString(),
-      syncStatus: 'error'
-    },
-    {
-      id: '4',
-      name: 'Savings Account',
-      type: 'asset',
-      balance: 45000.00,
-      institution: 'Chase Bank',
-      logoUrl: 'https://images.unsplash.com/photo-1541354329998-f4d9a9f9297f?w=100&h=100&fit=crop',
-      lastSynced: new Date(Date.now() - 10 * 60000).toISOString(),
-      syncStatus: 'success'
-    },
-    {
-      id: '5',
-      name: 'Amex Gold Card',
-      type: 'liability',
-      balance: 1120.50,
-      institution: 'American Express',
-      logoUrl: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=100&h=100&fit=crop',
-      lastSynced: new Date(Date.now() - 2 * 60000).toISOString(),
-      syncStatus: 'success'
-    },
-    {
-      id: '6',
-      name: 'Student Loan',
-      type: 'liability',
-      balance: 24000.00,
-      institution: 'SoFi',
-      logoUrl: 'https://images.unsplash.com/photo-1554224311-beee4ece3c5d?w=100&h=100&fit=crop',
-      lastSynced: new Date(Date.now() - 86400000).toISOString(),
-      syncStatus: 'success'
-    }
-  ]);
+  // Accounts Data
+  const [accounts, setAccounts] = useState<Account[]>([]);
 
-  // Mock Alerts
-  const alerts: Alert[] = [
-    { id: '1', title: 'Budget', message: "You're close to your 'Dining Out' budget.", type: 'warning', time: '5 minutes ago' },
-    { id: '2', title: 'Bill', message: "Bill 'Netflix' is due in 3 days.", type: 'danger', time: '2 hours ago' },
-    { id: '3', title: 'Badge', message: "New Badge Unlocked: Savvy Saver!", type: 'success', time: '1 day ago' },
-    { id: '4', title: 'System', message: "You've categorized 50 transactions!", type: 'info', time: '2 days ago' },
-  ];
+  // Alerts
+  const alerts: Alert[] = [];
 
   const snapshot: FinancialSnapshot = useMemo(() => {
     const totalIncome = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
@@ -1920,146 +1809,162 @@ export default function App() {
   );
 
   return (
-    <div className="flex h-screen bg-forest-950 text-forest-100 font-inter selection:bg-primary/30 overflow-hidden">
-
-      {/* Sidebar - Desktop */}
-      <aside className="w-72 bg-forest-900 hidden md:flex flex-col border-r border-forest-800">
-        <div className="p-8 pb-4">
-          <div className="flex items-center gap-3 text-white font-bold text-2xl">
-            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-forest-900">
-              <Wallet size={24} strokeWidth={2.5} />
-            </div>
-            SmartWallet
+    <>
+      <SignedOut>
+        <div className="flex items-center justify-center h-screen bg-forest-950 text-white">
+          <div className="text-center">
+            <h1 className="text-4xl font-bold mb-8">Welcome to SmartWallet</h1>
+            <SignInButton mode="modal">
+              <button className="bg-primary text-forest-950 px-6 py-3 rounded-xl font-bold hover:bg-primary/90 transition-colors">
+                Sign In
+              </button>
+            </SignInButton>
           </div>
         </div>
+      </SignedOut>
+      <SignedIn>
+        <div className="flex h-screen bg-forest-950 text-forest-100 font-inter selection:bg-primary/30 overflow-hidden">
 
-        <nav className="flex-1 px-6 py-6 overflow-y-auto">
-          <SidebarItem id="dashboard" label="Dashboard" icon={LayoutGrid} active={activeView === 'dashboard'} onClick={() => setActiveView('dashboard')} />
-          <SidebarItem id="accounts" label="Accounts" icon={Wallet} active={activeView === 'accounts'} onClick={() => setActiveView('accounts')} />
-          <SidebarItem id="transactions" label="Transactions" icon={CreditCard} active={activeView === 'transactions'} onClick={() => setActiveView('transactions')} />
-          <SidebarItem id="budgets" label="Budgets" icon={Target} active={activeView === 'budgets'} onClick={() => setActiveView('budgets')} />
-          <SidebarItem id="investments" label="Investments" icon={TrendingUp} active={activeView === 'investments'} onClick={() => setActiveView('investments')} />
-          <SidebarItem id="ai-assistant" label="AI Assistant" icon={Brain} active={activeView === 'ai-assistant'} onClick={() => setActiveView('ai-assistant')} />
-          <SidebarItem id="gamification" label="Gamification" icon={Medal} active={activeView === 'gamification'} onClick={() => setActiveView('gamification')} />
-          <SidebarItem id="goals" label="Goals" icon={Target} active={activeView === 'goals'} onClick={() => setActiveView('goals')} />
-          <SidebarItem id="settings" label="Settings" icon={Settings} active={activeView === 'settings'} onClick={() => setActiveView('settings')} />
-        </nav>
-
-        <div className="p-6">
-          <div className="flex items-center gap-3 p-4 rounded-2xl hover:bg-forest-800 transition-colors cursor-pointer">
-            <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center overflow-hidden border-2 border-white">
-              <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Jane" alt="User" />
-            </div>
-            <div>
-              <div className="text-white font-bold text-sm">Jane Doe</div>
-              <div className="text-forest-400 text-xs">jane.doe@email.com</div>
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col relative h-full overflow-hidden">
-        {/* Top Navigation Bar */}
-        <header className="bg-forest-900 border-b border-forest-800 px-8 py-4 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-8">
-            <div className="flex items-center gap-3 text-white font-bold text-xl md:hidden">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-forest-900">
-                <Wallet size={20} strokeWidth={2.5} />
+          {/* Sidebar - Desktop */}
+          <aside className="w-72 bg-forest-900 hidden md:flex flex-col border-r border-forest-800">
+            <div className="p-8 pb-4">
+              <div className="flex items-center gap-3 text-white font-bold text-2xl">
+                <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-forest-900">
+                  <Wallet size={24} strokeWidth={2.5} />
+                </div>
+                SmartWallet
               </div>
-              SmartWallet
             </div>
-            <nav className="hidden md:flex items-center gap-6">
-              <button
-                onClick={() => setActiveView('dashboard')}
-                className={`text-sm font-medium transition-colors ${activeView === 'dashboard' ? 'text-white' : 'text-forest-400 hover:text-white'}`}
-              >
-                Dashboard
-              </button>
-              <button
-                onClick={() => setActiveView('budgets')}
-                className={`text-sm font-medium transition-colors ${activeView === 'budgets' ? 'text-white' : 'text-forest-400 hover:text-white'}`}
-              >
-                Budgets
-              </button>
-              <button
-                onClick={() => setActiveView('transactions')}
-                className={`text-sm font-medium transition-colors ${activeView === 'transactions' ? 'text-white' : 'text-forest-400 hover:text-white'}`}
-              >
-                Transactions
-              </button>
-              <button
-                onClick={() => setActiveView('goals')}
-                className={`text-sm font-medium transition-colors ${activeView === 'goals' ? 'text-white' : 'text-forest-400 hover:text-white'}`}
-              >
-                Goals
-              </button>
-              <button
-                onClick={() => setActiveView('gamification')}
-                className={`text-sm font-medium transition-colors ${activeView === 'gamification' ? 'text-white' : 'text-forest-400 hover:text-white'}`}
-              >
-                Gamification
-              </button>
+
+            <nav className="flex-1 px-6 py-6 overflow-y-auto">
+              <SidebarItem id="dashboard" label="Dashboard" icon={LayoutGrid} active={activeView === 'dashboard'} onClick={() => setActiveView('dashboard')} />
+              <SidebarItem id="accounts" label="Accounts" icon={Wallet} active={activeView === 'accounts'} onClick={() => setActiveView('accounts')} />
+              <SidebarItem id="transactions" label="Transactions" icon={CreditCard} active={activeView === 'transactions'} onClick={() => setActiveView('transactions')} />
+              <SidebarItem id="budgets" label="Budgets" icon={Target} active={activeView === 'budgets'} onClick={() => setActiveView('budgets')} />
+              <SidebarItem id="investments" label="Investments" icon={TrendingUp} active={activeView === 'investments'} onClick={() => setActiveView('investments')} />
+              <SidebarItem id="ai-assistant" label="AI Assistant" icon={Brain} active={activeView === 'ai-assistant'} onClick={() => setActiveView('ai-assistant')} />
+              <SidebarItem id="gamification" label="Gamification" icon={Medal} active={activeView === 'gamification'} onClick={() => setActiveView('gamification')} />
+              <SidebarItem id="goals" label="Goals" icon={Target} active={activeView === 'goals'} onClick={() => setActiveView('goals')} />
+              <SidebarItem id="settings" label="Settings" icon={Settings} active={activeView === 'settings'} onClick={() => setActiveView('settings')} />
             </nav>
-          </div>
-          <div className="flex items-center gap-4">
-            <button className="p-2 text-forest-400 hover:text-white transition-colors">
-              <AlertCircle size={20} />
-            </button>
-            <button className="p-2 text-forest-400 hover:text-white transition-colors">
-              <Settings size={20} />
-            </button>
-            <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center overflow-hidden border-2 border-forest-700 cursor-pointer">
-              <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Jane" alt="User" />
-            </div>
-          </div>
-        </header>
 
-        {/* Page Header */}
-        <div className="px-8 py-6 shrink-0">
-          <h1 className="text-3xl font-bold text-white mb-1">
-            {activeView === 'dashboard' ? 'Welcome back, Jane!' :
-              activeView === 'gamification' ? 'Your Gamification Hub' :
-                activeView.charAt(0).toUpperCase() + activeView.slice(1)}
-          </h1>
-          <p className="text-forest-400">
-            {activeView === 'dashboard' ? "Here's a summary of your financial activity." :
-              activeView === 'gamification' ? 'Track your progress, earn badges, and complete challenges to level up your finances.' :
-                'Manage your financial records.'}
-          </p>
-        </div>
-
-        {/* Scrollable Content */}
-        <div className={`flex-1 ${activeView === 'ai-assistant' ? 'overflow-hidden' : 'overflow-y-auto px-8 pb-8'} scrollbar-thin scrollbar-thumb-forest-700 scrollbar-track-transparent`}>
-          {activeView === 'dashboard' ? (
-            <DashboardContent />
-          ) : activeView === 'transactions' ? (
-            <TransactionsView
-              transactions={transactions}
-              onAdd={handleAddTransaction}
-              onDelete={handleDeleteTransaction}
-            />
-          ) : activeView === 'budgets' ? (
-            <BudgetsView budgets={budgets} />
-          ) : activeView === 'investments' ? (
-            <InvestmentsView securities={securities} />
-          ) : activeView === 'gamification' ? (
-            <GamificationView user={user} challenges={challenges} />
-          ) : activeView === 'goals' ? (
-            <GoalsView goals={savingsGoals} />
-          ) : activeView === 'accounts' ? (
-            <AccountsView accounts={accounts} />
-          ) : activeView === 'ai-assistant' ? (
-            <AIAssistantView transactions={transactions} />
-          ) : activeView === 'settings' ? (
-            <SettingsView userProfile={userProfile} onUpdateProfile={setUserProfile} />
-          ) : (
-            <div className="flex items-center justify-center h-full text-forest-400 italic">
-              Work in progress for {activeView} view
+            <div className="p-6">
+              <div className="flex items-center gap-3 p-4 rounded-2xl hover:bg-forest-800 transition-colors cursor-pointer">
+                <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center overflow-hidden border-2 border-white">
+                  <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Jane" alt="User" />
+                </div>
+                <div>
+                  <div className="text-white font-bold text-sm">Jane Doe</div>
+                  <div className="text-forest-400 text-xs">jane.doe@email.com</div>
+                </div>
+              </div>
             </div>
-          )}
+          </aside>
+
+          {/* Main Content */}
+          <main className="flex-1 flex flex-col relative h-full overflow-hidden">
+            {/* Top Navigation Bar */}
+            <header className="bg-forest-900 border-b border-forest-800 px-8 py-4 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-8">
+                <div className="flex items-center gap-3 text-white font-bold text-xl md:hidden">
+                  <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-forest-900">
+                    <Wallet size={20} strokeWidth={2.5} />
+                  </div>
+                  SmartWallet
+                </div>
+                <nav className="hidden md:flex items-center gap-6">
+                  <button
+                    onClick={() => setActiveView('dashboard')}
+                    className={`text-sm font-medium transition-colors ${activeView === 'dashboard' ? 'text-white' : 'text-forest-400 hover:text-white'}`}
+                  >
+                    Dashboard
+                  </button>
+                  <button
+                    onClick={() => setActiveView('budgets')}
+                    className={`text-sm font-medium transition-colors ${activeView === 'budgets' ? 'text-white' : 'text-forest-400 hover:text-white'}`}
+                  >
+                    Budgets
+                  </button>
+                  <button
+                    onClick={() => setActiveView('transactions')}
+                    className={`text-sm font-medium transition-colors ${activeView === 'transactions' ? 'text-white' : 'text-forest-400 hover:text-white'}`}
+                  >
+                    Transactions
+                  </button>
+                  <button
+                    onClick={() => setActiveView('goals')}
+                    className={`text-sm font-medium transition-colors ${activeView === 'goals' ? 'text-white' : 'text-forest-400 hover:text-white'}`}
+                  >
+                    Goals
+                  </button>
+                  <button
+                    onClick={() => setActiveView('gamification')}
+                    className={`text-sm font-medium transition-colors ${activeView === 'gamification' ? 'text-white' : 'text-forest-400 hover:text-white'}`}
+                  >
+                    Gamification
+                  </button>
+                </nav>
+              </div>
+              <div className="flex items-center gap-4">
+                <button className="p-2 text-forest-400 hover:text-white transition-colors">
+                  <AlertCircle size={20} />
+                </button>
+                <button className="p-2 text-forest-400 hover:text-white transition-colors">
+                  <Settings size={20} />
+                </button>
+                <div className="flex items-center justify-center">
+                  <UserButton />
+                </div>
+              </div>
+            </header>
+
+            {/* Page Header */}
+            <div className="px-8 py-6 shrink-0">
+              <h1 className="text-3xl font-bold text-white mb-1">
+                {activeView === 'dashboard' ? 'Welcome back, Jane!' :
+                  activeView === 'gamification' ? 'Your Gamification Hub' :
+                    activeView.charAt(0).toUpperCase() + activeView.slice(1)}
+              </h1>
+              <p className="text-forest-400">
+                {activeView === 'dashboard' ? "Here's a summary of your financial activity." :
+                  activeView === 'gamification' ? 'Track your progress, earn badges, and complete challenges to level up your finances.' :
+                    'Manage your financial records.'}
+              </p>
+            </div>
+
+            {/* Scrollable Content */}
+            <div className={`flex-1 ${activeView === 'ai-assistant' ? 'overflow-hidden' : 'overflow-y-auto px-8 pb-8'} scrollbar-thin scrollbar-thumb-forest-700 scrollbar-track-transparent`}>
+              {activeView === 'dashboard' ? (
+                <DashboardContent />
+              ) : activeView === 'transactions' ? (
+                <TransactionsView
+                  transactions={transactions}
+                  onAdd={handleAddTransaction}
+                  onDelete={handleDeleteTransaction}
+                />
+              ) : activeView === 'budgets' ? (
+                <BudgetsView budgets={budgets} />
+              ) : activeView === 'investments' ? (
+                <InvestmentsView securities={securities} />
+              ) : activeView === 'gamification' ? (
+                <GamificationView user={user} challenges={challenges} />
+              ) : activeView === 'goals' ? (
+                <GoalsView goals={savingsGoals} />
+              ) : activeView === 'accounts' ? (
+                <AccountsView accounts={accounts} />
+              ) : activeView === 'ai-assistant' ? (
+                <AIAssistantView transactions={transactions} />
+              ) : activeView === 'settings' ? (
+                <SettingsView userProfile={userProfile} onUpdateProfile={setUserProfile} />
+              ) : (
+                <div className="flex items-center justify-center h-full text-forest-400 italic">
+                  Work in progress for {activeView} view
+                </div>
+              )}
+            </div>
+          </main>
         </div>
-      </main>
-    </div>
+      </SignedIn>
+    </>
   );
 }
