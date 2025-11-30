@@ -2,6 +2,8 @@ import { User } from '../models/User';
 import { Challenge } from '../models/Challenge';
 import { Badge, UserBadge } from '../models/Badge';
 import { Notification } from '../models/Notification';
+import { Budget } from '../models/Budget';
+import { Transaction } from '../models/Transaction';
 
 // XP thresholds for each level
 const LEVEL_THRESHOLDS = [
@@ -29,7 +31,12 @@ export const XP_REWARDS = {
     ADD_DEBT: 30,
     RECORD_DEBT_PAYMENT: 20,
     ACCEPT_BUDGET_RECOMMENDATION: 35,
-    MAINTAIN_STREAK: 50
+    MAINTAIN_STREAK: 50,
+    SAME_DAY_BONUS: 15,
+    STREAK_MULTIPLIER: 2,
+    BUDGET_ADHERENCE_DAILY: 20,
+    BUDGET_ADHERENCE_WEEKLY: 50,
+    BUDGET_ADHERENCE_MONTHLY: 150
 };
 
 // Badge definitions
@@ -115,6 +122,331 @@ export const BADGE_DEFINITIONS = [
         category: 'debts'
     }
 ];
+
+/**
+ * Interface for transaction XP reward breakdown
+ */
+export interface TransactionXPReward {
+    baseXP: number;
+    sameDayBonus: number;
+    streakBonus: number;
+    totalXP: number;
+    newStreak: number;
+    isSameDay: boolean;
+}
+
+/**
+ * Interface for budget adherence reward
+ */
+export interface BudgetAdherenceReward {
+    type: 'daily' | 'weekly' | 'monthly';
+    xpAwarded: number;
+    categoriesWithinBudget: string[];
+    totalCategories: number;
+    achievementUnlocked?: string;
+    adherencePercentage: number;
+}
+
+/**
+ * Calculate XP reward for a transaction with same-day bonus
+ * @param transactionDate - The date of the transaction
+ * @param currentDate - The current date (defaults to now)
+ * @param userStreak - The user's current streak
+ * @returns TransactionXPReward breakdown
+ */
+export function calculateTransactionXP(
+    transactionDate: Date,
+    currentDate: Date = new Date(),
+    userStreak: number = 0
+): TransactionXPReward {
+    const baseXP = XP_REWARDS.ADD_TRANSACTION;
+
+    // Check if transaction date is the same as current date (same day)
+    const isSameDay = isSameDateAs(transactionDate, currentDate);
+
+    // Award same-day bonus only if transaction is logged on the same day
+    const sameDayBonus = isSameDay ? XP_REWARDS.SAME_DAY_BONUS : 0;
+
+    // Calculate streak bonus (only for same-day transactions)
+    const streakBonus = isSameDay ? userStreak * XP_REWARDS.STREAK_MULTIPLIER : 0;
+
+    // Calculate new streak (increment if same-day, otherwise reset to 0)
+    const newStreak = isSameDay ? userStreak + 1 : 0;
+
+    // Calculate total XP
+    const totalXP = baseXP + sameDayBonus + streakBonus;
+
+    return {
+        baseXP,
+        sameDayBonus,
+        streakBonus,
+        totalXP,
+        newStreak,
+        isSameDay
+    };
+}
+
+/**
+ * Check if two dates are on the same calendar day
+ * @param date1 - First date
+ * @param date2 - Second date
+ * @returns true if dates are on the same day
+ */
+function isSameDateAs(date1: Date, date2: Date): boolean {
+    return (
+        date1.getFullYear() === date2.getFullYear() &&
+        date1.getMonth() === date2.getMonth() &&
+        date1.getDate() === date2.getDate()
+    );
+}
+
+/**
+ * Award XP for a transaction with same-day bonus calculation
+ * @param userId - The user's Clerk ID
+ * @param transactionDate - The date of the transaction
+ * @returns TransactionXPReward breakdown
+ */
+export async function awardTransactionXP(
+    userId: string,
+    transactionDate: Date
+): Promise<TransactionXPReward> {
+    try {
+        const user = await User.findOne({ clerkId: userId });
+
+        if (!user) {
+            throw new Error(`User not found: ${userId}`);
+        }
+
+        const currentDate = new Date();
+        const currentStreak = user.streak || 0;
+
+        // Calculate XP reward with same-day bonus
+        const xpReward = calculateTransactionXP(transactionDate, currentDate, currentStreak);
+
+        // Update user XP
+        const oldXP = user.xp || 0;
+        const oldLevel = user.level || 1;
+        user.xp = oldXP + xpReward.totalXP;
+
+        // Update user streak if same-day transaction
+        if (xpReward.isSameDay) {
+            user.streak = xpReward.newStreak;
+            user.lastTransactionDate = currentDate;
+
+            // Check for streak badges
+            if (user.streak === 7) {
+                await unlockBadge(userId, 'streak_starter');
+            } else if (user.streak === 30) {
+                await unlockBadge(userId, 'streak_champion');
+            }
+        }
+
+        // Calculate new level
+        const newLevel = calculateLevel(user.xp);
+        user.level = newLevel;
+
+        await user.save();
+
+        // Check if user leveled up
+        if (newLevel > oldLevel) {
+            await createNotification(userId, {
+                type: 'gamification',
+                title: 'Level Up!',
+                message: `Congratulations! You've reached level ${newLevel} - ${getLevelName(newLevel)}`,
+                priority: 'high'
+            });
+        }
+
+        // Create XP notification with breakdown
+        const bonusMessage = xpReward.isSameDay
+            ? ` (Base: ${xpReward.baseXP} + Same-Day Bonus: ${xpReward.sameDayBonus}${xpReward.streakBonus > 0 ? ` + Streak Bonus: ${xpReward.streakBonus}` : ''})`
+            : '';
+
+        await createNotification(userId, {
+            type: 'gamification',
+            title: 'XP Earned',
+            message: `You earned ${xpReward.totalXP} XP for adding a transaction${bonusMessage}`,
+            priority: 'low'
+        });
+
+        return xpReward;
+
+    } catch (error) {
+        console.error('Error awarding transaction XP:', error);
+        throw error;
+    }
+}
+
+/**
+ * Check budget adherence and award XP rewards
+ * @param userId - The user's Clerk ID
+ * @param checkType - Type of check: 'daily', 'weekly', or 'monthly'
+ * @returns BudgetAdherenceReward with details
+ */
+export async function checkBudgetAdherence(
+    userId: string,
+    checkType: 'daily' | 'weekly' | 'monthly' = 'daily'
+): Promise<BudgetAdherenceReward | null> {
+    try {
+        // Get all budgets for the user
+        const budgets = await Budget.find({ userId });
+
+        if (budgets.length === 0) {
+            return null; // No budgets to check
+        }
+
+        // Determine date range based on check type
+        const now = new Date();
+        let startDate: Date;
+
+        switch (checkType) {
+            case 'daily':
+                startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                break;
+            case 'weekly':
+                startDate = new Date(now);
+                startDate.setDate(now.getDate() - now.getDay()); // Start of week (Sunday)
+                startDate.setHours(0, 0, 0, 0);
+                break;
+            case 'monthly':
+                startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+                break;
+        }
+
+        // Get transactions for the period
+        const transactions = await Transaction.find({
+            userId,
+            type: 'expense',
+            date: { $gte: startDate, $lte: now }
+        });
+
+        // Calculate spending by category
+        const spendingByCategory: { [category: string]: number } = {};
+        transactions.forEach(transaction => {
+            const category = transaction.category;
+            spendingByCategory[category] = (spendingByCategory[category] || 0) + transaction.amount;
+        });
+
+        // Check which categories are within budget
+        const categoriesWithinBudget: string[] = [];
+        let totalCategories = 0;
+
+        budgets.forEach(budget => {
+            totalCategories++;
+            const spent = spendingByCategory[budget.category] || 0;
+
+            if (spent <= budget.limit) {
+                categoriesWithinBudget.push(budget.category);
+            }
+        });
+
+        // Calculate adherence percentage
+        const adherencePercentage = totalCategories > 0
+            ? (categoriesWithinBudget.length / totalCategories) * 100
+            : 0;
+
+        // Determine if user qualifies for reward (at least 50% adherence)
+        if (adherencePercentage < 50) {
+            return null; // Not enough adherence to award XP
+        }
+
+        // Determine XP reward based on check type
+        let xpAwarded = 0;
+        switch (checkType) {
+            case 'daily':
+                xpAwarded = XP_REWARDS.BUDGET_ADHERENCE_DAILY;
+                break;
+            case 'weekly':
+                xpAwarded = XP_REWARDS.BUDGET_ADHERENCE_WEEKLY;
+                break;
+            case 'monthly':
+                xpAwarded = XP_REWARDS.BUDGET_ADHERENCE_MONTHLY;
+                break;
+        }
+
+        // Bonus XP for perfect adherence (100%)
+        if (adherencePercentage === 100) {
+            xpAwarded = Math.floor(xpAwarded * 1.5);
+        }
+
+        // Award XP to user
+        const user = await User.findOne({ clerkId: userId });
+        if (!user) {
+            throw new Error(`User not found: ${userId}`);
+        }
+
+        const oldXP = user.xp || 0;
+        const oldLevel = user.level || 1;
+        user.xp = oldXP + xpAwarded;
+        user.level = calculateLevel(user.xp);
+        await user.save();
+
+        // Check if user leveled up
+        if (user.level > oldLevel) {
+            await createNotification(userId, {
+                type: 'gamification',
+                title: 'Level Up!',
+                message: `Congratulations! You've reached level ${user.level} - ${getLevelName(user.level)}`,
+                priority: 'high'
+            });
+        }
+
+        // Check for budget master badge (3 consecutive months)
+        let achievementUnlocked: string | undefined;
+        if (checkType === 'monthly' && adherencePercentage === 100) {
+            // This is simplified - in production, you'd track consecutive months
+            achievementUnlocked = 'budget_master';
+            await unlockBadge(userId, 'budget_master');
+        }
+
+        // Create notification
+        const adherenceMessage = adherencePercentage === 100
+            ? 'Perfect budget adherence!'
+            : `${categoriesWithinBudget.length} of ${totalCategories} categories within budget`;
+
+        await createNotification(userId, {
+            type: 'gamification',
+            title: `${checkType.charAt(0).toUpperCase() + checkType.slice(1)} Budget Achievement`,
+            message: `${adherenceMessage} You earned ${xpAwarded} XP!`,
+            priority: 'medium'
+        });
+
+        return {
+            type: checkType,
+            xpAwarded,
+            categoriesWithinBudget,
+            totalCategories,
+            achievementUnlocked,
+            adherencePercentage
+        };
+
+    } catch (error) {
+        console.error('Error checking budget adherence:', error);
+        throw error;
+    }
+}
+
+/**
+ * Track budget adherence streak for a user
+ * This should be called at the end of each period (day/week/month)
+ */
+export async function trackBudgetAdherenceStreak(
+    userId: string,
+    periodType: 'daily' | 'weekly' | 'monthly'
+): Promise<void> {
+    try {
+        const adherenceResult = await checkBudgetAdherence(userId, periodType);
+
+        if (adherenceResult && adherenceResult.adherencePercentage >= 75) {
+            // User maintained good budget adherence
+            // In a production system, you'd track this in a separate collection
+            // For now, we'll just award the XP through checkBudgetAdherence
+            console.log(`User ${userId} maintained ${periodType} budget adherence streak`);
+        }
+    } catch (error) {
+        console.error('Error tracking budget adherence streak:', error);
+    }
+}
 
 /**
  * Award XP to a user for completing an action

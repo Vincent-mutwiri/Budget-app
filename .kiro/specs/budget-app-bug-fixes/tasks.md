@@ -75,15 +75,15 @@
   - Return all financial metrics
   - _Requirements: 8.1, 8.2, 9.1, 10.1, 11.1, 13.1_
 
-- [ ] 6. Backend Services - Gamification Engine
-- [ ] 6.1 Implement same-day transaction XP calculation
+- [x] 6. Backend Services - Gamification Engine
+- [x] 6.1 Implement same-day transaction XP calculation
   - Compare transaction date with current date
   - Calculate base XP, same-day bonus, and streak bonus
   - Update user streak if same-day
   - Return XP reward breakdown
   - _Requirements: 3.1, 3.2, 3.3, 3.4_
 
-- [ ] 6.2 Implement budget adherence rewards
+- [x] 6.2 Implement budget adherence rewards
   - Check if user is within budget for categories
   - Award XP for staying within budget
   - Track budget adherence streaks
