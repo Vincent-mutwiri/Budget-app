@@ -348,16 +348,18 @@ app.post('/api/transactions', validateTransaction, async (req, res) => {
             }
 
             // Return transaction with XP reward details
+            const txObj = newTransaction.toObject();
             return res.status(201).json({
-                transaction: newTransaction.toObject(),
+                transaction: { ...txObj, id: txObj._id.toString() },
                 xpReward: xpReward
             });
 
         } catch (xpError) {
             console.error('Error calculating XP or updating user:', xpError);
             // Return success for the transaction even if XP failed
+            const txObj = newTransaction.toObject();
             return res.status(201).json({
-                transaction: newTransaction.toObject(),
+                transaction: { ...txObj, id: txObj._id.toString() },
                 xpReward: null
             });
         }
@@ -553,8 +555,9 @@ app.put('/api/budgets/:id', async (req, res) => {
         // Invalidate metrics cache since budget update affects financial metrics
         invalidateMetricsCache(budget.userId);
 
+        const budgetObj = budget.toObject();
         res.json({
-            budget: budget.toObject(),
+            budget: { ...budgetObj, id: budgetObj._id.toString() },
             totalPlannedBudget,
             utilizationPercentage
         });
@@ -646,7 +649,8 @@ app.put('/api/goals/:id', async (req, res) => {
 
         await goal.save();
 
-        res.json(goal.toObject());
+        const goalObj = goal.toObject();
+        res.json({ ...goalObj, id: goalObj._id.toString() });
     } catch (error) {
         console.error('Error updating goal:', error);
         res.status(500).json({ error: 'Server error' });
@@ -716,11 +720,12 @@ app.post('/api/goals/:id/image', imageUpload.single('image'), async (req, res) =
 
         console.log(`Image uploaded successfully for goal ${id}`);
 
+        const goalObj = goal.toObject();
         res.json({
             success: true,
             message: 'Image uploaded successfully',
             imageUrl: uploadResult.imageUrl,
-            goal: goal.toObject()
+            goal: { ...goalObj, id: goalObj._id.toString() }
         });
     } catch (error) {
         console.error('Error uploading goal image:', error);
@@ -780,11 +785,12 @@ app.delete('/api/goals/:id/image', async (req, res) => {
 
         console.log(`Image removed successfully from goal ${id}`);
 
+        const goalObj = goal.toObject();
         res.json({
             success: true,
             message: 'Image removed successfully',
             defaultImageUrl,
-            goal: goal.toObject()
+            goal: { ...goalObj, id: goalObj._id.toString() }
         });
     } catch (error) {
         console.error('Error removing goal image:', error);
@@ -914,10 +920,11 @@ app.post('/api/goals/:id/contribute', async (req, res) => {
             // Continue even if notification fails
         }
 
+        const goalObj = goal.toObject();
         res.json({
             success: true,
             message: 'Contribution successful',
-            goal: goal.toObject(),
+            goal: { ...goalObj, id: goalObj._id.toString() },
             newBalance: user.totalBalance,
             contribution: {
                 amount,
@@ -1732,9 +1739,11 @@ app.get('/api/debts', async (req, res) => {
 
         // Calculate metrics for each debt
         const debtsWithMetrics = debts.map(debt => {
-            const metrics = calculateDebtMetrics(debt.toObject());
+            const obj = debt.toObject();
+            const metrics = calculateDebtMetrics(obj);
             return {
-                ...debt.toObject(),
+                ...obj,
+                id: obj._id.toString(),
                 calculatedMetrics: metrics
             };
         });
@@ -1774,10 +1783,12 @@ app.post('/api/debts', async (req, res) => {
         await newDebt.save();
 
         // Calculate metrics for the new debt
-        const metrics = calculateDebtMetrics(newDebt.toObject());
+        const obj = newDebt.toObject();
+        const metrics = calculateDebtMetrics(obj);
 
         res.status(201).json({
-            ...newDebt.toObject(),
+            ...obj,
+            id: obj._id.toString(),
             calculatedMetrics: metrics
         });
     } catch (error) {
@@ -1811,10 +1822,12 @@ app.put('/api/debts/:id', async (req, res) => {
         await debt.save();
 
         // Calculate metrics for the updated debt
-        const metrics = calculateDebtMetrics(debt.toObject());
+        const obj = debt.toObject();
+        const metrics = calculateDebtMetrics(obj);
 
         res.json({
-            ...debt.toObject(),
+            ...obj,
+            id: obj._id.toString(),
             calculatedMetrics: metrics
         });
     } catch (error) {
@@ -1858,10 +1871,12 @@ app.post('/api/debts/:id/payment', async (req, res) => {
         await debt.save();
 
         // Calculate metrics for the updated debt
-        const metrics = calculateDebtMetrics(debt.toObject());
+        const obj = debt.toObject();
+        const metrics = calculateDebtMetrics(obj);
 
         res.json({
-            ...debt.toObject(),
+            ...obj,
+            id: obj._id.toString(),
             calculatedMetrics: metrics,
             payment
         });
