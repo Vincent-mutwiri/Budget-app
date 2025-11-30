@@ -1,5 +1,11 @@
 import axios from 'axios';
 import dotenv from 'dotenv';
+import { Transaction } from '../models/Transaction';
+import { Budget } from '../models/Budget';
+import { Investment } from '../models/Investment';
+import { Debt } from '../models/Debt';
+import { SavingsGoal } from '../models/SavingsGoal';
+import { User } from '../models/User';
 import {
     generateEnhancedFinancialAdvice as generateGeminiAdvice,
     generateInvestmentRecommendations as generateGeminiInvestment,
@@ -21,6 +27,217 @@ interface UserFinancialContext {
     level?: number;
     streak?: number;
     monthlyIncome?: number;
+    userId?: string;
+}
+
+interface FinancialRAGContext {
+    user: any;
+    transactions: any[];
+    budgets: any[];
+    investments: any[];
+    debts: any[];
+    goals: any[];
+    monthlyMetrics: any;
+    yearlyMetrics: any;
+    trends: any;
+}
+
+/**
+ * Retrieve comprehensive financial data for RAG context
+ */
+async function retrieveFinancialContext(userId: string): Promise<FinancialRAGContext> {
+    const now = new Date();
+    const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const currentYear = new Date(now.getFullYear(), 0, 1);
+    const last3Months = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+
+    // Parallel data retrieval for better performance
+    const [user, transactions, budgets, investments, debts, goals] = await Promise.all([
+        User.findOne({ clerkId: userId }),
+        Transaction.find({ userId }).sort({ date: -1 }).limit(100),
+        Budget.find({ userId }),
+        Investment.find({ userId }),
+        Debt.find({ userId }),
+        SavingsGoal.find({ userId })
+    ]);
+
+    // Calculate monthly metrics
+    const currentMonthTransactions = transactions.filter(t => 
+        new Date(t.date) >= currentMonth
+    );
+    const lastMonthTransactions = transactions.filter(t => 
+        new Date(t.date) >= lastMonth && new Date(t.date) < currentMonth
+    );
+
+    const monthlyMetrics = {
+        currentMonth: {
+            income: currentMonthTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0),
+            expenses: currentMonthTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0),
+            transactionCount: currentMonthTransactions.length,
+            categoryBreakdown: currentMonthTransactions.reduce((acc, t) => {
+                acc[t.category] = (acc[t.category] || 0) + t.amount;
+                return acc;
+            }, {} as Record<string, number>)
+        },
+        lastMonth: {
+            income: lastMonthTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0),
+            expenses: lastMonthTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0),
+            transactionCount: lastMonthTransactions.length
+        }
+    };
+
+    // Calculate yearly metrics
+    const yearlyTransactions = transactions.filter(t => new Date(t.date) >= currentYear);
+    const yearlyMetrics = {
+        totalIncome: yearlyTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0),
+        totalExpenses: yearlyTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0),
+        avgMonthlyIncome: yearlyTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0) / (now.getMonth() + 1),
+        avgMonthlyExpenses: yearlyTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0) / (now.getMonth() + 1)
+    };
+
+    // Calculate trends
+    const trends = {
+        spendingTrend: monthlyMetrics.currentMonth.expenses > monthlyMetrics.lastMonth.expenses ? 'increasing' : 'decreasing',
+        incomeTrend: monthlyMetrics.currentMonth.income > monthlyMetrics.lastMonth.income ? 'increasing' : 'decreasing',
+        savingsRate: monthlyMetrics.currentMonth.income > 0 ? 
+            ((monthlyMetrics.currentMonth.income - monthlyMetrics.currentMonth.expenses) / monthlyMetrics.currentMonth.income) * 100 : 0
+    };
+
+    return {
+        user: user?.toObject() || {},
+        transactions: transactions.slice(0, 20).map(t => t.toObject()),
+        budgets: budgets.map(b => b.toObject()),
+        investments: investments.map(i => i.toObject()),
+        debts: debts.map(d => d.toObject()),
+        goals: goals.map(g => g.toObject()),
+        monthlyMetrics,
+        yearlyMetrics,
+        trends
+    };
+}
+
+/**
+ * Build comprehensive RAG context string
+ */
+function buildRAGContext(context: FinancialRAGContext, query: string): string {
+    let ragContext = `FINANCIAL DATA CONTEXT:\n\n`;
+
+    // User Profile
+    ragContext += `USER PROFILE:\n`;
+    ragContext += `- Name: ${context.user.fullName || 'User'}\n`;
+    ragContext += `- Level: ${context.user.level || 1}\n`;
+    ragContext += `- XP: ${context.user.xp || 0}\n`;
+    ragContext += `- Streak: ${context.user.streak || 0} days\n`;
+    ragContext += `- Total Balance: $${(context.user.totalBalance || 0).toFixed(2)}\n\n`;
+
+    // Monthly Performance
+    ragContext += `CURRENT MONTH PERFORMANCE:\n`;
+    ragContext += `- Income: $${context.monthlyMetrics.currentMonth.income.toFixed(2)}\n`;
+    ragContext += `- Expenses: $${context.monthlyMetrics.currentMonth.expenses.toFixed(2)}\n`;
+    ragContext += `- Net: $${(context.monthlyMetrics.currentMonth.income - context.monthlyMetrics.currentMonth.expenses).toFixed(2)}\n`;
+    ragContext += `- Transactions: ${context.monthlyMetrics.currentMonth.transactionCount}\n`;
+    ragContext += `- Savings Rate: ${context.trends.savingsRate.toFixed(1)}%\n\n`;
+
+    // Spending by Category
+    if (Object.keys(context.monthlyMetrics.currentMonth.categoryBreakdown).length > 0) {
+        ragContext += `SPENDING BY CATEGORY (This Month):\n`;
+        Object.entries(context.monthlyMetrics.currentMonth.categoryBreakdown)
+            .sort(([,a], [,b]) => (b as number) - (a as number))
+            .slice(0, 5)
+            .forEach(([category, amount]) => {
+                ragContext += `- ${category}: $${(amount as number).toFixed(2)}\n`;
+            });
+        ragContext += `\n`;
+    }
+
+    // Budget Status
+    if (context.budgets.length > 0) {
+        ragContext += `BUDGET STATUS:\n`;
+        const totalBudget = context.budgets.reduce((sum, b) => sum + b.limit, 0);
+        ragContext += `- Total Budget: $${totalBudget.toFixed(2)}\n`;
+        ragContext += `- Total Spent: $${context.monthlyMetrics.currentMonth.expenses.toFixed(2)}\n`;
+        ragContext += `- Budget Utilization: ${totalBudget > 0 ? ((context.monthlyMetrics.currentMonth.expenses / totalBudget) * 100).toFixed(1) : 0}%\n`;
+        
+        const overBudgetCategories = context.budgets.filter(b => {
+            const spent = context.monthlyMetrics.currentMonth.categoryBreakdown[b.category] || 0;
+            return spent > b.limit;
+        });
+        if (overBudgetCategories.length > 0) {
+            ragContext += `- Over Budget: ${overBudgetCategories.map(b => b.category).join(', ')}\n`;
+        }
+        ragContext += `\n`;
+    }
+
+    // Investment Portfolio
+    if (context.investments.length > 0) {
+        const totalValue = context.investments.reduce((sum, i) => sum + i.currentValue, 0);
+        const totalCost = context.investments.reduce((sum, i) => sum + i.initialAmount, 0);
+        const totalReturn = totalValue - totalCost;
+        const returnPercentage = totalCost > 0 ? (totalReturn / totalCost) * 100 : 0;
+        
+        ragContext += `INVESTMENT PORTFOLIO:\n`;
+        ragContext += `- Total Value: $${totalValue.toFixed(2)}\n`;
+        ragContext += `- Total Return: $${totalReturn.toFixed(2)} (${returnPercentage.toFixed(2)}%)\n`;
+        ragContext += `- Number of Investments: ${context.investments.length}\n`;
+        
+        const bestPerformer = context.investments.reduce((best, inv) => {
+            const invReturn = ((inv.currentValue - inv.initialAmount) / inv.initialAmount) * 100;
+            const bestReturn = ((best.currentValue - best.initialAmount) / best.initialAmount) * 100;
+            return invReturn > bestReturn ? inv : best;
+        });
+        if (bestPerformer) {
+            const bestReturn = ((bestPerformer.currentValue - bestPerformer.initialAmount) / bestPerformer.initialAmount) * 100;
+            ragContext += `- Best Performer: ${bestPerformer.name} (${bestReturn.toFixed(2)}%)\n`;
+        }
+        ragContext += `\n`;
+    }
+
+    // Debt Overview
+    if (context.debts.length > 0) {
+        const totalDebt = context.debts.reduce((sum, d) => sum + d.currentBalance, 0);
+        const totalMinPayment = context.debts.reduce((sum, d) => sum + d.minimumPayment, 0);
+        const highestInterest = Math.max(...context.debts.map(d => d.interestRate));
+        
+        ragContext += `DEBT OVERVIEW:\n`;
+        ragContext += `- Total Debt: $${totalDebt.toFixed(2)}\n`;
+        ragContext += `- Monthly Payments: $${totalMinPayment.toFixed(2)}\n`;
+        ragContext += `- Highest Interest Rate: ${highestInterest.toFixed(2)}%\n`;
+        ragContext += `- Number of Debts: ${context.debts.length}\n\n`;
+    }
+
+    // Savings Goals
+    if (context.goals.length > 0) {
+        const totalTarget = context.goals.reduce((sum, g) => sum + g.targetAmount, 0);
+        const totalSaved = context.goals.reduce((sum, g) => sum + g.currentAmount, 0);
+        const progress = totalTarget > 0 ? (totalSaved / totalTarget) * 100 : 0;
+        
+        ragContext += `SAVINGS GOALS:\n`;
+        ragContext += `- Total Target: $${totalTarget.toFixed(2)}\n`;
+        ragContext += `- Total Saved: $${totalSaved.toFixed(2)}\n`;
+        ragContext += `- Overall Progress: ${progress.toFixed(1)}%\n`;
+        ragContext += `- Active Goals: ${context.goals.filter(g => g.status === 'in-progress').length}\n\n`;
+    }
+
+    // Recent Transactions
+    if (context.transactions.length > 0) {
+        ragContext += `RECENT TRANSACTIONS (Last 10):\n`;
+        context.transactions.slice(0, 10).forEach(t => {
+            ragContext += `- ${new Date(t.date).toLocaleDateString()}: ${t.type === 'expense' ? '-' : '+'}$${t.amount.toFixed(2)} (${t.category}) - ${t.description}\n`;
+        });
+        ragContext += `\n`;
+    }
+
+    // Trends
+    ragContext += `FINANCIAL TRENDS:\n`;
+    ragContext += `- Spending Trend: ${context.trends.spendingTrend}\n`;
+    ragContext += `- Income Trend: ${context.trends.incomeTrend}\n`;
+    ragContext += `- Current Savings Rate: ${context.trends.savingsRate.toFixed(1)}%\n\n`;
+
+    // Query Context
+    ragContext += `USER QUERY: "${query}"\n\n`;
+
+    return ragContext;
 }
 
 async function callInflectionAI(prompt: string): Promise<string> {
@@ -54,102 +271,40 @@ async function callInflectionAI(prompt: string): Promise<string> {
 }
 
 /**
- * Generate enhanced financial advice with user context
+ * Generate enhanced financial advice with RAG context
  */
 export async function generateEnhancedFinancialAdvice(
     user: UserFinancialContext,
     financialData: any,
     query: string
 ): Promise<string> {
-    // Build comprehensive context
-    let contextString = `User Profile:
-- Level: ${user.level || 1}
-- XP: ${user.xp || 0}
-- Streak: ${user.streak || 0} days
-- Monthly Income: $${user.monthlyIncome || 0}
-
-`;
-
-    // Add spending context if available
-    if (financialData?.totalSpent !== undefined) {
-        contextString += `Spending Data:
-- Total Spent: $${financialData.totalSpent.toFixed(2)}
-- Transaction Count: ${financialData.transactionCount || 0}
-`;
-        if (financialData.byCategory) {
-            contextString += `- Top Categories:\n`;
-            Object.entries(financialData.byCategory)
-                .sort(([, a]: any, [, b]: any) => b - a)
-                .slice(0, 3)
-                .forEach(([category, amount]) => {
-                    contextString += `  * ${category}: $${(amount as number).toFixed(2)}\n`;
-                });
-        }
-        contextString += '\n';
+    if (!user.userId) {
+        throw new Error('User ID is required for RAG context');
     }
 
-    // Add budget context if available
-    if (financialData?.budgets) {
-        contextString += `Budget Status:
-- Total Budget: $${financialData.totalBudget?.toFixed(2) || 0}
-- Total Spent: $${financialData.totalSpent?.toFixed(2) || 0}
-`;
-        const overBudget = financialData.budgets.filter((b: any) => b.percentageUsed > 100);
-        if (overBudget.length > 0) {
-            contextString += `- Over Budget Categories: ${overBudget.map((b: any) => b.category).join(', ')}\n`;
-        }
-        contextString += '\n';
-    }
+    // Retrieve comprehensive financial context
+    const ragContext = await retrieveFinancialContext(user.userId);
+    const contextString = buildRAGContext(ragContext, query);
+    // Use RAG context instead of basic context
 
-    // Add investment context if available
-    if (financialData?.portfolioMetrics) {
-        contextString += `Investment Portfolio:
-- Total Value: $${financialData.portfolioMetrics.totalValue?.toFixed(2) || 0}
-- Total Return: $${financialData.portfolioMetrics.totalReturn?.toFixed(2) || 0} (${financialData.portfolioMetrics.totalReturnPercentage?.toFixed(2) || 0}%)
-- Number of Investments: ${financialData.investments?.length || 0}
-`;
-        contextString += '\n';
-    }
-
-    // Add debt context if available
-    if (financialData?.debtSummary) {
-        contextString += `Debt Overview:
-- Total Debt: $${financialData.debtSummary.totalDebt?.toFixed(2) || 0}
-- Monthly Payment: $${financialData.debtSummary.totalMonthlyPayment?.toFixed(2) || 0}
-- Number of Debts: ${financialData.debts?.length || 0}
-`;
-        contextString += '\n';
-    }
-
-    // Add savings goals context if available
-    if (financialData?.goals) {
-        contextString += `Savings Goals:
-- Total Target: $${financialData.totalTarget?.toFixed(2) || 0}
-- Total Saved: $${financialData.totalSaved?.toFixed(2) || 0}
-- Progress: ${financialData.progress?.toFixed(1) || 0}%
-`;
-        contextString += '\n';
-    }
-
-    const prompt = `You are an expert financial advisor integrated into SmartWallet, a gamified personal finance app.
+    const prompt = `You are Pi, an expert financial advisor integrated into SmartWallet, a gamified personal finance app. You have access to comprehensive financial data through retrieval augmented generation.
 
 ${contextString}
 
-User Question: "${query}"
+INSTRUCTIONS:
+1. Analyze the provided financial data thoroughly to give personalized advice
+2. Reference specific numbers, trends, and patterns from the user's actual data
+3. Acknowledge their gamification progress (level, XP, streak) when relevant
+4. Provide actionable recommendations with concrete steps
+5. For investments: Include disclaimer "⚠️ This is general guidance, not professional financial advice. Consult a licensed financial advisor for investment decisions."
+6. Use a supportive, encouraging tone
+7. Keep responses focused and actionable (2-3 paragraphs)
+8. Use relevant emojis sparingly (💰, 📊, 🎯, ✅, ⚠️)
 
-Instructions:
-1. Provide personalized, actionable financial advice based on the user's actual data
-2. Be encouraging and supportive, acknowledging their progress (level, streak, XP)
-3. Give specific recommendations with numbers when possible
-4. If discussing investments, ALWAYS include this disclaimer: "⚠️ This is general guidance, not professional financial advice. Consult a licensed financial advisor for investment decisions."
-5. Use a friendly, conversational tone
-6. Keep responses concise (2-3 paragraphs max)
-7. Include emojis sparingly for emphasis (💰, 📊, 🎯, ✅, ⚠️)
-
-Response Format:
-- Start with a direct answer to their question
-- Provide 2-3 specific action items or insights
-- End with encouragement or next steps
+RESPONSE FORMAT:
+- Direct answer based on their data
+- 2-3 specific, data-driven recommendations
+- Encouraging next steps
 
 Generate your response:`;
 

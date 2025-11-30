@@ -429,12 +429,16 @@ export async function processAIQuery(userId: string, query: string): Promise<AIQ
     // Query relevant financial data
     const data = await queryFinancialData(userId, intent);
 
-    // For advice queries, use enhanced Gemini AI
+    // For advice queries, use enhanced Inflection AI with RAG
     let aiAdvice: string | undefined;
     if (intent.type === 'advice' || query.toLowerCase().includes('should') || query.toLowerCase().includes('recommend')) {
         const user = await User.findOne({ clerkId: userId });
         if (user && data) {
-            aiAdvice = await generateEnhancedFinancialAdvice(user.toObject(), data, query);
+            aiAdvice = await generateEnhancedFinancialAdvice(
+                { userId, ...user.toObject() }, 
+                data, 
+                query
+            );
         }
     }
 

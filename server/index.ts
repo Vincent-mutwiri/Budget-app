@@ -10,6 +10,7 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 import uploadRoutes from './routes/upload';
 import receiptRoutes from './routes/receipts';
+import aiRoutes from './routes/ai';
 import { validateImageType } from './services/imageService';
 import { User } from './models/User';
 import { Transaction } from './models/Transaction';
@@ -114,6 +115,7 @@ app.get('/health', (req, res) => {
 // Routes
 app.use('/api/upload', uploadRoutes);
 app.use('/api/receipts', receiptRoutes);
+app.use('/api/ai', aiRoutes);
 
 // Basic CRUD Routes (Examples)
 

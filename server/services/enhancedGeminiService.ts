@@ -1,7 +1,13 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // Initialize Gemini Client
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || process.env.API_KEY || "");
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.API_KEY || "";
+
+if (!GEMINI_API_KEY) {
+    console.warn('WARNING: GEMINI_API_KEY not set - AI financial advisor will not work');
+}
+
+const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
 interface UserFinancialContext {
@@ -111,13 +117,20 @@ Response Format:
 
 Generate your response:`;
 
+    if (!GEMINI_API_KEY) {
+        return "⚠️ AI Financial Advisor is not configured. Please add your GEMINI_API_KEY to the .env file.";
+    }
+
     try {
         const result = await model.generateContent(prompt);
         const response = await result.response;
         return response.text() || "I couldn't generate advice at this moment. Please try again later.";
-    } catch (error) {
+    } catch (error: any) {
         console.error("Gemini API Error:", error);
-        return "Financial Advisor is currently offline. Please check your connection.";
+        if (error.message?.includes('API key')) {
+            return "⚠️ Invalid API key. Please check your GEMINI_API_KEY in the .env file.";
+        }
+        return "Financial Advisor is currently offline. Please check your connection and try again.";
     }
 }
 
