@@ -4,14 +4,14 @@ import {
   Plus, Wallet, Target, Brain, CreditCard, Calendar,
   LayoutGrid, Settings, Folder, ArrowRight, X, DollarSign,
   TrendingUp, TrendingDown, CheckCircle2, AlertTriangle, AlertCircle, Medal, Flame, ChevronRight,
-  Search, Filter, Pencil, Trash2, Lightbulb,
+  Search, Filter, Pencil, Trash2, Lightbulb, Edit, Upload,
   ShoppingCart, Bus, Film, Zap, ShoppingBag, PlusCircle, Download, Menu
 } from 'lucide-react';
 import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from "@clerk/clerk-react";
 import {
   getTransactions, createTransaction,
   getBudgets, updateBudget,
-  getGoals, updateGoal, removeGoalImage, contributeToGoal,
+  getGoals, updateGoal, deleteGoal, uploadGoalImage, removeGoalImage, contributeToGoal,
   getAccounts,
   getUser,
   createAccount,
@@ -953,15 +953,24 @@ const GoalsView = ({
   goals,
   onRemoveImage,
   onContribute,
+  onDelete,
+  onEdit,
   userBalance
 }: {
   goals: SavingsGoal[];
   onRemoveImage: (goalId: string) => Promise<void>;
   onContribute: (goalId: string, amount: number) => Promise<void>;
+  onDelete: (goalId: string) => Promise<void>;
+  onEdit: (goalId: string, formData: any, imageFile: File | null) => Promise<void>;
   userBalance: number;
 }) => {
   const [filterStatus, setFilterStatus] = useState<'all' | 'in-progress' | 'completed' | 'archived'>('all');
   const [showRemoveConfirm, setShowRemoveConfirm] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [showEditModal, setShowEditModal] = useState<string | null>(null);
+  const [editFormData, setEditFormData] = useState({ title: '', targetAmount: '', deadline: '' });
+  const [editImageFile, setEditImageFile] = useState<File | null>(null);
+  const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
   const [showContributeModal, setShowContributeModal] = useState<string | null>(null);
   const [contributionAmount, setContributionAmount] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -1039,7 +1048,34 @@ const GoalsView = ({
           )}
         </div>
         <div className="flex flex-col p-6 gap-4">
-          <h3 className="text-white text-lg font-bold leading-tight">{goal.title}</h3>
+          <div className="flex justify-between items-start">
+            <h3 className="text-white text-lg font-bold leading-tight flex-1">{goal.title}</h3>
+            <div className="flex gap-2 ml-2">
+              <button
+                onClick={() => {
+                  setEditFormData({
+                    title: goal.title,
+                    targetAmount: goal.targetAmount.toString(),
+                    deadline: new Date(goal.deadline).toISOString().split('T')[0]
+                  });
+                  setEditImageFile(null);
+                  setEditImagePreview(null);
+                  setShowEditModal(goal.id);
+                }}
+                className="p-1.5 rounded-lg bg-forest-700 hover:bg-blue-600 text-forest-400 hover:text-white transition-colors"
+                title="Edit goal"
+              >
+                <Edit size={14} />
+              </button>
+              <button
+                onClick={() => setShowDeleteConfirm(goal.id)}
+                className="p-1.5 rounded-lg bg-forest-700 hover:bg-red-600 text-forest-400 hover:text-white transition-colors"
+                title="Delete goal"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          </div>
 
           <div className="flex flex-col gap-2">
             <div className="flex justify-between items-center">
@@ -1108,44 +1144,136 @@ const GoalsView = ({
           </div>
         )}
 
-        {/* Contribute Modal */}
-        {showContributeModal === goal.id && (
+
+
+        {/* Delete Goal Confirmation Modal */}
+        {showDeleteConfirm === goal.id && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-forest-800 rounded-2xl p-6 max-w-md w-full border border-forest-700">
-              <h3 className="text-xl font-bold text-white mb-4">Contribute to {goal.title}</h3>
-              <div className="mb-4">
-                <p className="text-forest-400 text-sm mb-2">Available Balance: {formatCurrency(userBalance)}</p>
-                <p className="text-forest-400 text-sm mb-4">
-                  Goal Progress: {formatCurrency(goal.currentAmount)} / {formatCurrency(goal.targetAmount)}
-                </p>
-                <label className="block text-forest-400 text-sm mb-2">Contribution Amount</label>
-                <input
-                  type="number"
-                  value={contributionAmount}
-                  onChange={(e) => setContributionAmount(e.target.value)}
-                  placeholder="Enter amount"
-                  className="w-full px-4 py-2 rounded-xl bg-forest-900 border border-forest-700 text-white focus:outline-none focus:border-primary"
-                  min="0"
-                  step="0.01"
-                />
-              </div>
+              <h3 className="text-xl font-bold text-white mb-4">Delete Goal?</h3>
+              <p className="text-forest-400 mb-6">
+                Are you sure you want to delete "{goal.title}"? This action cannot be undone.
+              </p>
               <div className="flex gap-3 justify-end">
                 <button
-                  onClick={() => {
-                    setShowContributeModal(null);
-                    setContributionAmount('');
-                  }}
+                  onClick={() => setShowDeleteConfirm(null)}
                   disabled={isProcessing}
                   className="px-4 py-2 rounded-xl bg-forest-700 hover:bg-forest-600 text-white transition-colors disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={() => handleContribute(goal.id)}
+                  onClick={async () => {
+                    setIsProcessing(true);
+                    try {
+                      await onDelete(goal.id);
+                      setShowDeleteConfirm(null);
+                    } catch (error) {
+                      console.error('Failed to delete goal:', error);
+                    } finally {
+                      setIsProcessing(false);
+                    }
+                  }}
+                  disabled={isProcessing}
+                  className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white transition-colors disabled:opacity-50"
+                >
+                  {isProcessing ? 'Deleting...' : 'Delete'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Goal Modal */}
+        {showEditModal === goal.id && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-forest-800 rounded-2xl p-6 max-w-md w-full border border-forest-700">
+              <h3 className="text-xl font-bold text-white mb-4">Edit Goal</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-forest-400 text-sm mb-2">Goal Title</label>
+                  <input
+                    type="text"
+                    value={editFormData.title}
+                    onChange={(e) => setEditFormData({ ...editFormData, title: e.target.value })}
+                    className="w-full px-4 py-2 rounded-xl bg-forest-900 border border-forest-700 text-white focus:outline-none focus:border-primary"
+                    placeholder="e.g., New Car"
+                  />
+                </div>
+                <div>
+                  <label className="block text-forest-400 text-sm mb-2">Target Amount</label>
+                  <input
+                    type="number"
+                    value={editFormData.targetAmount}
+                    onChange={(e) => setEditFormData({ ...editFormData, targetAmount: e.target.value })}
+                    className="w-full px-4 py-2 rounded-xl bg-forest-900 border border-forest-700 text-white focus:outline-none focus:border-primary"
+                    placeholder="0.00"
+                  />
+                </div>
+                <div>
+                  <label className="block text-forest-400 text-sm mb-2">Deadline</label>
+                  <input
+                    type="date"
+                    value={editFormData.deadline}
+                    onChange={(e) => setEditFormData({ ...editFormData, deadline: e.target.value })}
+                    className="w-full px-4 py-2 rounded-xl bg-forest-900 border border-forest-700 text-white focus:outline-none focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-forest-400 text-sm mb-2">Goal Image (Optional)</label>
+                  <div className="flex flex-col gap-2">
+                    {editImagePreview && (
+                      <div className="relative w-full h-32 rounded-xl overflow-hidden">
+                        <img src={editImagePreview} alt="Preview" className="w-full h-full object-cover" />
+                      </div>
+                    )}
+                    <label className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-forest-700 hover:bg-forest-600 text-white cursor-pointer transition-colors">
+                      <Upload size={16} />
+                      <span>{editImageFile ? 'Change Image' : 'Upload Image'}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setEditImageFile(file);
+                            const reader = new FileReader();
+                            reader.onloadend = () => setEditImagePreview(reader.result as string);
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-3 justify-end mt-6">
+                <button
+                  onClick={() => setShowEditModal(null)}
+                  disabled={isProcessing}
+                  className="px-4 py-2 rounded-xl bg-forest-700 hover:bg-forest-600 text-white transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    setIsProcessing(true);
+                    try {
+                      await onEdit(goal.id, editFormData, editImageFile);
+                      setShowEditModal(null);
+                      setEditImageFile(null);
+                      setEditImagePreview(null);
+                    } catch (error) {
+                      console.error('Failed to edit goal:', error);
+                    } finally {
+                      setIsProcessing(false);
+                    }
+                  }}
                   disabled={isProcessing}
                   className="px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-forest-950 font-bold transition-colors disabled:opacity-50"
                 >
-                  {isProcessing ? 'Processing...' : 'Contribute'}
+                  {isProcessing ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
             </div>
@@ -1217,6 +1345,51 @@ const GoalsView = ({
           </div>
         )}
       </div>
+
+      {/* Contribute Modal - Outside of GoalCard to prevent re-renders */}
+      {showContributeModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-forest-800 rounded-2xl p-6 max-w-md w-full border border-forest-700">
+            <h3 className="text-xl font-bold text-white mb-4">Contribute to {goals.find(g => g.id === showContributeModal)?.title}</h3>
+            <div className="mb-4">
+              <p className="text-forest-400 text-sm mb-2">Available Balance: {formatCurrency(userBalance)}</p>
+              <p className="text-forest-400 text-sm mb-4">
+                Goal Progress: {formatCurrency(goals.find(g => g.id === showContributeModal)?.currentAmount || 0)} / {formatCurrency(goals.find(g => g.id === showContributeModal)?.targetAmount || 0)}
+              </p>
+              <label className="block text-forest-400 text-sm mb-2">Contribution Amount</label>
+              <input
+                type="number"
+                value={contributionAmount}
+                onChange={(e) => setContributionAmount(e.target.value)}
+                placeholder="Enter amount"
+                className="w-full px-4 py-2 rounded-xl bg-forest-900 border border-forest-700 text-white focus:outline-none focus:border-primary"
+                min="0"
+                step="0.01"
+                autoFocus
+              />
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setShowContributeModal(null);
+                  setContributionAmount('');
+                }}
+                disabled={isProcessing}
+                className="px-4 py-2 rounded-xl bg-forest-700 hover:bg-forest-600 text-white transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleContribute(showContributeModal)}
+                disabled={isProcessing}
+                className="px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-forest-950 font-bold transition-colors disabled:opacity-50"
+              >
+                {isProcessing ? 'Processing...' : 'Contribute'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -2070,9 +2243,10 @@ export default function App() {
           getRecurringTransactions(clerkUser.id)
         ]);
 
+        const goalsWithId = gls.map((g: any) => ({ ...g, id: g.id || g._id }));
         setTransactions(txs);
         setBudgets(bgs);
-        setSavingsGoals(gls);
+        setSavingsGoals(goalsWithId);
         setAccounts(accs);
         setRecurringTransactions(recTxs);
 
@@ -2158,11 +2332,12 @@ export default function App() {
 
           // Ensure all transactions have id field (MongoDB returns _id)
           const transactionsWithId = txs.map((t: any) => ({ ...t, id: t.id || t._id }));
+          const goalsWithId = gls.map((g: any) => ({ ...g, id: g.id || g._id }));
 
           // Update state and cache
           setTransactions(transactionsWithId);
           setBudgets(bgs);
-          setSavingsGoals(gls);
+          setSavingsGoals(goalsWithId);
           setAccounts(accs);
           setRecurringTransactions(recTxs);
           setCustomCategories(customCats);
@@ -2418,6 +2593,47 @@ export default function App() {
         g.id === goalId ? originalGoal : g
       ));
       showError('Failed to remove image. Please try again.');
+    }
+  };
+
+  const handleDeleteGoal = async (goalId: string) => {
+    if (!clerkUser) return;
+
+    try {
+      await deleteGoal(goalId, clerkUser.id);
+      const updatedGoals = savingsGoals.filter(g => g.id !== goalId);
+      setSavingsGoals(updatedGoals);
+      cache.set(`goals_${clerkUser.id}`, updatedGoals);
+      success('Goal deleted successfully!');
+    } catch (err) {
+      showError('Failed to delete goal. Please try again.');
+    }
+  };
+
+  const handleEditGoal = async (goalId: string, formData: any, imageFile: File | null) => {
+    if (!clerkUser) return;
+
+    try {
+      const updates = {
+        userId: clerkUser.id,
+        title: formData.title,
+        targetAmount: parseFloat(formData.targetAmount),
+        deadline: formData.deadline
+      };
+      const updatedGoal = await updateGoal(goalId, updates);
+      
+      // Upload image if selected
+      if (imageFile) {
+        const imageResult = await uploadGoalImage(goalId, clerkUser.id, imageFile);
+        updatedGoal.imageUrl = imageResult.imageUrl;
+      }
+      
+      const updatedGoals = savingsGoals.map(g => g.id === goalId ? { ...g, ...updatedGoal } : g);
+      setSavingsGoals(updatedGoals);
+      cache.set(`goals_${clerkUser.id}`, updatedGoals);
+      success('Goal updated successfully!');
+    } catch (err) {
+      showError('Failed to update goal. Please try again.');
     }
   };
 
@@ -2931,7 +3147,9 @@ export default function App() {
                       goals={savingsGoals}
                       onRemoveImage={handleRemoveGoalImage}
                       onContribute={handleContributeToGoal}
-                      userBalance={user.totalBalance || 0}
+                      onDelete={handleDeleteGoal}
+                      onEdit={handleEditGoal}
+                      userBalance={snapshot.balance}
                     />
                   </>
                 ) : activeView === 'accounts' ? (

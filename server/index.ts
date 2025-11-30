@@ -658,6 +658,33 @@ app.put('/api/goals/:id', async (req, res) => {
     }
 });
 
+// Delete Savings Goal
+app.delete('/api/goals/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { userId } = req.query;
+
+        if (!userId) {
+            return res.status(400).json({ error: 'UserId required' });
+        }
+
+        const goal = await SavingsGoal.findById(id);
+        if (!goal) {
+            return res.status(404).json({ error: 'Goal not found' });
+        }
+
+        if (goal.userId !== userId) {
+            return res.status(403).json({ error: 'Unauthorized' });
+        }
+
+        await SavingsGoal.findByIdAndDelete(id);
+        res.json({ message: 'Goal deleted successfully', id });
+    } catch (error) {
+        console.error('Error deleting goal:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
 // Upload Goal Image
 app.post('/api/goals/:id/image', imageUpload.single('image'), async (req, res) => {
     try {

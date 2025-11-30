@@ -79,6 +79,21 @@ export const updateGoal = async (id: string, updates: any) => {
     return response.data;
 };
 
+export const deleteGoal = async (id: string, userId: string) => {
+    const response = await api.delete(`/goals/${id}`, { params: { userId } });
+    return response.data;
+};
+
+export const uploadGoalImage = async (id: string, userId: string, file: File) => {
+    const formData = new FormData();
+    formData.append('image', file);
+    formData.append('userId', userId);
+    const response = await api.post(`/goals/${id}/image`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return response.data;
+};
+
 export const removeGoalImage = async (id: string, userId: string) => {
     const response = await api.delete(`/goals/${id}/image`, { params: { userId } });
     return response.data;
