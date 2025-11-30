@@ -11,7 +11,7 @@ import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from "@clerk/c
 import {
   getTransactions, createTransaction,
   getBudgets, updateBudget,
-  getGoals,
+  getGoals, createGoal, removeGoalImage, contributeToGoal,
   getAccounts,
   getUser,
   createAccount,
@@ -946,23 +946,85 @@ const GamificationView = ({ user, challenges, clerkUser }: { user: UserState, ch
 
 // --- Goals View Component ---
 
-const GoalsView = ({ goals }: { goals: SavingsGoal[] }) => {
+const GoalsView = ({
+  goals,
+  onRemoveImage,
+  onContribute,
+  userBalance
+}: {
+  goals: SavingsGoal[];
+  onRemoveImage: (goalId: string) => Promise<void>;
+  onContribute: (goalId: string, amount: number) => Promise<void>;
+  userBalance: number;
+}) => {
   const [filterStatus, setFilterStatus] = useState<'all' | 'in-progress' | 'completed' | 'archived'>('all');
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState<string | null>(null);
+  const [showContributeModal, setShowContributeModal] = useState<string | null>(null);
+  const [contributionAmount, setContributionAmount] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const filteredGoals = filterStatus === 'all'
     ? goals
     : goals.filter(g => g.status === filterStatus);
 
+  const handleRemoveImage = async (goalId: string) => {
+    setIsProcessing(true);
+    try {
+      await onRemoveImage(goalId);
+      setShowRemoveConfirm(null);
+    } catch (error) {
+      console.error('Failed to remove image:', error);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleContribute = async (goalId: string) => {
+    const amount = parseFloat(contributionAmount);
+    if (isNaN(amount) || amount <= 0) {
+      alert('Please enter a valid amount');
+      return;
+    }
+    if (amount > userBalance) {
+      alert('Insufficient balance');
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      await onContribute(goalId, amount);
+      setShowContributeModal(null);
+      setContributionAmount('');
+    } catch (error) {
+      console.error('Failed to contribute:', error);
+      alert('Failed to contribute. Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const GoalCard = ({ goal }: { goal: SavingsGoal }) => {
     const progressPercent = (goal.currentAmount / goal.targetAmount) * 100;
     const isCompleted = progressPercent >= 100;
+    const hasCustomImage = goal.imageUrl && !goal.imageUrl.includes('placeholder') && !goal.imageUrl.includes('default');
 
     return (
       <div className="flex flex-col rounded-3xl bg-forest-800 border border-forest-700 overflow-hidden hover:border-forest-600 transition-colors">
-        <div
-          className="w-full bg-center bg-no-repeat aspect-video bg-cover"
-          style={{ backgroundImage: `url("${goal.imageUrl}")` }}
-        ></div>
+        <div className="relative">
+          <div
+            className="w-full bg-center bg-no-repeat aspect-video bg-cover"
+            style={{ backgroundImage: `url("${goal.imageUrl}")` }}
+          ></div>
+          {hasCustomImage && (
+            <button
+              onClick={() => setShowRemoveConfirm(goal.id)}
+              className="absolute top-2 right-2 p-2 rounded-lg bg-forest-950/80 hover:bg-forest-950 text-forest-400 hover:text-white transition-colors"
+              title="Remove image"
+            >
+              <X size={16} />
+            </button>
+          )}
+        </div>
         <div className="flex flex-col p-6 gap-4">
           <h3 className="text-white text-lg font-bold leading-tight">{goal.title}</h3>
 
@@ -993,14 +1055,89 @@ const GoalsView = ({ goals }: { goals: SavingsGoal[] }) => {
                 Est: {new Date(goal.deadline).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
               </span>
             )}
-            <button className={`flex items-center justify-center rounded-xl h-8 px-4 text-sm font-medium transition-colors ${isCompleted
-              ? 'bg-forest-900 text-forest-400'
-              : 'bg-primary hover:bg-primary/90 text-forest-950'
-              }`}>
+            <button
+              onClick={() => !isCompleted && setShowContributeModal(goal.id)}
+              disabled={isCompleted}
+              className={`flex items-center justify-center rounded-xl h-8 px-4 text-sm font-medium transition-colors ${isCompleted
+                ? 'bg-forest-900 text-forest-400 cursor-not-allowed'
+                : 'bg-primary hover:bg-primary/90 text-forest-950 cursor-pointer'
+                }`}>
               {isCompleted ? 'View' : 'Contribute'}
             </button>
           </div>
         </div>
+
+        {/* Remove Image Confirmation Modal */}
+        {showRemoveConfirm === goal.id && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-forest-800 rounded-2xl p-6 max-w-md w-full border border-forest-700">
+              <h3 className="text-xl font-bold text-white mb-4">Remove Image?</h3>
+              <p className="text-forest-400 mb-6">
+                Are you sure you want to remove the custom image from this goal? It will be replaced with the default image.
+              </p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setShowRemoveConfirm(null)}
+                  disabled={isProcessing}
+                  className="px-4 py-2 rounded-xl bg-forest-700 hover:bg-forest-600 text-white transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleRemoveImage(goal.id)}
+                  disabled={isProcessing}
+                  className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white transition-colors disabled:opacity-50"
+                >
+                  {isProcessing ? 'Removing...' : 'Remove'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Contribute Modal */}
+        {showContributeModal === goal.id && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-forest-800 rounded-2xl p-6 max-w-md w-full border border-forest-700">
+              <h3 className="text-xl font-bold text-white mb-4">Contribute to {goal.title}</h3>
+              <div className="mb-4">
+                <p className="text-forest-400 text-sm mb-2">Available Balance: {formatCurrency(userBalance)}</p>
+                <p className="text-forest-400 text-sm mb-4">
+                  Goal Progress: {formatCurrency(goal.currentAmount)} / {formatCurrency(goal.targetAmount)}
+                </p>
+                <label className="block text-forest-400 text-sm mb-2">Contribution Amount</label>
+                <input
+                  type="number"
+                  value={contributionAmount}
+                  onChange={(e) => setContributionAmount(e.target.value)}
+                  placeholder="Enter amount"
+                  className="w-full px-4 py-2 rounded-xl bg-forest-900 border border-forest-700 text-white focus:outline-none focus:border-primary"
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => {
+                    setShowContributeModal(null);
+                    setContributionAmount('');
+                  }}
+                  disabled={isProcessing}
+                  className="px-4 py-2 rounded-xl bg-forest-700 hover:bg-forest-600 text-white transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleContribute(goal.id)}
+                  disabled={isProcessing}
+                  className="px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-forest-950 font-bold transition-colors disabled:opacity-50"
+                >
+                  {isProcessing ? 'Processing...' : 'Contribute'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -1014,10 +1151,6 @@ const GoalsView = ({ goals }: { goals: SavingsGoal[] }) => {
           <h2 className="text-4xl font-black text-white tracking-tight">My Savings Goals</h2>
           <p className="text-forest-400 text-base">Create and track your progress towards your financial goals.</p>
         </div>
-        <button className="flex items-center justify-center gap-2 rounded-xl h-10 px-4 bg-primary hover:bg-primary/90 text-forest-950 text-sm font-bold whitespace-nowrap">
-          <Plus size={18} strokeWidth={3} />
-          Add a New Goal
-        </button>
       </div>
 
       {/* Filter Tabs */}
@@ -2095,6 +2228,46 @@ export default function App() {
     }
   };
 
+  const handleRemoveGoalImage = async (goalId: string) => {
+    if (!clerkUser) return;
+    try {
+      const result = await removeGoalImage(goalId);
+      const updatedGoals = savingsGoals.map(g =>
+        g.id === goalId ? { ...g, imageUrl: result.defaultImageUrl || 'https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?w=400' } : g
+      );
+      setSavingsGoals(updatedGoals);
+      cache.set(`goals_${clerkUser.id}`, updatedGoals);
+      success('Image removed successfully!');
+    } catch (err) {
+      showError('Failed to remove image. Please try again.');
+    }
+  };
+
+  const handleContributeToGoal = async (goalId: string, amount: number) => {
+    if (!clerkUser) return;
+    try {
+      const result = await contributeToGoal(goalId, amount, clerkUser.id);
+      const updatedGoals = savingsGoals.map(g =>
+        g.id === goalId ? result.goal : g
+      );
+      setSavingsGoals(updatedGoals);
+      cache.set(`goals_${clerkUser.id}`, updatedGoals);
+
+      // Update user balance and XP
+      setUser(prev => ({
+        ...prev,
+        totalBalance: result.newBalance,
+        xp: result.xpReward?.newXP || prev.xp,
+        level: result.xpReward?.newLevel || prev.level
+      }));
+
+      success(`Contributed ${formatCurrency(amount)} to goal! ${result.xpReward ? `+${result.xpReward.amount} XP` : ''}`);
+    } catch (err: any) {
+      const errorMessage = err?.response?.data?.error || 'Failed to contribute. Please try again.';
+      showError(errorMessage);
+    }
+  };
+
   const handleAddAccount = async (newAccount: any) => {
     if (!clerkUser) return;
     try {
@@ -2623,7 +2796,12 @@ export default function App() {
                         <Plus size={18} strokeWidth={3} /> Add New Goal
                       </button>
                     </div>
-                    <GoalsView goals={savingsGoals} />
+                    <GoalsView
+                      goals={savingsGoals}
+                      onRemoveImage={handleRemoveGoalImage}
+                      onContribute={handleContributeToGoal}
+                      userBalance={user.totalBalance || 0}
+                    />
                   </>
                 ) : activeView === 'accounts' ? (
                   <AccountsView accounts={accounts} onAddAccount={() => setIsAccountModalOpen(true)} />

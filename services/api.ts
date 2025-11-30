@@ -74,6 +74,21 @@ export const createGoal = async (goal: any) => {
     return response.data;
 };
 
+export const updateGoal = async (id: string, updates: any) => {
+    const response = await api.put(`/goals/${id}`, updates);
+    return response.data;
+};
+
+export const removeGoalImage = async (id: string) => {
+    const response = await api.delete(`/goals/${id}/image`);
+    return response.data;
+};
+
+export const contributeToGoal = async (id: string, amount: number, userId: string) => {
+    const response = await api.post(`/goals/${id}/contribute`, { amount, userId });
+    return response.data;
+};
+
 // Accounts
 export const getAccounts = async (userId: string) => {
     const response = await api.get('/accounts', { params: { userId } });

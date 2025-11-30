@@ -148,21 +148,21 @@
   - Animate XP gain
   - _Requirements: 3.1, 3.2, 3.3, 3.4_
 
-- [ ] 10. Frontend - Goals Management UI
-- [ ] 10.1 Remove duplicate "Add New Goal" button
+- [x] 10. Frontend - Goals Management UI
+- [x] 10.1 Remove duplicate "Add New Goal" button
   - Identify and remove duplicate button from GoalsView
   - Ensure single button is prominently placed
   - Verify button functionality
   - _Requirements: 5.1, 5.2, 5.3_
 
-- [ ] 10.2 Add image removal functionality
+- [x] 10.2 Add image removal functionality
   - Add remove image button to goal cards with custom images
   - Implement confirmation before removal
   - Call DELETE /api/goals/:id/image
   - Update UI to show default image
   - _Requirements: 6.1, 6.2, 6.3, 6.4_
 
-- [ ] 10.3 Fix goal image upload
+- [x] 10.3 Fix goal image upload
   - Validate file before upload
   - Show upload progress indicator
   - Handle upload errors with clear messages
@@ -170,7 +170,7 @@
   - Fall back to default image on failure
   - _Requirements: 7.1, 7.2, 7.3, 7.4_
 
-- [ ] 10.4 Implement goal contribution functionality
+- [x] 10.4 Implement goal contribution functionality
   - Add contribute button to goal cards
   - Create contribution modal with amount input
   - Validate amount against available balance
