@@ -57,8 +57,8 @@
   - Return updated goal and balance
   - _Requirements: 14.1, 14.2, 14.3, 14.4, 14.5_
 
-- [ ] 5. Backend API - Financial Metrics
-- [ ] 5.1 Create metrics calculation service
+- [x] 5. Backend API - Financial Metrics
+- [x] 5.1 Create metrics calculation service
   - Implement function to calculate current month income
   - Implement function to calculate overall total income with previous months' remainders
   - Implement function to calculate current month spending
@@ -68,7 +68,7 @@
   - Implement function to determine budget trend
   - _Requirements: 8.1, 8.2, 8.3, 8.4, 9.1, 9.2, 9.3, 9.4, 10.1, 10.2, 10.3, 10.4, 11.1, 11.2, 11.3, 11.4, 13.1, 13.2, 13.3, 13.4_
 
-- [ ] 5.2 Implement GET /api/metrics/:userId endpoint
+- [x] 5.2 Implement GET /api/metrics/:userId endpoint
   - Call metrics calculation service
   - Support optional month parameter
   - Implement caching for performance

@@ -1261,6 +1261,59 @@ app.get('/api/insights/anomalies', async (req, res) => {
     }
 });
 
+// Metrics Routes
+import { calculateFinancialMetrics } from './services/metricsService';
+
+// In-memory cache for metrics
+const metricsCache = new Map<string, { data: any; timestamp: number }>();
+const METRICS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+// Get financial metrics for a user
+app.get('/api/metrics/:userId', async (req, res) => {
+    const { userId } = req.params;
+    const { month } = req.query;
+
+    if (!userId) {
+        return res.status(400).json({ error: 'UserId required' });
+    }
+
+    try {
+        // Parse month parameter or use current month
+        const targetMonth = month ? new Date(month as string) : new Date();
+
+        // Create cache key
+        const cacheKey = `${userId}:${targetMonth.getFullYear()}-${targetMonth.getMonth()}`;
+
+        // Check cache
+        const cached = metricsCache.get(cacheKey);
+        if (cached && Date.now() - cached.timestamp < METRICS_CACHE_TTL) {
+            return res.json({
+                metrics: cached.data,
+                calculatedAt: new Date(cached.timestamp).toISOString(),
+                cached: true
+            });
+        }
+
+        // Calculate metrics
+        const metrics = await calculateFinancialMetrics(userId, targetMonth);
+
+        // Store in cache
+        metricsCache.set(cacheKey, {
+            data: metrics,
+            timestamp: Date.now()
+        });
+
+        res.json({
+            metrics,
+            calculatedAt: new Date().toISOString(),
+            cached: false
+        });
+    } catch (error) {
+        console.error('Error calculating financial metrics:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
 // Investment Routes
 
 // Get all investments for a user

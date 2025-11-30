@@ -399,6 +399,51 @@ Detects unusual spending patterns.
 
 ---
 
+## Financial Metrics
+
+### Get Financial Metrics
+
+Calculates comprehensive financial metrics including income, spending, savings, and budget information.
+
+**Endpoint:** `GET /api/metrics/:userId`
+
+**Path Parameters:**
+- `userId` (required): User's Clerk ID
+
+**Query Parameters:**
+- `month` (optional): ISO date string for target month (default: current month)
+
+**Response:** `200 OK`
+```json
+{
+  "metrics": {
+    "currentMonthIncome": 5000,
+    "overallTotalIncome": 5200,
+    "previousMonthsRemainder": 200,
+    "currentMonthSpending": 3500,
+    "monthlySavings": 1500,
+    "totalPlannedBudget": 4000,
+    "remainingBudget": 500,
+    "budgetUtilization": 87.5,
+    "trendPositive": true,
+    "trendPercentage": 87.5
+  },
+  "calculatedAt": "2024-01-15T10:30:00Z",
+  "cached": false
+}
+```
+
+**Caching:**
+- Metrics are cached for 5 minutes per user per month
+- Cache is automatically invalidated when transactions or budgets change
+- Cached responses include `"cached": true` in the response
+
+**Error Responses:**
+- `400 Bad Request` - Missing userId parameter
+- `500 Internal Server Error` - Calculation error
+
+---
+
 ## Receipt Scanning
 
 ### Upload Receipt
