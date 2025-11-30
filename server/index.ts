@@ -190,6 +190,23 @@ app.delete('/api/categories/custom/:category', async (req, res) => {
     }
 });
 
+// Metrics cache management
+const metricsCache = new Map<string, { data: any; timestamp: number }>();
+const METRICS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Invalidate metrics cache for a user
+ */
+function invalidateMetricsCache(userId: string): void {
+    const keysToDelete: string[] = [];
+    metricsCache.forEach((_, key) => {
+        if (key.startsWith(`${userId}:`)) {
+            keysToDelete.push(key);
+        }
+    });
+    keysToDelete.forEach(key => metricsCache.delete(key));
+}
+
 // Get Transactions
 app.get('/api/transactions', async (req, res) => {
     const { userId } = req.query;
@@ -208,9 +225,15 @@ app.post('/api/transactions', validateTransaction, async (req, res) => {
     try {
         const { userId, date } = req.body;
 
+        if (!userId) {
+            console.error('Missing userId in transaction creation');
+            return res.status(400).json({ error: 'UserId is required' });
+        }
+
         // Create and save the transaction
         const newTransaction = new Transaction(req.body);
         await newTransaction.save();
+        console.log('Transaction saved:', newTransaction._id);
 
         // Calculate same-day XP bonus
         const transactionDate = new Date(date);
@@ -313,7 +336,13 @@ app.post('/api/transactions', validateTransaction, async (req, res) => {
         }
     } catch (error) {
         console.error('Error adding transaction:', error);
-        res.status(500).json({ error: 'Server error' });
+        if (error instanceof Error) {
+            console.error('Error details:', error.message, error.stack);
+        }
+        return res.status(500).json({ 
+            error: 'Server error', 
+            details: error instanceof Error ? error.message : 'Unknown error'
+        });
     }
 });
 
@@ -1430,28 +1459,6 @@ app.get('/api/insights/anomalies', async (req, res) => {
 
 // Metrics Routes
 import { calculateFinancialMetrics } from './services/metricsService';
-
-// In-memory cache for metrics
-const metricsCache = new Map<string, { data: any; timestamp: number }>();
-const METRICS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-
-/**
- * Invalidate metrics cache for a user
- * This should be called whenever data changes that affect metrics:
- * - Transaction creation/deletion
- * - Budget updates
- * - Goal contributions
- */
-function invalidateMetricsCache(userId: string): void {
-    // Remove all cache entries for this user
-    const keysToDelete: string[] = [];
-    metricsCache.forEach((_, key) => {
-        if (key.startsWith(`${userId}:`)) {
-            keysToDelete.push(key);
-        }
-    });
-    keysToDelete.forEach(key => metricsCache.delete(key));
-}
 
 // Get financial metrics for a user
 app.get('/api/metrics/:userId', async (req, res) => {
