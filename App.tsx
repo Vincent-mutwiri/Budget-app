@@ -2078,8 +2078,11 @@ export default function App() {
             getCustomCategories(clerkUser.id)
           ]);
 
+          // Ensure all transactions have id field (MongoDB returns _id)
+          const transactionsWithId = txs.map((t: any) => ({ ...t, id: t.id || t._id }));
+
           // Update state and cache
-          setTransactions(txs);
+          setTransactions(transactionsWithId);
           setBudgets(bgs);
           setSavingsGoals(gls);
           setAccounts(accs);
@@ -2129,6 +2132,11 @@ export default function App() {
 
       const savedTx = response.transaction || response;
       const xpRewardData = response.xpReward;
+
+      // Ensure transaction has id field (MongoDB returns _id)
+      if (savedTx._id && !savedTx.id) {
+        savedTx.id = savedTx._id;
+      }
 
       setTransactions(prev => prev.map(t => t.id === tempId ? savedTx : t));
       cache.set(`transactions_${clerkUser.id}`, [savedTx, ...transactions.filter(t => t.id !== tempId)]);
