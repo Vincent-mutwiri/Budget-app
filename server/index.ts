@@ -279,10 +279,14 @@ app.post('/api/transactions', validateTransaction, async (req, res) => {
             await newTransaction.save();
 
             // Invalidate metrics cache since transaction affects financial metrics
-            invalidateMetricsCache(userId);
+            try {
+                invalidateMetricsCache(userId);
+            } catch (cacheError) {
+                console.error('Cache invalidation error:', cacheError);
+            }
 
             // Return transaction with XP reward details
-            res.status(201).json({
+            return res.status(201).json({
                 transaction: newTransaction.toObject(),
                 xpReward: {
                     baseXP,
@@ -295,10 +299,14 @@ app.post('/api/transactions', validateTransaction, async (req, res) => {
             });
         } else {
             // Invalidate metrics cache even if user not found
-            invalidateMetricsCache(userId);
+            try {
+                invalidateMetricsCache(userId);
+            } catch (cacheError) {
+                console.error('Cache invalidation error:', cacheError);
+            }
 
             // User not found, return transaction without XP
-            res.status(201).json({
+            return res.status(201).json({
                 transaction: newTransaction.toObject(),
                 xpReward: null
             });
