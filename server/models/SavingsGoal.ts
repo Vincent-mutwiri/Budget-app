@@ -8,7 +8,16 @@ const SavingsGoalSchema = new mongoose.Schema({
     deadline: { type: Date, required: true },
     imageUrl: { type: String }, // AWS S3 URL
     status: { type: String, enum: ['in-progress', 'completed', 'archived'], default: 'in-progress' },
-    createdAt: { type: Date, default: Date.now }
+    contributions: [{
+        amount: { type: Number, required: true },
+        date: { type: Date, default: Date.now },
+        note: { type: String }
+    }],
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
 });
+
+// Index for performance optimization
+SavingsGoalSchema.index({ userId: 1, status: 1 });
 
 export const SavingsGoal = mongoose.model('SavingsGoal', SavingsGoalSchema);

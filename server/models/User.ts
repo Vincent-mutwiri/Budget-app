@@ -12,6 +12,15 @@ const UserSchema = new mongoose.Schema({
     streak: { type: Number, default: 0 },
     badges: { type: Number, default: 0 },
     monthlyIncome: { type: Number, default: 0 },
+    totalBalance: { type: Number, default: 0 },
+    lastTransactionDate: { type: Date },
+    previousMonthsBalance: { type: Number, default: 0 },
+    monthlyBalanceHistory: [{
+        month: { type: Date },
+        income: { type: Number },
+        expenses: { type: Number },
+        balance: { type: Number }
+    }],
     customCategories: [{ name: String, type: { type: String, enum: ['income', 'expense'] } }],
     createdAt: { type: Date, default: Date.now },
     // Security fields

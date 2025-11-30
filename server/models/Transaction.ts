@@ -7,7 +7,11 @@ const TransactionSchema = new mongoose.Schema({
     category: { type: String, required: true },
     date: { type: Date, required: true },
     type: { type: String, enum: ['income', 'expense'], required: true },
+    xpAwarded: { type: Number, default: 0 },
     createdAt: { type: Date, default: Date.now }
 });
+
+// Compound index for performance optimization
+TransactionSchema.index({ userId: 1, date: -1 });
 
 export const Transaction = mongoose.model('Transaction', TransactionSchema);

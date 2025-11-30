@@ -42,6 +42,7 @@ export interface Transaction {
   category: Category;
   date: string;
   type: TransactionType;
+  xpAwarded?: number;
 }
 
 export interface UserState {
@@ -51,6 +52,17 @@ export interface UserState {
   badges: number;
   currency: string;
   monthlyIncome: number;
+  totalBalance?: number;
+  lastTransactionDate?: string;
+  previousMonthsBalance?: number;
+  monthlyBalanceHistory?: MonthlyBalance[];
+}
+
+export interface MonthlyBalance {
+  month: string;
+  income: number;
+  expenses: number;
+  balance: number;
 }
 
 export interface LevelData {
@@ -92,6 +104,7 @@ export interface Budget {
   limit: number;
   spent: number;
   icon: string; // Identifier for the icon component
+  updatedAt?: string;
 }
 
 export interface Alert {
@@ -140,6 +153,14 @@ export interface SavingsGoal {
   deadline: string;
   imageUrl: string;
   status: 'in-progress' | 'completed' | 'archived';
+  contributions?: GoalContribution[];
+  updatedAt?: string;
+}
+
+export interface GoalContribution {
+  amount: number;
+  date: string;
+  note?: string;
 }
 
 export interface UserProfile {
