@@ -5,18 +5,22 @@ Welcome to SmartWallet! This comprehensive guide will help you make the most of 
 ## Table of Contents
 
 1. [Getting Started](#getting-started)
-2. [Recurring Transactions](#recurring-transactions)
-3. [Bill Reminders & Notifications](#bill-reminders--notifications)
-4. [Smart Budget Recommendations](#smart-budget-recommendations)
-5. [Financial Insights Dashboard](#financial-insights-dashboard)
-6. [Receipt Scanning](#receipt-scanning)
-7. [Investment Tracking](#investment-tracking)
-8. [Debt Management](#debt-management)
-9. [Gamification & Achievements](#gamification--achievements)
-10. [AI Assistant](#ai-assistant)
-11. [Security & Privacy](#security--privacy)
-12. [Export & Reports](#export--reports)
-13. [Tips & Best Practices](#tips--best-practices)
+2. [Budget Management](#budget-management)
+3. [Transaction Management](#transaction-management)
+4. [Savings Goals](#savings-goals)
+5. [Financial Metrics Dashboard](#financial-metrics-dashboard)
+6. [Recurring Transactions](#recurring-transactions)
+7. [Bill Reminders & Notifications](#bill-reminders--notifications)
+8. [Smart Budget Recommendations](#smart-budget-recommendations)
+9. [Financial Insights Dashboard](#financial-insights-dashboard)
+10. [Receipt Scanning](#receipt-scanning)
+11. [Investment Tracking](#investment-tracking)
+12. [Debt Management](#debt-management)
+13. [Gamification & Achievements](#gamification--achievements)
+14. [AI Assistant](#ai-assistant)
+15. [Security & Privacy](#security--privacy)
+16. [Export & Reports](#export--reports)
+17. [Tips & Best Practices](#tips--best-practices)
 
 ---
 
@@ -37,6 +41,388 @@ Your dashboard provides a quick snapshot of your financial health:
 - **Budget Status**: How you're tracking against budgets
 - **Savings Goals**: Progress toward your goals
 - **Financial Health Score**: Overall financial wellness rating
+
+---
+
+## Budget Management
+
+Take control of your spending with flexible budget management tools.
+
+### Creating a Budget
+
+1. Navigate to **Budgets** in the sidebar
+2. Click **Add Budget**
+3. Fill in the details:
+   - **Category**: Select spending category (Groceries, Dining, etc.)
+   - **Budget Limit**: Set your spending limit for the month
+   - **Icon**: Choose an icon to represent the category
+4. Click **Save**
+
+Your budget will automatically track spending in that category.
+
+### Editing an Existing Budget
+
+Need to adjust your budget limits? It's easy:
+
+1. Navigate to **Budgets**
+2. Find the budget you want to edit
+3. Click the **Edit** button (pencil icon) next to the budget
+4. Update the budget limit or other details
+5. Click **Save** to apply changes
+
+The budget utilization percentage will automatically recalculate based on your new limit.
+
+**💡 Tip**: Review and adjust your budgets monthly based on your actual spending patterns. Life changes, and your budgets should too!
+
+### Understanding Budget Metrics
+
+On your Budgets page, you'll see several key metrics:
+
+**Total Planned Budget**
+- Sum of all your category budget limits
+- Shows your total monthly spending plan
+- Updates automatically when you add or edit budgets
+
+**Remaining Budget**
+- Total planned budget minus current month spending
+- Shows how much you can still spend this month
+- Displayed in green when positive, red when negative
+
+**Budget Utilization**
+- Percentage of your total budget used
+- Helps you understand overall spending pace
+- Visual progress bar for quick reference
+
+**Budget Trend Indicator**
+- ✅ Positive trend: Spending is within total planned budget
+- ⚠️ Negative trend: Spending exceeds total planned budget
+- Updates in real-time as you add transactions
+
+### Budget Categories
+
+Each budget shows:
+- **Category name and icon**
+- **Spent amount** / **Budget limit**
+- **Utilization percentage** with color coding:
+  - Green (0-80%): On track
+  - Yellow (80-100%): Approaching limit
+  - Red (>100%): Over budget
+- **Remaining amount** in the category
+
+### Deleting a Budget
+
+1. Find the budget in your list
+2. Click the **Delete** button (trash icon)
+3. Confirm deletion
+
+**Note**: Deleting a budget doesn't delete your transactions, just the budget tracking for that category.
+
+**💡 Tip**: Start with broad categories and refine as you learn your spending patterns. Common categories include: Groceries, Dining, Transportation, Entertainment, Utilities, and Shopping.
+
+---
+
+## Transaction Management
+
+Efficiently track all your income and expenses with powerful transaction tools.
+
+### Adding a Single Transaction
+
+1. Navigate to **Transactions** in the sidebar
+2. Click **Add Transaction**
+3. Fill in the details:
+   - **Type**: Income or Expense
+   - **Amount**: Transaction amount
+   - **Category**: Select category
+   - **Date**: Transaction date
+   - **Description**: Brief description
+4. Click **Save**
+
+### Bulk Transaction Entry
+
+Save time when entering multiple transactions from the same day:
+
+1. Navigate to **Transactions**
+2. Click **Add Transaction**
+3. Select the **date** for your transactions
+4. Enable **Keep Date** toggle (if available)
+5. Enter the first transaction details (amount, category, description)
+6. Click **Save**
+
+**What Happens Next**:
+- The date field **stays the same** for the next transaction
+- Amount, category, and description fields **clear automatically**
+- You can immediately enter the next transaction without re-selecting the date
+
+**Use Cases**:
+- Entering receipts from a shopping trip
+- Logging multiple expenses from a specific day
+- Catching up on past transactions from the same date
+
+**💡 Tip**: This feature is perfect for logging receipts at the end of the day. Select the date once, then quickly enter all your transactions!
+
+### Viewing Transactions
+
+Your transaction list shows:
+- Transaction type (income/expense) with color coding
+- Amount and category
+- Date and description
+- Edit and delete actions
+
+**Filtering Options**:
+- Filter by type (income/expense)
+- Filter by category
+- Filter by date range
+- Search by description
+
+### Editing a Transaction
+
+1. Find the transaction in your list
+2. Click the **Edit** button (pencil icon)
+3. Update any fields
+4. Click **Save**
+
+All related budgets and metrics update automatically.
+
+### Deleting a Transaction
+
+To ensure you don't accidentally delete the wrong transaction:
+
+1. Find the transaction you want to delete
+2. Click the **Delete** button (trash icon)
+3. **Review the confirmation dialog** showing:
+   - Transaction amount
+   - Category
+   - Date
+   - Description
+4. Click **Confirm Delete** to proceed, or **Cancel** to keep it
+
+**What Happens When You Delete**:
+- Only the specific transaction is removed (by unique ID)
+- Related budgets are updated automatically
+- Monthly spending recalculates
+- Financial metrics refresh
+- The action cannot be undone
+
+**💡 Tip**: Always review the confirmation dialog carefully before deleting. Once deleted, transactions cannot be recovered.
+
+### Transaction Categories
+
+Organize transactions with categories:
+- **Income**: Salary, Freelance, Investments, Gifts, Other Income
+- **Expenses**: Groceries, Dining, Transportation, Entertainment, Utilities, Shopping, Healthcare, Housing, Insurance, Personal Care, Education, Travel, Subscriptions, Other
+
+### Same-Day Transaction Rewards
+
+Earn bonus XP for logging transactions on the same day they occur! See the [XP Rewards System](#xp-rewards-system) section for details.
+
+---
+
+## Savings Goals
+
+Set and achieve your financial goals with visual tracking and smart contributions.
+
+### Creating a Savings Goal
+
+1. Navigate to **Goals** in the sidebar
+2. Click **Add New Goal** (there's only one button - we fixed the duplicate!)
+3. Fill in the details:
+   - **Title**: Name your goal (e.g., "Emergency Fund", "Vacation")
+   - **Target Amount**: How much you want to save
+   - **Deadline**: Target completion date
+   - **Image** (optional): Upload a custom image or use the default
+4. Click **Save**
+
+### Uploading a Custom Goal Image
+
+Personalize your goals with custom images:
+
+1. When creating or editing a goal, click **Upload Image**
+2. Select an image file from your device
+3. **Supported formats**: JPG, JPEG, PNG, WEBP
+4. **Maximum file size**: 5MB
+5. Click **Upload**
+
+**What to Expect**:
+- Upload progress indicator shows while processing
+- Image appears immediately after successful upload
+- If upload fails, you'll see a clear error message
+- Default image is used if upload fails
+
+**💡 Tip**: Use motivating images! A picture of your dream vacation destination or new car can help keep you focused on your goal.
+
+### Removing a Goal Image
+
+Want to change or remove a custom image?
+
+1. Navigate to your goal with a custom image
+2. Click the **Remove Image** button (X icon on the image)
+3. Confirm the removal
+4. The goal reverts to the default image
+
+The custom image is permanently deleted from storage.
+
+### Contributing to a Goal
+
+This is where the magic happens - actually saving toward your goals!
+
+**How to Contribute**:
+
+1. Navigate to **Goals**
+2. Find the goal you want to contribute to
+3. Click the **Contribute** button
+4. Enter the contribution amount
+5. Add an optional note (e.g., "January savings")
+6. Click **Confirm Contribution**
+
+**What Happens**:
+- The contribution amount is **deducted from your total balance**
+- The amount is **added to the goal's current amount**
+- Goal progress percentage updates
+- You earn **25 XP** for the contribution
+- The contribution is recorded in the goal's history
+- A success notification shows your new balance and XP earned
+
+**Validation**:
+- Contribution amount must be positive
+- You must have sufficient balance available
+- Goal must be in 'in-progress' status
+
+**Example**:
+```
+Your Balance: $5,000
+Goal Progress: $2,000 / $10,000
+Contribution: $500
+
+After Contributing:
+Your Balance: $4,500 ✓
+Goal Progress: $2,500 / $10,000 (25%) ✓
+XP Earned: +25 XP 🎉
+```
+
+**💡 Tip**: Set up a recurring reminder to contribute to your goals monthly. Even small, consistent contributions add up over time!
+
+### Viewing Goal Progress
+
+Each goal card shows:
+- Goal title and custom image (if uploaded)
+- Current amount / Target amount
+- Progress bar with percentage
+- Days remaining until deadline
+- Contribute button
+- Edit and delete actions
+
+### Contribution History
+
+View all contributions made to a goal:
+- Contribution amount
+- Date contributed
+- Optional notes
+- Running total
+
+### Editing a Goal
+
+1. Find the goal in your list
+2. Click the **Edit** button
+3. Update title, target amount, deadline, or image
+4. Click **Save**
+
+### Completing a Goal
+
+When you reach your target amount:
+- Goal automatically marks as "Completed"
+- You earn **200 bonus XP**
+- Achievement badge unlocked
+- Celebration animation plays
+
+### Deleting a Goal
+
+1. Find the goal in your list
+2. Click the **Delete** button
+3. Confirm deletion
+
+**Note**: Deleting a goal doesn't affect your balance or contribution history.
+
+**💡 Tip**: Create multiple goals for different purposes - emergency fund, vacation, new car, home down payment. Visual progress tracking keeps you motivated!
+
+---
+
+## Financial Metrics Dashboard
+
+Get a comprehensive view of your financial health with real-time metrics.
+
+### Accessing Financial Metrics
+
+Your financial metrics are displayed prominently on the **Dashboard** and **Budgets** pages.
+
+### Key Metrics Explained
+
+**Current Month Income**
+- Total income received in the current calendar month
+- Includes all income transactions from the 1st to today
+- Updates in real-time as you add income transactions
+
+**Overall Total Income**
+- Current month income + previous months' remainder
+- Shows your total available funds including carried-forward balance
+- Represents your true financial position
+
+**Current Month Spending**
+- Total expenses in the current calendar month
+- Includes all expense transactions from the 1st to today
+- Updates in real-time as you add expenses
+
+**Monthly Savings**
+- Calculated as: Current Month Income - Current Month Spending
+- Shows how much you're saving this month
+- Displayed in **green** when positive (saving money)
+- Displayed in **red** when negative (spending more than earning)
+
+**Total Planned Budget**
+- Sum of all your category budget limits
+- Shows your total monthly spending plan
+- Updates when you add or edit budgets
+
+**Remaining Budget**
+- Calculated as: Total Planned Budget - Current Month Spending
+- Shows how much budget you have left to spend
+- Displayed in **green** when positive (budget remaining)
+- Displayed in **red** when negative (over budget)
+
+**Budget Utilization**
+- Percentage of total planned budget used
+- Calculated as: (Current Month Spending / Total Planned Budget) × 100
+- Visual progress bar shows utilization at a glance
+
+**Budget Trend**
+- ✅ **Positive Trend**: Spending ≤ Total Planned Budget (on track!)
+- ⚠️ **Negative Trend**: Spending > Total Planned Budget (over budget)
+- Helps you quickly assess if you're staying within your overall budget
+
+### How Metrics Update
+
+Metrics automatically recalculate when you:
+- Add a new transaction
+- Edit an existing transaction
+- Delete a transaction
+- Create or update a budget
+- Contribute to a savings goal
+
+**Caching**: Metrics are cached for 5 minutes for performance. If you notice a slight delay in updates, wait a moment and refresh.
+
+### Using Metrics for Financial Planning
+
+**Weekly Check-In**:
+- Review your monthly savings - are you on track?
+- Check remaining budget - adjust spending if needed
+- Monitor budget utilization - aim to stay under 100%
+
+**Monthly Review**:
+- Compare current month income to previous months
+- Analyze spending patterns by category
+- Adjust budgets based on actual spending
+- Set savings goals based on monthly savings
+
+**💡 Tip**: Aim for a positive monthly savings number and a budget utilization under 90% for healthy financial management.
 
 ---
 
@@ -323,13 +709,83 @@ Stay motivated with XP, challenges, badges, and leaderboards.
 
 ### Experience Points (XP) & Levels
 
-Earn XP for financial activities:
-- Add transaction: 10 XP
-- Stay within budget: 20 XP
-- Complete savings goal: 100 XP
-- Complete challenge: 50-200 XP
+Earn XP for financial activities and level up as you build better financial habits!
+
+### XP Rewards System
+
+SmartWallet rewards you with XP (Experience Points) for various financial activities. The more engaged you are, the more XP you earn!
+
+**Transaction XP Rewards**:
+- **Base XP**: 10 points for logging any transaction
+- **Same-Day Bonus**: 15 points when transaction date = today's date
+- **Streak Bonus**: 2 points per day in your current streak (when logging same-day)
+
+**Example Scenarios**:
+
+*Scenario 1: Logging a past transaction*
+- Transaction date: January 10
+- Today's date: January 15
+- XP Earned: 10 (base only)
+
+*Scenario 2: Logging today's transaction (no streak)*
+- Transaction date: January 15
+- Today's date: January 15
+- Current streak: 0 days
+- XP Earned: 25 (10 base + 15 same-day bonus)
+
+*Scenario 3: Logging today's transaction (with streak)*
+- Transaction date: January 15
+- Today's date: January 15
+- Current streak: 10 days
+- XP Earned: 45 (10 base + 15 same-day bonus + 20 streak bonus)
+
+**Other XP Rewards**:
+- **Budget Adherence**: 20 XP for staying within budget daily
+- **Goal Contribution**: 25 XP for each contribution to a savings goal
+- **Goal Completion**: 200 XP when you reach a savings goal
+- **Challenge Completion**: 50-200 XP depending on difficulty
+- **Weekly Budget Success**: 50 XP for staying within budget all week
+- **Monthly Budget Success**: 150 XP for staying within budget all month
+
+### Building Your Streak
+
+Your streak tracks consecutive days of same-day transaction logging:
+
+**How Streaks Work**:
+- Log a transaction on the same day it occurs to maintain your streak
+- Streak increases by 1 each day you log same-day transactions
+- Streak resets to 0 if you miss a day
+- Longer streaks = bigger bonus XP
+
+**Streak Milestones**:
+- 🔥 7-day streak: "Week Warrior" badge
+- 🔥 30-day streak: "Monthly Master" badge
+- 🔥 100-day streak: "Streak Champion" badge
+
+**💡 Tip**: Log your transactions as they happen throughout the day to maximize XP and build your streak. Set a daily reminder if needed!
+
+### XP Notifications
+
+When you earn XP, you'll see a notification showing:
+- Total XP earned
+- XP breakdown (base + bonuses)
+- Your new total XP
+- Progress toward next level
+- Streak information (if applicable)
+
+### Leveling Up
 
 As you earn XP, you level up! Higher levels unlock special badges and recognition.
+
+**Level Progression**:
+- Level 1: 0 XP
+- Level 2: 100 XP
+- Level 3: 250 XP
+- Level 5: 500 XP
+- Level 10: 2,000 XP
+- Level 20: 10,000 XP
+
+Each level up triggers a celebration animation and may unlock new badges!
 
 ### Challenges
 
@@ -552,22 +1008,58 @@ View past exports:
 ### Getting the Most from SmartWallet
 
 **Daily Habits**:
-- ✅ Log transactions as they occur
+- ✅ Log transactions as they occur (earn same-day bonus XP!)
 - ✅ Check notifications for bill reminders
 - ✅ Complete daily challenges for XP
+- ✅ Maintain your streak by logging same-day transactions
 
 **Weekly Habits**:
 - ✅ Review spending trends
 - ✅ Update investment values
-- ✅ Check budget status
+- ✅ Check budget status and adjust if needed
 - ✅ Scan receipts from the week
+- ✅ Make weekly goal contributions
 
 **Monthly Habits**:
 - ✅ Review financial health score
 - ✅ Generate budget recommendations
 - ✅ Record debt payments
-- ✅ Adjust budgets as needed
+- ✅ Edit budgets based on actual spending patterns
 - ✅ Review and categorize all transactions
+- ✅ Check financial metrics dashboard
+- ✅ Contribute to savings goals
+
+### Maximizing XP and Streaks
+
+1. **Log Same-Day**: Always log transactions on the day they occur for 15 bonus XP
+2. **Build Streaks**: Maintain daily logging to multiply your XP with streak bonuses
+3. **Stay Within Budget**: Earn 20 XP daily for budget adherence
+4. **Contribute to Goals**: Get 25 XP for each goal contribution
+5. **Complete Challenges**: Check daily/weekly/monthly challenges for bonus XP
+
+### Budget Management Best Practices
+
+1. **Start Realistic**: Use AI recommendations or your actual spending as a baseline
+2. **Review Monthly**: Edit budget limits based on your actual needs
+3. **Track Total Budget**: Monitor your total planned budget vs. spending
+4. **Use Remaining Budget**: Check remaining budget before making purchases
+5. **Adjust as Needed**: Life changes - update budgets when circumstances change
+
+### Efficient Transaction Entry
+
+1. **Use Bulk Entry**: When entering multiple transactions from the same day, use the "Keep Date" feature
+2. **Log Immediately**: Enter transactions as they happen for same-day XP bonus
+3. **Be Descriptive**: Add clear descriptions for easy searching later
+4. **Categorize Correctly**: Proper categories help with budget tracking
+5. **Double-Check Before Delete**: Always review the confirmation dialog when deleting
+
+### Goal Achievement Strategies
+
+1. **Set Specific Goals**: Clear targets are easier to achieve
+2. **Use Custom Images**: Visual motivation helps maintain focus
+3. **Contribute Regularly**: Set up monthly contribution reminders
+4. **Track Progress**: Check goal progress weekly
+5. **Celebrate Milestones**: Acknowledge progress at 25%, 50%, 75% completion
 
 ### Maximizing Savings
 
@@ -688,6 +1180,42 @@ We love hearing from our users!
 - [Privacy Policy](https://smartwallet.com/privacy)
 - [Terms of Service](https://smartwallet.com/terms)
 - [Data Security](https://smartwallet.com/security)
+
+---
+
+---
+
+## Quick Reference: New Features
+
+### Budget Editing
+- **Where**: Budgets page → Edit button on any budget
+- **What**: Update budget limits and see automatic recalculation
+- **Tip**: Review and adjust monthly based on spending patterns
+
+### Bulk Transaction Entry
+- **Where**: Transactions page → Add Transaction
+- **What**: Date field persists across multiple entries
+- **Tip**: Perfect for entering receipts from the same day
+
+### Goal Contributions
+- **Where**: Goals page → Contribute button on any goal
+- **What**: Deduct from balance, add to goal, earn 25 XP
+- **Tip**: Set monthly contribution reminders
+
+### Same-Day XP Bonus
+- **Where**: Automatic when logging transactions
+- **What**: Earn 15 bonus XP + streak bonuses for same-day logging
+- **Tip**: Log transactions as they happen to maximize XP
+
+### Financial Metrics
+- **Where**: Dashboard and Budgets pages
+- **What**: Real-time income, spending, savings, and budget metrics
+- **Tip**: Check weekly to stay on track
+
+### Transaction Deletion Safety
+- **Where**: Transactions page → Delete button
+- **What**: Confirmation dialog prevents accidental deletions
+- **Tip**: Always review the transaction details before confirming
 
 ---
 

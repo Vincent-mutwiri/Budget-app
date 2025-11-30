@@ -125,9 +125,13 @@ export async function down() {
         console.log('Removed xpAwarded field from Transaction documents');
 
         // Drop indexes
-        await Transaction.collection.dropIndex({ userId: 1, date: -1 });
-        await Budget.collection.dropIndex({ userId: 1, category: 1 });
-        await SavingsGoal.collection.dropIndex({ userId: 1, status: 1 });
+        try {
+            await Transaction.collection.dropIndex('userId_1_date_-1');
+            await Budget.collection.dropIndex('userId_1_category_1');
+            await SavingsGoal.collection.dropIndex('userId_1_status_1');
+        } catch (e) {
+            console.log('Some indexes may not exist, continuing...');
+        }
         console.log('Dropped created indexes');
 
         console.log('Rollback completed successfully!');

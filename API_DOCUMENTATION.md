@@ -399,6 +399,511 @@ Detects unusual spending patterns.
 
 ---
 
+## Budgets
+
+### Create Budget
+
+Creates a new budget for a category.
+
+**Endpoint:** `POST /api/budgets`
+
+**Request Body:**
+```json
+{
+  "category": "Groceries",
+  "limit": 500,
+  "icon": "shopping-cart"
+}
+```
+
+**Response:** `201 Created`
+```json
+{
+  "data": {
+    "id": "budget_123",
+    "userId": "user_456",
+    "category": "Groceries",
+    "limit": 500,
+    "spent": 0,
+    "icon": "shopping-cart",
+    "createdAt": "2024-01-15T10:30:00Z",
+    "updatedAt": "2024-01-15T10:30:00Z"
+  }
+}
+```
+
+### List Budgets
+
+Retrieves all budgets for the authenticated user.
+
+**Endpoint:** `GET /api/budgets`
+
+**Response:** `200 OK`
+```json
+{
+  "data": [
+    {
+      "id": "budget_123",
+      "category": "Groceries",
+      "limit": 500,
+      "spent": 320,
+      "icon": "shopping-cart",
+      "utilizationPercentage": 64
+    }
+  ]
+}
+```
+
+### Update Budget
+
+Updates an existing budget's limit and other properties.
+
+**Endpoint:** `PUT /api/budgets/:id`
+
+**Path Parameters:**
+- `id` (required): Budget ID
+
+**Request Body:**
+```json
+{
+  "limit": 600,
+  "category": "Groceries",
+  "icon": "shopping-cart"
+}
+```
+
+**Response:** `200 OK`
+```json
+{
+  "budget": {
+    "id": "budget_123",
+    "userId": "user_456",
+    "category": "Groceries",
+    "limit": 600,
+    "spent": 320,
+    "icon": "shopping-cart",
+    "updatedAt": "2024-01-15T11:00:00Z"
+  },
+  "totalPlannedBudget": 4100,
+  "utilizationPercentage": 53.33
+}
+```
+
+**Error Responses:**
+- `400 Bad Request` - Invalid limit (must be positive number)
+- `404 Not Found` - Budget not found
+- `403 Forbidden` - User does not own this budget
+
+**Usage Example:**
+```javascript
+// Update budget limit
+const response = await fetch('/api/budgets/budget_123', {
+  method: 'PUT',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer <token>'
+  },
+  body: JSON.stringify({
+    limit: 600
+  })
+});
+```
+
+### Get Total Planned Budget
+
+Calculates the sum of all budget limits for the user.
+
+**Endpoint:** `GET /api/budgets/total`
+
+**Response:** `200 OK`
+```json
+{
+  "totalPlannedBudget": 4000,
+  "budgetCount": 8
+}
+```
+
+### Delete Budget
+
+Deletes a budget.
+
+**Endpoint:** `DELETE /api/budgets/:id`
+
+**Response:** `204 No Content`
+
+---
+
+## Transactions
+
+### Create Transaction
+
+Creates a new transaction with optional gamification rewards.
+
+**Endpoint:** `POST /api/transactions`
+
+**Request Body:**
+```json
+{
+  "amount": 45.50,
+  "category": "Groceries",
+  "description": "Weekly shopping",
+  "type": "expense",
+  "date": "2024-01-15"
+}
+```
+
+**Response:** `201 Created`
+```json
+{
+  "data": {
+    "id": "txn_123",
+    "userId": "user_456",
+    "amount": 45.50,
+    "category": "Groceries",
+    "description": "Weekly shopping",
+    "type": "expense",
+    "date": "2024-01-15",
+    "createdAt": "2024-01-15T10:30:00Z",
+    "xpAwarded": 25,
+    "xpBreakdown": {
+      "baseXP": 10,
+      "sameDayBonus": 15,
+      "streakBonus": 0,
+      "totalXP": 25
+    }
+  }
+}
+```
+
+**Gamification Rules:**
+- Base XP: 10 points for any transaction
+- Same-day bonus: 15 points when transaction date equals current date
+- Streak bonus: 2 points per day in current streak (when logging same-day)
+
+**Usage Example:**
+```javascript
+// Create transaction with same-day bonus
+const response = await fetch('/api/transactions', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer <token>'
+  },
+  body: JSON.stringify({
+    amount: 45.50,
+    category: 'Groceries',
+    description: 'Weekly shopping',
+    type: 'expense',
+    date: new Date().toISOString().split('T')[0] // Today's date for bonus
+  })
+});
+```
+
+### List Transactions
+
+Retrieves transactions for the authenticated user.
+
+**Endpoint:** `GET /api/transactions`
+
+**Query Parameters:**
+- `type` (optional): Filter by type (income/expense)
+- `category` (optional): Filter by category
+- `startDate` (optional): Filter by start date
+- `endDate` (optional): Filter by end date
+
+**Response:** `200 OK`
+
+### Delete Transaction
+
+Deletes a specific transaction by its unique ID and updates related metrics.
+
+**Endpoint:** `DELETE /api/transactions/:id`
+
+**Path Parameters:**
+- `id` (required): Transaction ID (unique identifier)
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "message": "Transaction deleted successfully",
+  "updatedMetrics": {
+    "budgets": [
+      {
+        "category": "Groceries",
+        "spent": 274.50,
+        "limit": 500
+      }
+    ],
+    "monthlySpending": 3454.50,
+    "totalIncome": 5000
+  }
+}
+```
+
+**Error Responses:**
+- `404 Not Found` - Transaction not found
+- `403 Forbidden` - User does not own this transaction
+
+**Important Notes:**
+- Deletion uses the unique transaction ID to ensure only the specific transaction is deleted
+- All related budgets and metrics are automatically recalculated
+- Frontend should show confirmation dialog before deletion
+
+**Usage Example:**
+```javascript
+// Delete transaction with confirmation
+if (confirm('Are you sure you want to delete this transaction?')) {
+  const response = await fetch(`/api/transactions/${transactionId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': 'Bearer <token>'
+    }
+  });
+}
+```
+
+---
+
+## Savings Goals
+
+### Create Goal
+
+Creates a new savings goal.
+
+**Endpoint:** `POST /api/goals`
+
+**Request Body:**
+```json
+{
+  "title": "Emergency Fund",
+  "targetAmount": 10000,
+  "deadline": "2024-12-31",
+  "imageUrl": "https://example.com/default-goal.png"
+}
+```
+
+**Response:** `201 Created`
+
+### List Goals
+
+Retrieves all goals for the authenticated user.
+
+**Endpoint:** `GET /api/goals`
+
+**Response:** `200 OK`
+
+### Update Goal
+
+Updates goal details including title, target amount, and deadline.
+
+**Endpoint:** `PUT /api/goals/:id`
+
+**Path Parameters:**
+- `id` (required): Goal ID
+
+**Request Body:**
+```json
+{
+  "title": "Emergency Fund - Updated",
+  "targetAmount": 12000,
+  "deadline": "2025-06-30",
+  "imageUrl": "https://example.com/custom-image.png"
+}
+```
+
+**Response:** `200 OK`
+```json
+{
+  "data": {
+    "id": "goal_123",
+    "title": "Emergency Fund - Updated",
+    "targetAmount": 12000,
+    "currentAmount": 3500,
+    "deadline": "2025-06-30",
+    "imageUrl": "https://example.com/custom-image.png",
+    "updatedAt": "2024-01-15T11:00:00Z"
+  }
+}
+```
+
+**Error Responses:**
+- `404 Not Found` - Goal not found
+- `403 Forbidden` - User does not own this goal
+
+### Contribute to Goal
+
+Makes a contribution to a savings goal, deducting from user's total balance.
+
+**Endpoint:** `POST /api/goals/:id/contribute`
+
+**Path Parameters:**
+- `id` (required): Goal ID
+
+**Request Body:**
+```json
+{
+  "amount": 500,
+  "note": "Monthly contribution"
+}
+```
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "updatedGoal": {
+    "id": "goal_123",
+    "title": "Emergency Fund",
+    "targetAmount": 10000,
+    "currentAmount": 4000,
+    "progressPercentage": 40,
+    "contributions": [
+      {
+        "amount": 500,
+        "date": "2024-01-15T10:30:00Z",
+        "note": "Monthly contribution"
+      }
+    ]
+  },
+  "newBalance": 4500,
+  "xpAwarded": 25,
+  "contribution": {
+    "amount": 500,
+    "date": "2024-01-15T10:30:00Z",
+    "note": "Monthly contribution"
+  }
+}
+```
+
+**Error Responses:**
+- `400 Bad Request` - Invalid amount (must be positive)
+- `400 Bad Request` - Insufficient balance (INSUFFICIENT_BALANCE)
+- `404 Not Found` - Goal not found
+- `403 Forbidden` - User does not own this goal
+
+**Validation Rules:**
+- Contribution amount must be positive
+- Contribution amount cannot exceed user's available balance
+- Goal must be in 'in-progress' status
+
+**Gamification:**
+- Awards 25 XP for each contribution
+- Additional bonus XP when goal is completed
+
+**Usage Example:**
+```javascript
+// Contribute to goal
+const response = await fetch('/api/goals/goal_123/contribute', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer <token>'
+  },
+  body: JSON.stringify({
+    amount: 500,
+    note: 'Monthly contribution'
+  })
+});
+
+if (response.ok) {
+  const data = await response.json();
+  console.log(`New balance: $${data.newBalance}`);
+  console.log(`XP awarded: ${data.xpAwarded}`);
+}
+```
+
+### Remove Goal Image
+
+Removes a custom image from a goal and reverts to the default image.
+
+**Endpoint:** `DELETE /api/goals/:id/image`
+
+**Path Parameters:**
+- `id` (required): Goal ID
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "defaultImageUrl": "https://example.com/default-goal.png",
+  "message": "Image removed successfully"
+}
+```
+
+**Error Responses:**
+- `404 Not Found` - Goal not found
+- `403 Forbidden` - User does not own this goal
+- `500 Internal Server Error` - Failed to delete image from storage
+
+**Important Notes:**
+- Deletes the image file from S3 storage
+- Updates the goal record with the default image URL
+- Handles deletion errors gracefully (logs error but still updates database)
+
+**Usage Example:**
+```javascript
+// Remove goal image
+const response = await fetch(`/api/goals/${goalId}/image`, {
+  method: 'DELETE',
+  headers: {
+    'Authorization': 'Bearer <token>'
+  }
+});
+```
+
+### Upload Goal Image
+
+Uploads a custom image for a goal.
+
+**Endpoint:** `POST /api/goals/:id/image`
+
+**Request:** Multipart form data
+- `file`: Image file (JPEG, PNG, WEBP, max 5MB)
+
+**Response:** `200 OK`
+```json
+{
+  "imageUrl": "https://storage.example.com/goals/goal_123_abc.jpg"
+}
+```
+
+**Error Responses:**
+- `400 Bad Request` - Invalid file type (INVALID_FILE_TYPE)
+- `400 Bad Request` - File too large (FILE_TOO_LARGE, max 5MB)
+- `404 Not Found` - Goal not found
+- `500 Internal Server Error` - Upload failed
+
+**Validation Rules:**
+- Accepted formats: JPG, JPEG, PNG, WEBP
+- Maximum file size: 5MB
+- File must be a valid image
+
+**Usage Example:**
+```javascript
+// Upload goal image
+const formData = new FormData();
+formData.append('file', imageFile);
+
+const response = await fetch(`/api/goals/${goalId}/image`, {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer <token>'
+  },
+  body: formData
+});
+```
+
+### Delete Goal
+
+Deletes a savings goal.
+
+**Endpoint:** `DELETE /api/goals/:id`
+
+**Response:** `204 No Content`
+
+---
+
 ## Financial Metrics
 
 ### Get Financial Metrics
@@ -433,6 +938,18 @@ Calculates comprehensive financial metrics including income, spending, savings, 
 }
 ```
 
+**Metric Definitions:**
+- `currentMonthIncome`: Total income for the current calendar month
+- `overallTotalIncome`: Current month income + previous months' remainder
+- `previousMonthsRemainder`: Carried forward balance from previous months
+- `currentMonthSpending`: Total expenses for the current calendar month
+- `monthlySavings`: Current month income - current month spending
+- `totalPlannedBudget`: Sum of all budget limits
+- `remainingBudget`: Total planned budget - current month spending
+- `budgetUtilization`: (Current month spending / total planned budget) × 100
+- `trendPositive`: True if spending ≤ total planned budget
+- `trendPercentage`: Budget utilization percentage
+
 **Caching:**
 - Metrics are cached for 5 minutes per user per month
 - Cache is automatically invalidated when transactions or budgets change
@@ -441,6 +958,23 @@ Calculates comprehensive financial metrics including income, spending, savings, 
 **Error Responses:**
 - `400 Bad Request` - Missing userId parameter
 - `500 Internal Server Error` - Calculation error
+
+**Usage Example:**
+```javascript
+// Get current month metrics
+const response = await fetch('/api/metrics/user_123', {
+  headers: {
+    'Authorization': 'Bearer <token>'
+  }
+});
+
+// Get specific month metrics
+const response = await fetch('/api/metrics/user_123?month=2024-01-01', {
+  headers: {
+    'Authorization': 'Bearer <token>'
+  }
+});
+```
 
 ---
 
@@ -1073,11 +1607,75 @@ SmartWallet supports webhooks for real-time notifications:
 }
 ```
 
+## Error Codes
+
+The API uses standardized error codes for consistent error handling:
+
+### Budget Errors
+- `BUDGET_NOT_FOUND` - Budget does not exist
+- `INVALID_BUDGET_LIMIT` - Budget limit must be a positive number
+- `BUDGET_UPDATE_FAILED` - Failed to update budget
+
+### Transaction Errors
+- `TRANSACTION_NOT_FOUND` - Transaction does not exist
+- `INVALID_AMOUNT` - Amount must be a positive number
+- `TRANSACTION_DELETE_FAILED` - Failed to delete transaction
+
+### Goal Errors
+- `GOAL_NOT_FOUND` - Goal does not exist
+- `INSUFFICIENT_BALANCE` - User balance is insufficient for contribution
+- `INVALID_CONTRIBUTION_AMOUNT` - Contribution amount must be positive
+- `GOAL_UPDATE_FAILED` - Failed to update goal
+
+### Image Upload Errors
+- `INVALID_FILE_TYPE` - File type not supported (use JPG, PNG, WEBP)
+- `FILE_TOO_LARGE` - File exceeds maximum size (5MB)
+- `IMAGE_UPLOAD_FAILED` - Failed to upload image to storage
+- `IMAGE_DELETE_FAILED` - Failed to delete image from storage
+
+### Metrics Errors
+- `METRICS_CALCULATION_FAILED` - Failed to calculate financial metrics
+- `INVALID_DATE_PARAMETER` - Invalid date format provided
+
+### General Errors
+- `UNAUTHORIZED` - Authentication required or invalid token
+- `FORBIDDEN` - User does not have permission to access resource
+- `RATE_LIMIT_EXCEEDED` - Too many requests
+- `INTERNAL_SERVER_ERROR` - Unexpected server error
+
 ## Support
 
 For API support, contact: api-support@smartwallet.com
 
 ## Changelog
+
+### Version 2.1 (2024-01)
+- **Budget Management Enhancements**
+  - Added `PUT /api/budgets/:id` endpoint for editing budgets
+  - Added `GET /api/budgets/total` endpoint for total planned budget
+  - Added `updatedAt` field to Budget model
+- **Transaction Improvements**
+  - Enhanced `POST /api/transactions` with same-day gamification rewards
+  - Improved `DELETE /api/transactions/:id` with unique ID deletion and metrics updates
+  - Added `xpAwarded` field to Transaction model
+- **Goals Management**
+  - Added `PUT /api/goals/:id` endpoint for updating goals
+  - Added `POST /api/goals/:id/contribute` endpoint for goal contributions
+  - Added `DELETE /api/goals/:id/image` endpoint for removing goal images
+  - Added `contributions` array and `updatedAt` field to SavingsGoal model
+- **Financial Metrics**
+  - Added `GET /api/metrics/:userId` endpoint for comprehensive financial calculations
+  - Includes current month income, overall total income, spending, savings, and budget metrics
+  - Implemented 5-minute caching with automatic invalidation
+- **User Model Enhancements**
+  - Added `totalBalance` field for goal contribution tracking
+  - Added `lastTransactionDate` field for streak tracking
+  - Added `previousMonthsBalance` and `monthlyBalanceHistory` fields
+- **Gamification**
+  - Same-day transaction bonus (15 XP)
+  - Streak bonuses for consistent logging
+  - Goal contribution rewards (25 XP)
+  - Budget adherence tracking
 
 ### Version 2.0 (2024-01)
 - Added recurring transactions endpoints
