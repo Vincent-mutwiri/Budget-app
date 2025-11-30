@@ -2,9 +2,16 @@ import { Request, Response, NextFunction } from 'express';
 import { createErrorResponse, ERROR_CODES } from './errorHandler';
 
 export const validateTransaction = (req: Request, res: Response, next: NextFunction) => {
-  const { amount, category, date, type } = req.body;
+  const { category, date, type } = req.body;
+  let { amount } = req.body;
 
-  if (!amount || typeof amount !== 'number' || amount <= 0) {
+  // Convert string amount to number if needed
+  if (typeof amount === 'string') {
+    amount = parseFloat(amount);
+    req.body.amount = amount;
+  }
+
+  if (!amount || typeof amount !== 'number' || isNaN(amount) || amount <= 0) {
     return res.status(400).json(
       createErrorResponse(
         'Transaction amount must be a positive number',
