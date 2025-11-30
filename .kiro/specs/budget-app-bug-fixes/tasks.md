@@ -179,8 +179,8 @@
   - Show success notification with XP reward
   - _Requirements: 14.1, 14.2, 14.3, 14.4, 14.5_
 
-- [ ] 11. Frontend - Financial Metrics Dashboard
-- [ ] 11.1 Create metrics display component
+- [x] 11. Frontend - Financial Metrics Dashboard
+- [x] 11.1 Create metrics display component
   - Display current month income
   - Display overall total income
   - Display current month spending
@@ -190,7 +190,7 @@
   - Display budget trend indicator
   - _Requirements: 8.1, 8.2, 8.3, 8.4, 9.1, 9.2, 9.3, 9.4, 10.1, 10.2, 10.3, 10.4, 11.1, 11.2, 11.3, 11.4, 13.1, 13.2, 13.3, 13.4_
 
-- [ ] 11.2 Integrate metrics API call
+- [x] 11.2 Integrate metrics API call
   - Call GET /api/metrics/:userId on dashboard load
   - Implement loading states
   - Handle errors gracefully

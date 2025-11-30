@@ -519,3 +519,17 @@ export interface UserSession {
   lastActivity: string;
   isActive: boolean;
 }
+
+// Financial Metrics
+export interface FinancialMetrics {
+  currentMonthIncome: number;
+  overallTotalIncome: number;
+  previousMonthsRemainder: number;
+  currentMonthSpending: number;
+  monthlySavings: number;
+  totalPlannedBudget: number;
+  remainingBudget: number;
+  budgetUtilization: number;
+  trendPositive: boolean;
+  trendPercentage: number;
+}

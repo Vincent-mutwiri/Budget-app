@@ -17,11 +17,12 @@ import {
   createAccount,
   getCustomCategories,
   addCustomCategory,
-  deleteCustomCategory
+  deleteCustomCategory,
+  getMetrics
 } from './services/api';
 import {
   Transaction, UserState, Category, DailyChallenge,
-  FinancialSnapshot, Goal, Notification, Alert, TransactionType, CategoriesList, Budget, Security, Challenge, SavingsGoal, UserProfile, Account, ChatMessage
+  FinancialSnapshot, Goal, Notification, Alert, TransactionType, CategoriesList, Budget, Security, Challenge, SavingsGoal, UserProfile, Account, ChatMessage, FinancialMetrics
 } from './types';
 import {
   MOCK_TRANSACTIONS, LEVEL_THRESHOLDS, XP_REWARDS,
@@ -58,6 +59,7 @@ import { handleApiError } from './utils/errorHandler';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { FinancialMetricsDashboard } from './components/FinancialMetricsDashboard';
 
 // --- Components ---
 
@@ -1914,6 +1916,11 @@ export default function App() {
     newStreak: number;
   } | null>(null);
 
+  // Financial Metrics
+  const [financialMetrics, setFinancialMetrics] = useState<FinancialMetrics | null>(null);
+  const [metricsLoading, setMetricsLoading] = useState(false);
+  const [metricsError, setMetricsError] = useState<string | null>(null);
+
   // Alerts
   const alerts: Alert[] = [];
 
@@ -1992,6 +1999,30 @@ export default function App() {
     return () => clearInterval(interval);
   }, [clerkUser]);
 
+  // Fetch Financial Metrics
+  const fetchMetrics = async () => {
+    if (!clerkUser) return;
+
+    setMetricsLoading(true);
+    setMetricsError(null);
+
+    try {
+      const metrics = await getMetrics(clerkUser.id);
+      setFinancialMetrics(metrics);
+      cache.set(`metrics_${clerkUser.id}`, metrics);
+    } catch (err) {
+      console.error('Failed to fetch metrics:', err);
+      setMetricsError('Failed to load financial metrics');
+      // Try to use cached metrics
+      const cachedMetrics = cache.get<FinancialMetrics>(`metrics_${clerkUser.id}`);
+      if (cachedMetrics) {
+        setFinancialMetrics(cachedMetrics);
+      }
+    } finally {
+      setMetricsLoading(false);
+    }
+  };
+
   // Fetch Data on Load
   useEffect(() => {
     if (clerkUser) {
@@ -2006,6 +2037,7 @@ export default function App() {
         const cachedAccounts = cache.get<Account[]>(`accounts_${clerkUser.id}`);
         const cachedRecTxs = cache.get<RecurringTransaction[]>(`recurring_${clerkUser.id}`);
         const cachedCustomCategories = cache.get<Array<{ name: string; type: 'income' | 'expense' }>>(`customCategories_${clerkUser.id}`);
+        const cachedMetrics = cache.get<FinancialMetrics>(`metrics_${clerkUser.id}`);
 
         if (cachedTransactions) setTransactions(cachedTransactions);
         if (cachedCustomCategories) setCustomCategories(cachedCustomCategories);
@@ -2013,6 +2045,7 @@ export default function App() {
         if (cachedGoals) setSavingsGoals(cachedGoals);
         if (cachedAccounts) setAccounts(cachedAccounts);
         if (cachedRecTxs) setRecurringTransactions(cachedRecTxs);
+        if (cachedMetrics) setFinancialMetrics(cachedMetrics);
 
         try {
           // Sync User
@@ -2047,6 +2080,9 @@ export default function App() {
           cache.set(`accounts_${clerkUser.id}`, accs);
           cache.set(`recurring_${clerkUser.id}`, recTxs);
           cache.set(`customCategories_${clerkUser.id}`, customCats);
+
+          // Fetch metrics after other data is loaded
+          await fetchMetrics();
 
           setIsLoading(false);
         } catch (err) {
@@ -2130,6 +2166,9 @@ export default function App() {
         setUser(prev => ({ ...prev, xp: prev.xp + XP_REWARDS.ADD_TRANSACTION }));
       }
 
+      // Refresh metrics
+      await fetchMetrics();
+
       success('Transaction added successfully!');
     } catch (err) {
       setTransactions(prev => prev.filter(t => t.id !== tempId));
@@ -2204,6 +2243,10 @@ export default function App() {
 
       // API call
       await updateBudget(id, updates);
+
+      // Refresh metrics
+      await fetchMetrics();
+
       success('Budget updated successfully!');
     } catch (err) {
       // Rollback on error
@@ -2312,6 +2355,9 @@ export default function App() {
         }
       }
 
+      // Refresh metrics
+      await fetchMetrics();
+
       success('Transaction deleted successfully!');
     } catch (err) {
       // Rollback on error
@@ -2380,37 +2426,12 @@ export default function App() {
       {/* Left Main Column */}
       <div className="xl:col-span-3 flex flex-col gap-6">
 
-        {/* Metrics Row */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {isLoading ? (
-            <>
-              <SkeletonMetric />
-              <SkeletonMetric />
-              <SkeletonMetric />
-            </>
-          ) : (
-            <>
-              <MetricCard
-                title="Total Balance"
-                value={formatCurrency(snapshot.balance)}
-                subValue={snapshot.balance > 0 ? `KSh ${snapshot.balance.toFixed(0)}` : undefined}
-                trend={snapshot.balance > 0 ? 'up' : undefined}
-              />
-              <MetricCard
-                title="This Month's Spending"
-                value={formatCurrency(snapshot.totalExpenses)}
-                subValue={snapshot.totalExpenses > 0 ? `${transactions.filter(t => t.type === 'expense').length} transactions` : undefined}
-                trend={snapshot.totalExpenses > 0 ? 'down' : undefined}
-              />
-              <MetricCard
-                title="Remaining Budget"
-                value={formatCurrency(snapshot.totalIncome - snapshot.totalExpenses)}
-                subValue={budgets.length > 0 ? `${budgets.length} budgets` : 'No budgets set'}
-                trend="neutral"
-              />
-            </>
-          )}
-        </div>
+        {/* Financial Metrics Dashboard */}
+        <FinancialMetricsDashboard
+          metrics={financialMetrics}
+          isLoading={metricsLoading}
+          error={metricsError}
+        />
 
         {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[400px]">

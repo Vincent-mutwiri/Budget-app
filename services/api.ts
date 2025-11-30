@@ -416,4 +416,12 @@ export const deleteCustomCategory = async (userId: string, category: string) => 
     return response.data;
 };
 
+// Financial Metrics
+export const getMetrics = async (userId: string, month?: string) => {
+    const params: any = { userId };
+    if (month) params.month = month;
+    const response = await api.get(`/metrics/${userId}`, { params });
+    return response.data;
+};
+
 export default api;
