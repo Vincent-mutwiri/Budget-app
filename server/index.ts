@@ -161,13 +161,18 @@ app.post('/api/categories/custom', async (req, res) => {
         const user = await User.findOne({ clerkId: userId });
         if (!user) return res.status(404).json({ error: 'User not found' });
 
-        if (!user.customCategories) user.customCategories = [] as any;
+        // Ensure customCategories is an array
+        if (!Array.isArray(user.customCategories)) {
+            user.customCategories = [] as any;
+        }
+        
         if (!user.customCategories.find((c: any) => c.name === category)) {
             user.customCategories.push({ name: category, type });
             await user.save();
         }
         res.json(user.customCategories);
     } catch (error) {
+        console.error('Error adding custom category:', error);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -246,19 +251,31 @@ app.post('/api/transactions', validateTransaction, async (req, res) => {
             transactionDate.getDate() === currentDate.getDate();
 
         // Get user for streak and XP calculation
-        const user = await User.findOne({ clerkId: userId });
+        let user = await User.findOne({ clerkId: userId }).lean();
+        
+        // Fix corrupted customCategories if needed
+        if (user && (!Array.isArray(user.customCategories) || typeof user.customCategories === 'string')) {
+            await User.updateOne(
+                { clerkId: userId },
+                { $set: { customCategories: [] } }
+            );
+            user = await User.findOne({ clerkId: userId }).lean();
+        }
+        
+        // Convert lean document back to model instance for saving
+        const userDoc = user ? await User.findOne({ clerkId: userId }) : null;
 
-        if (user) {
+        if (userDoc) {
             const baseXP = 10;
             const sameDayBonus = isSameDay ? 15 : 0;
 
             // Calculate streak bonus
             let streakBonus = 0;
-            let newStreak = user.streak || 0;
+            let newStreak = userDoc.streak || 0;
 
             if (isSameDay) {
                 // Check if this continues the streak
-                const lastTransactionDate = user.lastTransactionDate;
+                const lastTransactionDate = userDoc.lastTransactionDate;
 
                 if (lastTransactionDate) {
                     const lastDate = new Date(lastTransactionDate);
@@ -266,10 +283,10 @@ app.post('/api/transactions', validateTransaction, async (req, res) => {
 
                     if (daysDiff === 1) {
                         // Consecutive day - increment streak
-                        newStreak = (user.streak || 0) + 1;
+                        newStreak = (userDoc.streak || 0) + 1;
                     } else if (daysDiff === 0) {
                         // Same day - maintain streak
-                        newStreak = user.streak || 0;
+                        newStreak = userDoc.streak || 0;
                     } else {
                         // Streak broken - reset to 1
                         newStreak = 1;
@@ -282,20 +299,20 @@ app.post('/api/transactions', validateTransaction, async (req, res) => {
                 streakBonus = newStreak * 2;
 
                 // Update user streak and last transaction date
-                user.streak = newStreak;
-                user.lastTransactionDate = currentDate;
+                userDoc.streak = newStreak;
+                userDoc.lastTransactionDate = currentDate;
             }
 
             const totalXP = baseXP + sameDayBonus + streakBonus;
 
             // Update user XP
-            user.xp = (user.xp || 0) + totalXP;
+            userDoc.xp = (userDoc.xp || 0) + totalXP;
 
             // Calculate new level (simple level calculation)
-            const newLevel = Math.floor(user.xp / 100) + 1;
-            user.level = newLevel;
+            const newLevel = Math.floor(userDoc.xp / 100) + 1;
+            userDoc.level = newLevel;
 
-            await user.save();
+            await userDoc.save();
 
             // Store XP awarded in transaction
             newTransaction.xpAwarded = totalXP;
@@ -316,7 +333,7 @@ app.post('/api/transactions', validateTransaction, async (req, res) => {
                     sameDayBonus,
                     streakBonus,
                     totalXP,
-                    newStreak: isSameDay ? newStreak : user.streak || 0,
+                    newStreak: isSameDay ? newStreak : userDoc.streak || 0,
                     isSameDay
                 }
             });
