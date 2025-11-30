@@ -125,7 +125,7 @@ export const FinancialMetricsDashboard: React.FC<FinancialMetricsDashboardProps>
                         value={formatCurrency(metrics.currentMonthSpending)}
                         icon={TrendingDown}
                         trend="down"
-                        trendValue={`${metrics.budgetUtilization.toFixed(1)}% of budget`}
+                        trendValue={`${(metrics.budgetUtilization || 0).toFixed(1)}% of budget`}
                         colorClass="text-rose-400"
                     />
                     <MetricCard
@@ -180,7 +180,7 @@ export const FinancialMetricsDashboard: React.FC<FinancialMetricsDashboardProps>
                             ) : (
                                 <TrendingDown size={16} className="mr-1" />
                             )}
-                            {Math.abs(metrics.trendPercentage).toFixed(1)}% {metrics.trendPositive ? 'under' : 'over'} budget
+                            {Math.abs(metrics.trendPercentage || 0).toFixed(1)}% {metrics.trendPositive ? 'under' : 'over'} budget
                         </div>
                     </div>
                 </div>

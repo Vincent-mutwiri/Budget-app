@@ -92,6 +92,15 @@ mongoose.connect(MONGODB_URI)
         process.exit(1);
     });
 
+// Root endpoint
+app.get('/', (req, res) => {
+    res.json({
+        name: 'SmartWallet API',
+        version: '1.0.0',
+        status: 'running'
+    });
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
     const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
