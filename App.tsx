@@ -11,7 +11,7 @@ import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from "@clerk/c
 import {
   getTransactions, createTransaction,
   getBudgets, updateBudget,
-  getGoals, createGoal, updateGoal, removeGoalImage, contributeToGoal,
+  getGoals, updateGoal, removeGoalImage, contributeToGoal,
   getAccounts,
   getUser,
   createAccount,

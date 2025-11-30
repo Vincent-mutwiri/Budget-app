@@ -120,7 +120,9 @@ app.use('/api/receipts', receiptRoutes);
 // Get User Data
 app.get('/api/user/:clerkId', async (req, res) => {
     try {
-        const user = await User.findOne({ clerkId: req.params.clerkId });
+        // Use lean() to bypass validation initially so we can check for corruption
+        let user = await User.findOne({ clerkId: req.params.clerkId }).lean();
+
         if (!user) {
             // Create new user if not exists (first login)
             const newUser = new User({
@@ -132,6 +134,24 @@ app.get('/api/user/:clerkId', async (req, res) => {
             await newUser.save();
             return res.json(newUser);
         }
+
+        // Check for corrupted customCategories (string instead of array)
+        if (user && (!Array.isArray(user.customCategories) || typeof user.customCategories === 'string')) {
+            console.log(`Fixing corrupted customCategories for user ${req.params.clerkId}`);
+            await User.updateOne(
+                { clerkId: req.params.clerkId },
+                { $set: { customCategories: [] } }
+            );
+            // Fetch again to get the clean document
+            const cleanUser = await User.findOne({ clerkId: req.params.clerkId });
+            return res.json(cleanUser);
+        }
+
+        // If no corruption, we can return the user. 
+        // Since we used lean(), we might want to return that or fetch full doc if methods are needed.
+        // For simple JSON response, lean is fine, but let's be consistent with previous behavior
+        // and return a proper document if we didn't have to fix it, or just return the lean object.
+        // Returning lean object is faster and safer here.
         res.json(user);
     } catch (error) {
         console.error('Error in /api/user/:clerkId:', error);
@@ -145,9 +165,22 @@ app.get('/api/categories/custom', async (req, res) => {
     if (!userId) return res.status(400).json({ error: 'UserId required' });
 
     try {
-        const user = await User.findOne({ clerkId: userId });
+        // Use lean() to avoid validation error if corrupted
+        let user = await User.findOne({ clerkId: userId }).lean();
+
+        // Fix corruption if present
+        if (user && (!Array.isArray(user.customCategories) || typeof user.customCategories === 'string')) {
+            console.log(`Fixing corrupted customCategories for user ${userId} in GET categories`);
+            await User.updateOne(
+                { clerkId: userId },
+                { $set: { customCategories: [] } }
+            );
+            return res.json([]);
+        }
+
         res.json(user?.customCategories || []);
     } catch (error) {
+        console.error('Error getting custom categories:', error);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -158,14 +191,28 @@ app.post('/api/categories/custom', async (req, res) => {
     if (!userId || !category || !type) return res.status(400).json({ error: 'UserId, category, and type required' });
 
     try {
+        // Use lean first to check/fix corruption
+        let userLean = await User.findOne({ clerkId: userId }).lean();
+        if (!userLean) return res.status(404).json({ error: 'User not found' });
+
+        // Fix corruption if present
+        if (!Array.isArray(userLean.customCategories) || typeof userLean.customCategories === 'string') {
+            console.log(`Fixing corrupted customCategories for user ${userId} in POST category`);
+            await User.updateOne(
+                { clerkId: userId },
+                { $set: { customCategories: [] } }
+            );
+        }
+
+        // Now fetch properly to update
         const user = await User.findOne({ clerkId: userId });
         if (!user) return res.status(404).json({ error: 'User not found' });
 
-        // Ensure customCategories is an array
+        // Ensure customCategories is an array (should be now, but safe check)
         if (!Array.isArray(user.customCategories)) {
             user.customCategories = [] as any;
         }
-        
+
         if (!user.customCategories.find((c: any) => c.name === category)) {
             user.customCategories.push({ name: category, type });
             await user.save();
@@ -184,6 +231,21 @@ app.delete('/api/categories/custom/:category', async (req, res) => {
     if (!userId) return res.status(400).json({ error: 'UserId required' });
 
     try {
+        // Use lean first to check/fix corruption
+        let userLean = await User.findOne({ clerkId: userId }).lean();
+        if (!userLean) return res.status(404).json({ error: 'User not found' });
+
+        // Fix corruption if present
+        if (!Array.isArray(userLean.customCategories) || typeof userLean.customCategories === 'string') {
+            console.log(`Fixing corrupted customCategories for user ${userId} in DELETE category`);
+            await User.updateOne(
+                { clerkId: userId },
+                { $set: { customCategories: [] } }
+            );
+            // If it was corrupted/empty, there's nothing to delete, so just return empty
+            return res.json([]);
+        }
+
         const user = await User.findOne({ clerkId: userId });
         if (!user) return res.status(404).json({ error: 'User not found' });
 
@@ -191,6 +253,7 @@ app.delete('/api/categories/custom/:category', async (req, res) => {
         await user.save();
         res.json(user.customCategories);
     } catch (error) {
+        console.error('Error deleting custom category:', error);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -252,7 +315,7 @@ app.post('/api/transactions', validateTransaction, async (req, res) => {
 
         // Get user for streak and XP calculation
         let user = await User.findOne({ clerkId: userId }).lean();
-        
+
         // Fix corrupted customCategories if needed
         if (user && (!Array.isArray(user.customCategories) || typeof user.customCategories === 'string')) {
             await User.updateOne(
@@ -261,7 +324,7 @@ app.post('/api/transactions', validateTransaction, async (req, res) => {
             );
             user = await User.findOne({ clerkId: userId }).lean();
         }
-        
+
         // Convert lean document back to model instance for saving
         const userDoc = user ? await User.findOne({ clerkId: userId }) : null;
 
@@ -356,8 +419,8 @@ app.post('/api/transactions', validateTransaction, async (req, res) => {
         if (error instanceof Error) {
             console.error('Error details:', error.message, error.stack);
         }
-        return res.status(500).json({ 
-            error: 'Server error', 
+        return res.status(500).json({
+            error: 'Server error',
             details: error instanceof Error ? error.message : 'Unknown error'
         });
     }
