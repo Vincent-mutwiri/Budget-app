@@ -126,22 +126,22 @@
   - Update in real-time
   - _Requirements: 13.1, 13.2, 13.3, 13.4_
 
-- [ ] 9. Frontend - Transaction Management UI
-- [ ] 9.1 Implement date persistence in transaction form
+- [x] 9. Frontend - Transaction Management UI
+- [x] 9.1 Implement date persistence in transaction form
   - Keep date field value after form submission
   - Clear only amount, category, and description fields
   - Add visual indicator for retained date
   - Add toggle to enable/disable date retention
   - _Requirements: 2.1, 2.2, 2.3, 2.4_
 
-- [ ] 9.2 Add deletion confirmation modal
+- [x] 9.2 Add deletion confirmation modal
   - Show confirmation dialog before deleting transaction
   - Display transaction details in confirmation
   - Implement confirm and cancel actions
   - Call DELETE /api/transactions/:id with specific ID
   - _Requirements: 4.1, 4.2, 4.3_
 
-- [ ] 9.3 Display same-day XP rewards
+- [x] 9.3 Display same-day XP rewards
   - Show XP reward notification after transaction creation
   - Highlight bonus XP for same-day logging
   - Display streak information

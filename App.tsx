@@ -33,7 +33,7 @@ import { Modal } from './components/Modal';
 import { AddBudgetForm, AddGoalForm } from './components/Forms';
 import { AddAccountForm } from './components/AddAccountForm';
 import { CategoryManager } from './components/CategoryManager';
-import { createBudget, createGoal, getRecurringTransactions, createRecurringTransaction, updateRecurringTransaction, deleteRecurringTransaction, toggleRecurringTransaction } from './services/api';
+import { createBudget, createGoal, getRecurringTransactions, createRecurringTransaction, updateRecurringTransaction, deleteRecurringTransaction, toggleRecurringTransaction, deleteTransaction } from './services/api';
 import { RecurringTransactionsView } from './components/RecurringTransactionsView';
 import type { RecurringTransaction, RecurringTransactionInput } from './types';
 import { NotificationCenter } from './components/NotificationCenter';
@@ -130,6 +130,8 @@ const TransactionsView = ({
   const [showSuggestion, setShowSuggestion] = useState(true);
   const [showReceiptScanner, setShowReceiptScanner] = useState(false);
   const [customCategory, setCustomCategory] = useState('');
+  const [retainDate, setRetainDate] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{ isOpen: boolean; transaction: Transaction | null }>({ isOpen: false, transaction: null });
   const { user: clerkUser } = useUser();
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -146,11 +148,14 @@ const TransactionsView = ({
       type
     });
 
-    // Reset form
+    // Reset form - keep date if retainDate is enabled
     setAmount('');
     setDescription('');
     setCategory('');
     setCustomCategory('');
+    if (!retainDate) {
+      setDate(new Date().toISOString().split('T')[0]);
+    }
   };
 
   const handleReceiptTransaction = (transactionData: any) => {
@@ -301,14 +306,68 @@ const TransactionsView = ({
 
             {/* Date */}
             <div>
-              <label className="block text-forest-300 text-sm font-medium mb-2">Date</label>
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="w-full bg-forest-950 border border-forest-700 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary [color-scheme:dark]"
-                required
-              />
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-forest-300 text-sm font-medium">Date</label>
+                <button
+                  type="button"
+                  onClick={() => setRetainDate(!retainDate)}
+                  className={`flex items-center gap-2 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${retainDate
+                    ? 'bg-primary/20 text-primary border border-primary/30'
+                    : 'bg-forest-900 text-forest-400 border border-forest-700 hover:text-forest-300'
+                    }`}
+                  title={retainDate ? 'Date will be kept after submission' : 'Date will reset after submission'}
+                >
+                  <svg
+                    className="w-3.5 h-3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                    />
+                  </svg>
+                  {retainDate ? 'Keep Date' : 'Reset Date'}
+                </button>
+              </div>
+              <div className="relative">
+                <input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  className={`w-full bg-forest-950 border rounded-xl py-3 px-4 text-white focus:outline-none focus:ring-1 [color-scheme:dark] transition-colors ${retainDate
+                    ? 'border-primary/50 focus:border-primary ring-primary/20'
+                    : 'border-forest-700 focus:border-primary focus:ring-primary'
+                    }`}
+                  required
+                />
+                {retainDate && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                    <svg
+                      className="w-4 h-4 text-primary"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </div>
+                )}
+              </div>
+              {retainDate && (
+                <p className="mt-1.5 text-xs text-primary/80 flex items-center gap-1.5">
+                  <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                  Date will be kept for bulk entry
+                </p>
+              )}
             </div>
 
             {/* Description */}
@@ -409,7 +468,7 @@ const TransactionsView = ({
                         <Pencil size={16} />
                       </button>
                       <button
-                        onClick={() => onDelete(t.id)}
+                        onClick={() => setDeleteConfirmation({ isOpen: true, transaction: t })}
                         className="p-1.5 text-forest-400 hover:text-rose-500 transition-colors rounded-lg hover:bg-forest-900"
                       >
                         <Trash2 size={16} />
@@ -450,6 +509,64 @@ const TransactionsView = ({
             onTransactionCreated={handleReceiptTransaction}
             onClose={() => setShowReceiptScanner(false)}
           />
+        </Modal>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmation.isOpen && deleteConfirmation.transaction && (
+        <Modal
+          isOpen={deleteConfirmation.isOpen}
+          onClose={() => setDeleteConfirmation({ isOpen: false, transaction: null })}
+          title="Delete Transaction"
+        >
+          <div className="space-y-4">
+            <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4">
+              <p className="text-forest-300 text-sm mb-3">
+                Are you sure you want to delete this transaction? This action cannot be undone.
+              </p>
+              <div className="bg-forest-950 rounded-lg p-3 space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-forest-400 text-xs">Description:</span>
+                  <span className="text-white text-sm font-medium">{deleteConfirmation.transaction.description}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-forest-400 text-xs">Category:</span>
+                  <span className="px-2 py-0.5 rounded-full bg-forest-900 border border-forest-700 text-forest-300 text-xs">
+                    {deleteConfirmation.transaction.category}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-forest-400 text-xs">Amount:</span>
+                  <span className={`text-sm font-bold ${deleteConfirmation.transaction.type === 'income' ? 'text-primary' : 'text-rose-400'}`}>
+                    {deleteConfirmation.transaction.type === 'expense' ? '-' : '+'}{formatCurrency(deleteConfirmation.transaction.amount)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-forest-400 text-xs">Date:</span>
+                  <span className="text-white text-sm">
+                    {new Date(deleteConfirmation.transaction.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteConfirmation({ isOpen: false, transaction: null })}
+                className="flex-1 px-4 py-3 bg-forest-800 hover:bg-forest-700 text-white rounded-xl font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  onDelete(deleteConfirmation.transaction!.id);
+                  setDeleteConfirmation({ isOpen: false, transaction: null });
+                }}
+                className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-medium transition-colors"
+              >
+                Delete Transaction
+              </button>
+            </div>
+          </div>
         </Modal>
       )}
     </div>
@@ -1654,6 +1771,16 @@ export default function App() {
   // Notification Preferences Modal
   const [isNotificationPrefsOpen, setIsNotificationPrefsOpen] = useState(false);
 
+  // XP Reward Notification
+  const [xpReward, setXpReward] = useState<{
+    isVisible: boolean;
+    baseXP: number;
+    sameDayBonus: number;
+    streakBonus: number;
+    totalXP: number;
+    newStreak: number;
+  } | null>(null);
+
   // Alerts
   const alerts: Alert[] = [];
 
@@ -1814,10 +1941,13 @@ export default function App() {
     setTransactions(prev => [optimisticTx as Transaction, ...prev]);
 
     try {
-      const savedTx = await createTransaction({
+      const response = await createTransaction({
         ...newTx,
         userId: clerkUser.id
       });
+
+      const savedTx = response.transaction || response;
+      const xpRewardData = response.xpReward;
 
       setTransactions(prev => prev.map(t => t.id === tempId ? savedTx : t));
       cache.set(`transactions_${clerkUser.id}`, [savedTx, ...transactions.filter(t => t.id !== tempId)]);
@@ -1841,7 +1971,32 @@ export default function App() {
         cache.set(`budgets_${clerkUser.id}`, updatedBudgets);
       }
 
-      setUser(prev => ({ ...prev, xp: prev.xp + XP_REWARDS.ADD_TRANSACTION }));
+      // Update user XP and streak
+      if (xpRewardData) {
+        setUser(prev => ({
+          ...prev,
+          xp: prev.xp + xpRewardData.totalXP,
+          streak: xpRewardData.newStreak || prev.streak
+        }));
+
+        // Show XP reward notification
+        setXpReward({
+          isVisible: true,
+          baseXP: xpRewardData.baseXP || 10,
+          sameDayBonus: xpRewardData.sameDayBonus || 0,
+          streakBonus: xpRewardData.streakBonus || 0,
+          totalXP: xpRewardData.totalXP,
+          newStreak: xpRewardData.newStreak || 0
+        });
+
+        // Auto-hide after 5 seconds
+        setTimeout(() => {
+          setXpReward(null);
+        }, 5000);
+      } else {
+        setUser(prev => ({ ...prev, xp: prev.xp + XP_REWARDS.ADD_TRANSACTION }));
+      }
+
       success('Transaction added successfully!');
     } catch (err) {
       setTransactions(prev => prev.filter(t => t.id !== tempId));
@@ -1960,9 +2115,13 @@ export default function App() {
     const transaction = transactions.find(t => t.id === id);
     if (!transaction) return;
 
+    // Optimistically update UI
     setTransactions(prev => prev.filter(t => t.id !== id));
 
     try {
+      // Call API to delete transaction
+      await deleteTransaction(id);
+
       const updatedTransactions = transactions.filter(t => t.id !== id);
       cache.set(`transactions_${clerkUser.id}`, updatedTransactions);
 
@@ -1982,6 +2141,7 @@ export default function App() {
 
       success('Transaction deleted successfully!');
     } catch (err) {
+      // Rollback on error
       setTransactions(prev => [...prev, transaction]);
       showError('Failed to delete transaction. Please try again.');
     }
@@ -2182,6 +2342,64 @@ export default function App() {
       <SignedIn>
         {/* Toast Container */}
         <ToastContainer toasts={toasts} onClose={closeToast} />
+
+        {/* XP Reward Notification */}
+        {xpReward && xpReward.isVisible && (
+          <div className="fixed top-20 right-4 z-50 animate-slide-in">
+            <div className="bg-gradient-to-br from-primary/20 to-primary/5 border-2 border-primary/40 rounded-2xl p-5 shadow-2xl backdrop-blur-sm min-w-[320px] animate-bounce-subtle">
+              <div className="flex items-start gap-4">
+                <div className="bg-primary/20 p-3 rounded-xl animate-pulse">
+                  <svg className="w-8 h-8 text-primary" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-white font-bold text-lg mb-1">XP Earned! 🎉</h3>
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between items-center">
+                      <span className="text-forest-300 text-sm">Base XP:</span>
+                      <span className="text-white font-semibold">+{xpReward.baseXP}</span>
+                    </div>
+                    {xpReward.sameDayBonus > 0 && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-primary text-sm font-medium">Same-Day Bonus:</span>
+                        <span className="text-primary font-bold">+{xpReward.sameDayBonus}</span>
+                      </div>
+                    )}
+                    {xpReward.streakBonus > 0 && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-primary text-sm font-medium">Streak Bonus:</span>
+                        <span className="text-primary font-bold">+{xpReward.streakBonus}</span>
+                      </div>
+                    )}
+                    <div className="pt-2 mt-2 border-t border-primary/20 flex justify-between items-center">
+                      <span className="text-white font-bold">Total XP:</span>
+                      <span className="text-primary font-bold text-xl">+{xpReward.totalXP}</span>
+                    </div>
+                    {xpReward.newStreak > 0 && (
+                      <div className="flex items-center gap-2 mt-2 pt-2 border-t border-primary/20">
+                        <svg className="w-4 h-4 text-primary" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clipRule="evenodd" />
+                        </svg>
+                        <span className="text-primary text-sm font-medium">
+                          {xpReward.newStreak} day streak! 🔥
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <button
+                  onClick={() => setXpReward(null)}
+                  className="text-forest-400 hover:text-white transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Offline Indicator */}
         <OfflineIndicator />

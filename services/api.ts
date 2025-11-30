@@ -42,6 +42,11 @@ export const createTransaction = async (transaction: any) => {
     return response.data;
 };
 
+export const deleteTransaction = async (id: string) => {
+    const response = await api.delete(`/transactions/${id}`);
+    return response.data;
+};
+
 // Budgets
 export const getBudgets = async (userId: string) => {
     const response = await api.get('/budgets', { params: { userId } });
