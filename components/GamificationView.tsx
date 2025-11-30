@@ -3,18 +3,20 @@ import { useUser } from '@clerk/clerk-react';
 import ChallengeCard from './ChallengeCard';
 import BadgeShowcase from './BadgeShowcase';
 import Leaderboard from './Leaderboard';
-import { Challenge, Badge, LeaderboardEntry, UserGamificationState } from '../types';
+import { BudgetAdherenceRewards } from './BudgetAdherenceRewards';
+import { Challenge, Badge, LeaderboardEntry, UserGamificationState, Budget } from '../types';
 import { Calendar, LayoutGrid, Target, Trophy, Award, TrendingUp } from 'lucide-react';
 
 interface GamificationViewProps {
     onShowNotification?: (message: string, type: 'success' | 'error') => void;
+    budgets?: Budget[];
 }
 
-const GamificationView: React.FC<GamificationViewProps> = ({ onShowNotification }) => {
+const GamificationView: React.FC<GamificationViewProps> = ({ onShowNotification, budgets = [] }) => {
     const { user } = useUser();
     const userId = user?.id || '';
 
-    const [activeTab, setActiveTab] = useState<'challenges' | 'achievements' | 'leaderboards'>('challenges');
+    const [activeTab, setActiveTab] = useState<'challenges' | 'achievements' | 'leaderboards' | 'rewards'>('challenges');
     const [challenges, setChallenges] = useState<Challenge[]>([]);
     const [badges, setBadges] = useState<Badge[]>([]);
     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
@@ -183,22 +185,32 @@ const GamificationView: React.FC<GamificationViewProps> = ({ onShowNotification 
             )}
 
             {/* Tabs */}
-            <div className="flex gap-2 bg-gray-900 p-1 rounded-xl w-fit">
+            <div className="flex gap-2 bg-gray-900 p-1 rounded-xl w-fit overflow-x-auto">
                 <button
                     onClick={() => setActiveTab('challenges')}
-                    className={`px-6 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'challenges'
-                            ? 'bg-gray-800 text-white border border-gray-700'
-                            : 'text-gray-400 hover:text-white'
+                    className={`px-6 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === 'challenges'
+                        ? 'bg-gray-800 text-white border border-gray-700'
+                        : 'text-gray-400 hover:text-white'
                         }`}
                 >
                     <Calendar className="inline mr-2" size={16} />
                     Challenges
                 </button>
                 <button
+                    onClick={() => setActiveTab('rewards')}
+                    className={`px-6 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === 'rewards'
+                        ? 'bg-gray-800 text-white border border-gray-700'
+                        : 'text-gray-400 hover:text-white'
+                        }`}
+                >
+                    <Trophy className="inline mr-2" size={16} />
+                    Rewards
+                </button>
+                <button
                     onClick={() => setActiveTab('achievements')}
-                    className={`px-6 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'achievements'
-                            ? 'bg-gray-800 text-white border border-gray-700'
-                            : 'text-gray-400 hover:text-white'
+                    className={`px-6 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === 'achievements'
+                        ? 'bg-gray-800 text-white border border-gray-700'
+                        : 'text-gray-400 hover:text-white'
                         }`}
                 >
                     <Award className="inline mr-2" size={16} />
@@ -206,9 +218,9 @@ const GamificationView: React.FC<GamificationViewProps> = ({ onShowNotification 
                 </button>
                 <button
                     onClick={() => setActiveTab('leaderboards')}
-                    className={`px-6 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'leaderboards'
-                            ? 'bg-gray-800 text-white border border-gray-700'
-                            : 'text-gray-400 hover:text-white'
+                    className={`px-6 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === 'leaderboards'
+                        ? 'bg-gray-800 text-white border border-gray-700'
+                        : 'text-gray-400 hover:text-white'
                         }`}
                 >
                     <TrendingUp className="inline mr-2" size={16} />
@@ -288,6 +300,19 @@ const GamificationView: React.FC<GamificationViewProps> = ({ onShowNotification 
                             <p className="text-gray-500 text-sm mt-2">Check back later for new challenges!</p>
                         </div>
                     )}
+                </div>
+            )}
+
+            {/* Rewards Tab */}
+            {activeTab === 'rewards' && (
+                <div className="space-y-6">
+                    <div>
+                        <h3 className="text-2xl font-bold text-white mb-2">Budget Adherence Rewards</h3>
+                        <p className="text-gray-400 mb-6">
+                            Earn XP by staying within your budgets. The more categories you manage well, the more rewards you earn!
+                        </p>
+                        <BudgetAdherenceRewards userId={userId} budgets={budgets} />
+                    </div>
                 </div>
             )}
 
