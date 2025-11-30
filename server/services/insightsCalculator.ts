@@ -53,32 +53,41 @@ export async function calculateHealthScore(userId: string): Promise<{
     if (budgets.length > 0) {
         const adherenceScores = budgets.map(budget => {
             if (budget.limit === 0) return 100;
-            const adherence = Math.min(100, (1 - (budget.spent / budget.limit)) * 100);
-            return Math.max(0, adherence);
+            const utilizationRate = budget.spent / budget.limit;
+            // Perfect score at 80-90% utilization, penalty for over/under
+            if (utilizationRate <= 0.9) {
+                return Math.min(100, utilizationRate * 111); // 90% usage = 100 score
+            } else {
+                return Math.max(0, 100 - ((utilizationRate - 0.9) * 200)); // Penalty for overspending
+            }
         });
         budgetAdherence = adherenceScores.reduce((sum, score) => sum + score, 0) / budgets.length;
     }
 
     // Calculate emergency fund score (0-100)
-    // Assuming 3 months of expenses is ideal
-    const monthlyExpenses = expenses;
+    // Assuming 3-6 months of expenses is ideal
+    const monthlyExpenses = expenses || 1000; // Default minimum if no expenses
     const emergencyFundTarget = monthlyExpenses * 3;
 
     // Get total savings from investments and positive balance
     const investments = await Investment.find({ userId });
     const totalInvestments = investments.reduce((sum, inv) => sum + inv.currentValue, 0);
+    
+    // Also consider savings (income - expenses over time)
+    const totalSavings = Math.max(0, savingsAmount);
+    const liquidAssets = totalInvestments + totalSavings;
 
     const emergencyFund = emergencyFundTarget > 0
-        ? Math.min(100, (totalInvestments / emergencyFundTarget) * 100)
-        : 50; // Default to 50 if no expenses
+        ? Math.min(100, (liquidAssets / emergencyFundTarget) * 100)
+        : totalInvestments > 0 ? 75 : 25; // Give credit for having investments
 
     // Calculate overall health score (weighted average)
-    const healthScore = Math.round(
-        (savingsRate * 0.3) +
+    const healthScore = Math.min(100, Math.round(
+        (savingsRate * 0.35) +
         (debtToIncome * 0.25) +
-        (budgetAdherence * 0.25) +
-        (emergencyFund * 0.2)
-    );
+        (budgetAdherence * 0.20) +
+        (emergencyFund * 0.20)
+    ));
 
     return {
         healthScore,
@@ -153,7 +162,7 @@ export async function calculateSpendingTrends(userId: string): Promise<CategoryT
             percentageChange = 100;
         }
 
-        if (Math.abs(percentageChange) < 5) {
+        if (Math.abs(percentageChange) < 10) {
             trend = 'stable';
         } else if (percentageChange > 0) {
             trend = 'up';
@@ -234,11 +243,18 @@ export async function calculateForecast(userId: string): Promise<{
     });
 
     // Combine historical average with recurring transactions
-    const projectedIncome = Math.round((avgIncome * 0.7) + (recurringIncome * 0.3));
-    const projectedExpenses = Math.round((avgExpenses * 0.7) + (recurringExpenses * 0.3));
+    // Weight recurring more heavily if we have them
+    const hasRecurring = recurringIncome > 0 || recurringExpenses > 0;
+    const projectedIncome = hasRecurring 
+        ? Math.round((avgIncome * 0.5) + (recurringIncome * 0.5))
+        : Math.round(avgIncome);
+    const projectedExpenses = hasRecurring
+        ? Math.round((avgExpenses * 0.5) + (recurringExpenses * 0.5))
+        : Math.round(avgExpenses);
 
-    // Calculate confidence based on data consistency
-    const confidence = months.length >= 3 ? 85 : months.length >= 2 ? 70 : 50;
+    // Calculate confidence based on data consistency and recurring transactions
+    let confidence = months.length >= 3 ? 85 : months.length >= 2 ? 70 : 50;
+    if (hasRecurring) confidence = Math.min(95, confidence + 10);
 
     return {
         projectedIncome,
@@ -297,8 +313,8 @@ export async function detectAnomalies(userId: string): Promise<SpendingAnomaly[]
         if (avgAmount && avgAmount > 0) {
             const deviationPercentage = ((t.amount - avgAmount) / avgAmount) * 100;
 
-            // Flag if transaction exceeds 150% of average
-            if (deviationPercentage >= 150) {
+            // Flag if transaction exceeds 200% of average (more reasonable threshold)
+            if (deviationPercentage >= 200 || (t.amount > avgAmount * 2.5)) {
                 anomalies.push({
                     transactionId: t._id.toString(),
                     category: t.category as Category,

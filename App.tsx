@@ -5,7 +5,7 @@ import {
   LayoutGrid, Settings, Folder, ArrowRight, X, DollarSign,
   TrendingUp, TrendingDown, CheckCircle2, AlertTriangle, AlertCircle, Medal, Flame, ChevronRight,
   Search, Filter, Pencil, Trash2, Lightbulb, Edit, Upload,
-  ShoppingCart, Bus, Film, Zap, ShoppingBag, PlusCircle, Download, Menu
+  ShoppingCart, Bus, Film, Zap, ShoppingBag, PlusCircle, Download, Menu, Trophy, Award
 } from 'lucide-react';
 import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from "@clerk/clerk-react";
 import {
@@ -51,6 +51,7 @@ import { LoadingSpinner } from './components/LoadingSpinner';
 import { ErrorMessage } from './components/ErrorMessage';
 import { useToast } from './hooks/useToast';
 import { XPNotification, XPRewardData } from './components/XPNotification';
+import GamificationViewIntegrated from './components/GamificationViewIntegrated';
 import { cache } from './utils/cache';
 import { SkeletonCard, SkeletonMetric, SkeletonTable } from './components/SkeletonLoader';
 import { MetricCard } from './components/shared/MetricCard';
@@ -757,8 +758,8 @@ const InvestmentsView = ({ securities }: { securities: Security[] }) => {
 
 // --- Gamification View Component ---
 
-const GamificationView = ({ user, challenges, clerkUser }: { user: UserState, challenges: Challenge[], clerkUser: any }) => {
-  const [activeTab, setActiveTab] = useState<'challenges' | 'achievements' | 'leaderboards'>('challenges');
+const GamificationView = ({ user, challenges, clerkUser, budgets }: { user: UserState, challenges: Challenge[], clerkUser: any, budgets: Budget[] }) => {
+  const [activeTab, setActiveTab] = useState<'challenges' | 'achievements' | 'leaderboards' | 'rewards'>('challenges');
 
   const currentLevel = calculateLevel(user.xp);
   const nextLevel = LEVEL_THRESHOLDS.find(l => l.level === currentLevel.level + 1);
@@ -858,32 +859,45 @@ const GamificationView = ({ user, challenges, clerkUser }: { user: UserState, ch
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 bg-forest-900 p-1 rounded-xl w-fit">
+      <div className="flex gap-2 bg-forest-900 p-1 rounded-xl w-fit overflow-x-auto">
         <button
           onClick={() => setActiveTab('challenges')}
-          className={`px-6 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'challenges'
+          className={`px-6 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === 'challenges'
             ? 'bg-forest-800 text-white border border-forest-700'
             : 'text-forest-400 hover:text-white'
             }`}
         >
+          <Calendar className="inline mr-2" size={16} />
           Challenges
         </button>
         <button
-          onClick={() => setActiveTab('achievements')}
-          className={`px-6 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'achievements'
+          onClick={() => setActiveTab('rewards')}
+          className={`px-6 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === 'rewards'
             ? 'bg-forest-800 text-white border border-forest-700'
             : 'text-forest-400 hover:text-white'
             }`}
         >
+          <Trophy className="inline mr-2" size={16} />
+          Rewards
+        </button>
+        <button
+          onClick={() => setActiveTab('achievements')}
+          className={`px-6 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === 'achievements'
+            ? 'bg-forest-800 text-white border border-forest-700'
+            : 'text-forest-400 hover:text-white'
+            }`}
+        >
+          <Award className="inline mr-2" size={16} />
           Achievements
         </button>
         <button
           onClick={() => setActiveTab('leaderboards')}
-          className={`px-6 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'leaderboards'
+          className={`px-6 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === 'leaderboards'
             ? 'bg-forest-800 text-white border border-forest-700'
             : 'text-forest-400 hover:text-white'
             }`}
         >
+          <TrendingUp className="inline mr-2" size={16} />
           Leaderboards
         </button>
       </div>
@@ -928,6 +942,23 @@ const GamificationView = ({ user, challenges, clerkUser }: { user: UserState, ch
                 <ChallengeCard key={challenge.id} challenge={challenge} />
               ))}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rewards Tab */}
+      {activeTab === 'rewards' && (
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-2xl font-bold text-white mb-2">Budget Adherence Rewards</h3>
+            <p className="text-forest-400 mb-6">
+              Earn XP by staying within your budgets. The more categories you manage well, the more rewards you earn!
+            </p>
+            {clerkUser && (
+              <div className="bg-forest-800 border border-forest-700 rounded-3xl p-6">
+                <p className="text-forest-400 text-center">Budget adherence rewards are tracked automatically. Keep your spending within budget limits to earn bonus XP!</p>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -3132,7 +3163,15 @@ export default function App() {
                 ) : activeView === 'debts' ? (
                   clerkUser ? <DebtTracker userId={clerkUser.id} /> : <div>Loading...</div>
                 ) : activeView === 'gamification' ? (
-                  <GamificationView user={user} challenges={challenges} clerkUser={clerkUser} budgets={budgets} />
+                  clerkUser ? (
+                    <GamificationViewIntegrated 
+                      budgets={budgets} 
+                      userXP={user.xp}
+                      userLevel={user.level}
+                      userStreak={user.streak}
+                      onShowNotification={(message, type) => type === 'success' ? success(message) : showError(message)}
+                    />
+                  ) : <div>Loading...</div>
                 ) : activeView === 'goals' ? (
                   <>
                     <div className="flex justify-end mb-4 px-8">

@@ -175,8 +175,8 @@ export const InvestmentList: React.FC<InvestmentListProps> = ({
                                 {/* Annualized Return */}
                                 <div>
                                     <p className="text-forest-500 text-xs mb-1">Annualized Return</p>
-                                    <p className={`font-semibold ${calculatedMetrics.annualizedReturn >= 0 ? 'text-primary' : 'text-rose-500'}`}>
-                                        {calculatedMetrics.annualizedReturn >= 0 ? '+' : ''}{calculatedMetrics.annualizedReturn.toFixed(2)}%
+                                    <p className={`font-semibold ${(calculatedMetrics.annualizedReturn || 0) >= 0 ? 'text-primary' : 'text-rose-500'}`}>
+                                        {(calculatedMetrics.annualizedReturn || 0) >= 0 ? '+' : ''}{(calculatedMetrics.annualizedReturn || 0).toFixed(2)}%
                                     </p>
                                     <p className="text-forest-500 text-xs">per year</p>
                                 </div>

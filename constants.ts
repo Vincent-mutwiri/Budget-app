@@ -23,19 +23,13 @@ export const XP_REWARDS = {
 
 export const formatCurrency = (amount: number) => {
   if (amount === null || amount === undefined || isNaN(amount)) {
-    return new Intl.NumberFormat('en-KE', {
-      style: 'currency',
-      currency: 'KES',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 2,
-    }).format(0);
+    amount = 0;
   }
-  return new Intl.NumberFormat('en-KE', {
-    style: 'currency',
-    currency: 'KES',
+  const formatted = new Intl.NumberFormat('en-KE', {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
-  }).format(amount);
+  }).format(Math.abs(amount));
+  return `${amount < 0 ? '-' : ''}KSh ${formatted}`;
 };
 
 export const calculateLevel = (xp: number): LevelData => {

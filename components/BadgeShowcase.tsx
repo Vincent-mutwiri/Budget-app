@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Badge } from '../types';
-import Modal from './Modal';
+import { Modal } from './Modal';
 
 interface BadgeShowcaseProps {
     badges: Badge[];

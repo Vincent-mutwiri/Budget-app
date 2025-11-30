@@ -44,7 +44,9 @@ export const InvestmentCharts: React.FC<InvestmentChartsProps> = ({ investments 
 
     // Calculate growth projection data
     const currentTotal = investments.reduce((sum, inv) => sum + inv.currentValue, 0);
-    const avgRate = investments.reduce((sum, inv) => sum + inv.ratePerAnnum, 0) / investments.length;
+    const avgRate = currentTotal > 0
+        ? investments.reduce((sum, inv) => sum + (inv.ratePerAnnum * inv.currentValue), 0) / currentTotal
+        : 0;
 
     const growthProjectionData = [
         { year: 'Now', value: currentTotal },
@@ -111,7 +113,7 @@ export const InvestmentCharts: React.FC<InvestmentChartsProps> = ({ investments 
             {/* Asset Allocation Pie Chart */}
             <div className="bg-forest-800 border border-forest-700 rounded-3xl p-6">
                 <h3 className="text-xl font-bold text-white mb-4">Asset Allocation</h3>
-                <div className="h-80">
+                <div className="h-80" style={{ minHeight: '320px' }}>
                     <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                             <Pie
@@ -119,7 +121,7 @@ export const InvestmentCharts: React.FC<InvestmentChartsProps> = ({ investments 
                                 cx="50%"
                                 cy="50%"
                                 labelLine={false}
-                                label={({ name, percentage }) => `${name} ${percentage.toFixed(0)}%`}
+                                label={({ name, percentage }: any) => `${name} ${percentage.toFixed(0)}%`}
                                 outerRadius={100}
                                 fill="#8884d8"
                                 dataKey="value"
@@ -156,7 +158,7 @@ export const InvestmentCharts: React.FC<InvestmentChartsProps> = ({ investments 
                 <p className="text-forest-400 text-sm mb-4">
                     Based on average rate of {avgRate.toFixed(2)}% per annum
                 </p>
-                <div className="h-80">
+                <div className="h-80" style={{ minHeight: '320px' }}>
                     <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={growthProjectionData}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#2D3748" />
@@ -168,7 +170,13 @@ export const InvestmentCharts: React.FC<InvestmentChartsProps> = ({ investments 
                             <YAxis
                                 stroke="#9CA3AF"
                                 style={{ fontSize: '12px' }}
-                                tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+                                tickFormatter={(value) => {
+                                    if (value >= 1000) {
+                                        const k = value / 1000;
+                                        return `KSh ${k % 1 === 0 ? k.toFixed(0) : k.toFixed(1)}k`;
+                                    }
+                                    return `KSh ${value.toFixed(0)}`;
+                                }}
                             />
                             <Tooltip content={<CustomLineTooltip />} />
                             <Line
@@ -213,7 +221,7 @@ export const InvestmentCharts: React.FC<InvestmentChartsProps> = ({ investments 
                     <p className="text-forest-400 text-sm mb-4">
                         Cumulative portfolio value over time
                     </p>
-                    <div className="h-80">
+                    <div className="h-80" style={{ minHeight: '320px' }}>
                         <ResponsiveContainer width="100%" height="100%">
                             <LineChart data={cumulativeHistoricalData}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="#2D3748" />
@@ -225,7 +233,13 @@ export const InvestmentCharts: React.FC<InvestmentChartsProps> = ({ investments 
                                 <YAxis
                                     stroke="#9CA3AF"
                                     style={{ fontSize: '12px' }}
-                                    tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+                                    tickFormatter={(value) => {
+                                        if (value >= 1000) {
+                                            const k = value / 1000;
+                                            return `KSh ${k % 1 === 0 ? k.toFixed(0) : k.toFixed(1)}k`;
+                                        }
+                                        return `KSh ${value.toFixed(0)}`;
+                                    }}
                                 />
                                 <Tooltip
                                     content={({ active, payload }) => {

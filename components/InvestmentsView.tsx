@@ -93,9 +93,9 @@ export const InvestmentsView: React.FC<InvestmentsViewProps> = ({ userId }) => {
     const totalReturn = totalValue - totalInvested;
     const totalReturnPercentage = totalInvested > 0 ? (totalReturn / totalInvested) * 100 : 0;
 
-    // Calculate average annualized return
-    const avgAnnualizedReturn = investments.length > 0
-        ? investments.reduce((sum, inv) => sum + inv.calculatedMetrics.annualizedReturn, 0) / investments.length
+    // Calculate weighted average annual return (yield)
+    const avgAnnualizedReturn = totalValue > 0
+        ? investments.reduce((sum, inv) => sum + (inv.ratePerAnnum * inv.currentValue), 0) / totalValue
         : 0;
 
     if (loading) {
