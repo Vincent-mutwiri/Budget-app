@@ -6,17 +6,18 @@ import { Budget } from '../models/Budget';
 import { Transaction } from '../models/Transaction';
 
 // XP thresholds for each level
+// XP thresholds for each level
 const LEVEL_THRESHOLDS = [
     { level: 1, minXP: 0, maxXP: 100, name: 'Beginner' },
     { level: 2, minXP: 100, maxXP: 250, name: 'Novice' },
-    { level: 3, minXP: 250, maxXP: 500, name: 'Apprentice' },
-    { level: 4, minXP: 500, maxXP: 1000, name: 'Intermediate' },
-    { level: 5, minXP: 1000, maxXP: 2000, name: 'Advanced' },
-    { level: 6, minXP: 2000, maxXP: 3500, name: 'Expert' },
-    { level: 7, minXP: 3500, maxXP: 5500, name: 'Master' },
-    { level: 8, minXP: 5500, maxXP: 8000, name: 'Grandmaster' },
-    { level: 9, minXP: 8000, maxXP: 11000, name: 'Legend' },
-    { level: 10, minXP: 11000, maxXP: Infinity, name: 'Financial Guru' }
+    { level: 3, minXP: 250, maxXP: 375, name: 'Apprentice' },
+    { level: 4, minXP: 375, maxXP: 500, name: 'Intermediate' },
+    { level: 5, minXP: 500, maxXP: 800, name: 'Advanced' },
+    { level: 6, minXP: 800, maxXP: 1100, name: 'Expert' },
+    { level: 7, minXP: 1100, maxXP: 1400, name: 'Master' },
+    { level: 8, minXP: 1400, maxXP: 1700, name: 'Grandmaster' },
+    { level: 9, minXP: 1700, maxXP: 2000, name: 'Legend' },
+    { level: 10, minXP: 2000, maxXP: Infinity, name: 'Financial Guru' }
 ];
 
 // XP rewards for different actions

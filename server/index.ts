@@ -307,15 +307,6 @@ app.post('/api/transactions', validateTransaction, async (req, res) => {
         // We wrap this in a try-catch so that if XP calculation fails (e.g. due to user data corruption),
         // we still return the successful transaction to the client.
         try {
-            const transactionDate = new Date(date);
-            const currentDate = new Date();
-
-            // Check if transaction date is the same as current date (ignoring time)
-            const isSameDay =
-                transactionDate.getFullYear() === currentDate.getFullYear() &&
-                transactionDate.getMonth() === currentDate.getMonth() &&
-                transactionDate.getDate() === currentDate.getDate();
-
             // Get user for streak and XP calculation
             let user;
             try {
@@ -339,98 +330,29 @@ app.post('/api/transactions', validateTransaction, async (req, res) => {
                     { clerkId: userId },
                     { $set: { customCategories: [] } }
                 );
-                user = await User.findOne({ clerkId: userId });
             }
 
-            // Convert lean document back to model instance for saving
-            const userDoc = user ? await User.findOne({ clerkId: userId }) : null;
+            // Use the centralized gamification engine to award XP
+            // This handles streaks, badges, notifications, and level updates
+            const xpReward = await awardTransactionXP(userId, new Date(date));
 
-            if (userDoc) {
-                const baseXP = 10;
-                const sameDayBonus = isSameDay ? 15 : 0;
+            // Store XP awarded in transaction
+            newTransaction.xpAwarded = xpReward.totalXP;
+            await newTransaction.save();
 
-                // Calculate streak bonus
-                let streakBonus = 0;
-                let newStreak = userDoc.streak || 0;
-
-                if (isSameDay) {
-                    // Check if this continues the streak
-                    const lastTransactionDate = userDoc.lastTransactionDate;
-
-                    if (lastTransactionDate) {
-                        const lastDate = new Date(lastTransactionDate);
-                        const daysDiff = Math.floor((currentDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
-
-                        if (daysDiff === 1) {
-                            // Consecutive day - increment streak
-                            newStreak = (userDoc.streak || 0) + 1;
-                        } else if (daysDiff === 0) {
-                            // Same day - maintain streak
-                            newStreak = userDoc.streak || 0;
-                        } else {
-                            // Streak broken - reset to 1
-                            newStreak = 1;
-                        }
-                    } else {
-                        // First transaction - start streak
-                        newStreak = 1;
-                    }
-
-                    streakBonus = newStreak * 2;
-
-                    // Update user streak and last transaction date
-                    userDoc.streak = newStreak;
-                    userDoc.lastTransactionDate = currentDate;
-                }
-
-                const totalXP = baseXP + sameDayBonus + streakBonus;
-
-                // Update user XP
-                userDoc.xp = (userDoc.xp || 0) + totalXP;
-
-                // Calculate new level (simple level calculation)
-                const newLevel = Math.floor(userDoc.xp / 100) + 1;
-                userDoc.level = newLevel;
-
-                await userDoc.save();
-
-                // Store XP awarded in transaction
-                newTransaction.xpAwarded = totalXP;
-                await newTransaction.save();
-
-                // Invalidate metrics cache since transaction affects financial metrics
-                try {
-                    invalidateMetricsCache(userId);
-                } catch (cacheError) {
-                    console.error('Cache invalidation error:', cacheError);
-                }
-
-                // Return transaction with XP reward details
-                return res.status(201).json({
-                    transaction: newTransaction.toObject(),
-                    xpReward: {
-                        baseXP,
-                        sameDayBonus,
-                        streakBonus,
-                        totalXP,
-                        newStreak: isSameDay ? newStreak : userDoc.streak || 0,
-                        isSameDay
-                    }
-                });
-            } else {
-                // Invalidate metrics cache even if user not found
-                try {
-                    invalidateMetricsCache(userId);
-                } catch (cacheError) {
-                    console.error('Cache invalidation error:', cacheError);
-                }
-
-                // User not found, return transaction without XP
-                return res.status(201).json({
-                    transaction: newTransaction.toObject(),
-                    xpReward: null
-                });
+            // Invalidate metrics cache since transaction affects financial metrics
+            try {
+                invalidateMetricsCache(userId);
+            } catch (cacheError) {
+                console.error('Cache invalidation error:', cacheError);
             }
+
+            // Return transaction with XP reward details
+            return res.status(201).json({
+                transaction: newTransaction.toObject(),
+                xpReward: xpReward
+            });
+
         } catch (xpError) {
             console.error('Error calculating XP or updating user:', xpError);
             // Return success for the transaction even if XP failed
@@ -2010,7 +1932,9 @@ import {
     calculateLevel,
     calculateLevelProgress,
     BADGE_DEFINITIONS,
-    initializeBadges
+    initializeBadges,
+    awardTransactionXP,
+    TransactionXPReward
 } from './services/gamificationEngine';
 
 // Get challenges for a user
