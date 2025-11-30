@@ -21,15 +21,15 @@
   - Return total planned budget
   - _Requirements: 1.5_
 
-- [ ] 3. Backend API - Transaction Management
-- [ ] 3.1 Fix DELETE /api/transactions/:id endpoint
+- [x] 3. Backend API - Transaction Management
+- [x] 3.1 Fix DELETE /api/transactions/:id endpoint
   - Ensure deletion uses unique transaction ID
   - Add confirmation requirement
   - Update related budgets and metrics after deletion
   - Return updated metrics
   - _Requirements: 4.1, 4.2, 4.3, 4.4_
 
-- [ ] 3.2 Enhance POST /api/transactions endpoint with gamification
+- [x] 3.2 Enhance POST /api/transactions endpoint with gamification
   - Calculate same-day bonus XP when transaction date equals current date
   - Update user XP, streak, and lastTransactionDate
   - Return transaction with XP reward details

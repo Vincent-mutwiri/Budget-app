@@ -181,10 +181,186 @@ app.get('/api/transactions', async (req, res) => {
 // Add Transaction
 app.post('/api/transactions', validateTransaction, async (req, res) => {
     try {
+        const { userId, date } = req.body;
+
+        // Create and save the transaction
         const newTransaction = new Transaction(req.body);
         await newTransaction.save();
-        res.status(201).json(newTransaction);
+
+        // Calculate same-day XP bonus
+        const transactionDate = new Date(date);
+        const currentDate = new Date();
+
+        // Check if transaction date is the same as current date (ignoring time)
+        const isSameDay =
+            transactionDate.getFullYear() === currentDate.getFullYear() &&
+            transactionDate.getMonth() === currentDate.getMonth() &&
+            transactionDate.getDate() === currentDate.getDate();
+
+        // Get user for streak and XP calculation
+        const user = await User.findOne({ clerkId: userId });
+
+        if (user) {
+            const baseXP = 10;
+            const sameDayBonus = isSameDay ? 15 : 0;
+
+            // Calculate streak bonus
+            let streakBonus = 0;
+            let newStreak = user.streak || 0;
+
+            if (isSameDay) {
+                // Check if this continues the streak
+                const lastTransactionDate = user.lastTransactionDate;
+
+                if (lastTransactionDate) {
+                    const lastDate = new Date(lastTransactionDate);
+                    const daysDiff = Math.floor((currentDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+
+                    if (daysDiff === 1) {
+                        // Consecutive day - increment streak
+                        newStreak = (user.streak || 0) + 1;
+                    } else if (daysDiff === 0) {
+                        // Same day - maintain streak
+                        newStreak = user.streak || 0;
+                    } else {
+                        // Streak broken - reset to 1
+                        newStreak = 1;
+                    }
+                } else {
+                    // First transaction - start streak
+                    newStreak = 1;
+                }
+
+                streakBonus = newStreak * 2;
+
+                // Update user streak and last transaction date
+                user.streak = newStreak;
+                user.lastTransactionDate = currentDate;
+            }
+
+            const totalXP = baseXP + sameDayBonus + streakBonus;
+
+            // Update user XP
+            user.xp = (user.xp || 0) + totalXP;
+
+            // Calculate new level (simple level calculation)
+            const newLevel = Math.floor(user.xp / 100) + 1;
+            user.level = newLevel;
+
+            await user.save();
+
+            // Store XP awarded in transaction
+            newTransaction.xpAwarded = totalXP;
+            await newTransaction.save();
+
+            // Return transaction with XP reward details
+            res.status(201).json({
+                transaction: newTransaction.toObject(),
+                xpReward: {
+                    baseXP,
+                    sameDayBonus,
+                    streakBonus,
+                    totalXP,
+                    newStreak: isSameDay ? newStreak : user.streak || 0,
+                    isSameDay
+                }
+            });
+        } else {
+            // User not found, return transaction without XP
+            res.status(201).json({
+                transaction: newTransaction.toObject(),
+                xpReward: null
+            });
+        }
     } catch (error) {
+        console.error('Error adding transaction:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Delete Transaction
+app.delete('/api/transactions/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { userId } = req.query;
+
+        if (!userId) {
+            return res.status(400).json({ error: 'UserId required' });
+        }
+
+        // Find the transaction by unique ID
+        const transaction = await Transaction.findById(id);
+
+        if (!transaction) {
+            return res.status(404).json({
+                error: 'Transaction not found',
+                code: 'TRANSACTION_NOT_FOUND'
+            });
+        }
+
+        // Validate user ownership
+        if (transaction.userId !== userId) {
+            return res.status(403).json({
+                error: 'Unauthorized',
+                code: 'UNAUTHORIZED'
+            });
+        }
+
+        // Delete the transaction
+        await Transaction.findByIdAndDelete(id);
+
+        // Update related budgets if it's an expense
+        if (transaction.type === 'expense') {
+            const budget = await Budget.findOne({
+                userId: transaction.userId,
+                category: transaction.category
+            });
+
+            if (budget) {
+                budget.spent = Math.max(0, budget.spent - transaction.amount);
+                budget.updatedAt = new Date();
+                await budget.save();
+            }
+        }
+
+        // Calculate updated metrics
+        const currentMonth = new Date();
+        currentMonth.setDate(1);
+        currentMonth.setHours(0, 0, 0, 0);
+
+        const nextMonth = new Date(currentMonth);
+        nextMonth.setMonth(nextMonth.getMonth() + 1);
+
+        // Get current month transactions
+        const transactions = await Transaction.find({
+            userId: userId as string,
+            date: { $gte: currentMonth, $lt: nextMonth }
+        });
+
+        // Calculate monthly spending
+        const monthlySpending = transactions
+            .filter(t => t.type === 'expense')
+            .reduce((sum, t) => sum + t.amount, 0);
+
+        // Calculate total income
+        const totalIncome = transactions
+            .filter(t => t.type === 'income')
+            .reduce((sum, t) => sum + t.amount, 0);
+
+        // Get all budgets for remaining budget calculation
+        const budgets = await Budget.find({ userId: userId as string });
+
+        res.json({
+            success: true,
+            message: 'Transaction deleted successfully',
+            updatedMetrics: {
+                budgets: budgets,
+                monthlySpending,
+                totalIncome
+            }
+        });
+    } catch (error) {
+        console.error('Error deleting transaction:', error);
         res.status(500).json({ error: 'Server error' });
     }
 });
