@@ -2,7 +2,7 @@ import axios from 'axios';
 import { handleApiError } from '../utils/errorHandler';
 
 const api = axios.create({
-    baseURL: process.env.API_URL ? `${process.env.API_URL}/api` : '/api',
+    baseURL: (import.meta.env.VITE_API_URL || process.env.API_URL || '') + '/api',
     headers: {
         'Content-Type': 'application/json',
     },
