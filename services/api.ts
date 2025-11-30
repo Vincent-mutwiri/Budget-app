@@ -53,6 +53,11 @@ export const createBudget = async (budget: any) => {
     return response.data;
 };
 
+export const updateBudget = async (id: string, updates: any) => {
+    const response = await api.put(`/budgets/${id}`, updates);
+    return response.data;
+};
+
 // Savings Goals
 export const getGoals = async (userId: string) => {
     const response = await api.get('/goals', { params: { userId } });

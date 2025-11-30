@@ -10,7 +10,7 @@ import {
 import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from "@clerk/clerk-react";
 import {
   getTransactions, createTransaction,
-  getBudgets,
+  getBudgets, updateBudget,
   getGoals,
   getAccounts,
   getUser,
@@ -1368,14 +1368,37 @@ const AccountsView = ({ accounts, onAddAccount }: { accounts: Account[], onAddAc
 
 // --- Budgets View Component ---
 
-const BudgetsView = ({ budgets, onAdd }: { budgets: Budget[], onAdd: () => void }) => {
+const BudgetsView = ({ budgets, onAdd, onUpdate }: { budgets: Budget[], onAdd: () => void, onUpdate: (id: string, updates: Partial<Budget>) => Promise<void> }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showRecommendations, setShowRecommendations] = useState(true);
+  const [editingBudgetId, setEditingBudgetId] = useState<string | null>(null);
+  const [editedLimit, setEditedLimit] = useState<string>('');
 
   // Calculate totals for summary cards
   const totalBudgeted = budgets.reduce((sum, b) => sum + b.limit, 0);
   const totalSpent = budgets.reduce((sum, b) => sum + b.spent, 0);
   const remaining = totalBudgeted - totalSpent;
+
+  const handleEditClick = (budget: Budget) => {
+    setEditingBudgetId(budget.id);
+    setEditedLimit(budget.limit.toString());
+  };
+
+  const handleCancelEdit = () => {
+    setEditingBudgetId(null);
+    setEditedLimit('');
+  };
+
+  const handleSaveEdit = async (budgetId: string) => {
+    const newLimit = parseFloat(editedLimit);
+    if (isNaN(newLimit) || newLimit <= 0) {
+      return;
+    }
+
+    await onUpdate(budgetId, { limit: newLimit });
+    setEditingBudgetId(null);
+    setEditedLimit('');
+  };
 
   // Icon mapping
   const getIcon = (iconName: string) => {
@@ -1425,7 +1448,7 @@ const BudgetsView = ({ budgets, onAdd }: { budgets: Budget[], onAdd: () => void 
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div key="total-budgeted" className="bg-forest-800 border border-forest-700 p-6 rounded-3xl">
-            <div className="text-forest-300 text-sm font-medium mb-1">Total Budgeted</div>
+            <div className="text-forest-300 text-sm font-medium mb-1">Total Planned Budget</div>
             <div className="text-3xl font-bold text-white">{formatCurrency(totalBudgeted)}</div>
           </div>
           <div key="total-spent" className="bg-forest-800 border border-forest-700 p-6 rounded-3xl">
@@ -1475,11 +1498,13 @@ const BudgetsView = ({ budgets, onAdd }: { budgets: Budget[], onAdd: () => void 
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredBudgets.map((budget) => {
-            const percent = Math.min(100, Math.round((budget.spent / budget.limit) * 100));
-            const isOver = budget.spent > budget.limit;
+            const isEditing = editingBudgetId === budget.id;
+            const displayLimit = isEditing ? parseFloat(editedLimit) || budget.limit : budget.limit;
+            const percent = Math.min(100, Math.round((budget.spent / displayLimit) * 100));
+            const isOver = budget.spent > displayLimit;
             const isWarning = !isOver && percent > 80;
-            const overAmount = budget.spent - budget.limit;
-            const leftAmount = budget.limit - budget.spent;
+            const overAmount = budget.spent - displayLimit;
+            const leftAmount = displayLimit - budget.spent;
 
             let statusColor = 'bg-primary';
             if (isOver) statusColor = 'bg-rose-500';
@@ -1494,22 +1519,63 @@ const BudgetsView = ({ budgets, onAdd }: { budgets: Budget[], onAdd: () => void 
                     </div>
                     <span className="font-bold text-lg text-white">{budget.category}</span>
                   </div>
-                  {isOver && <span className="text-xs font-bold text-rose-500 bg-rose-500/10 px-2 py-1 rounded-lg">error</span>}
-                  {isWarning && <span className="text-xs font-bold text-amber-500 bg-amber-500/10 px-2 py-1 rounded-lg">warning</span>}
-                </div>
-
-                <div className="mb-2 w-full bg-forest-950 rounded-full h-3 overflow-hidden">
-                  <div className={`h-full rounded-full ${statusColor}`} style={{ width: `${percent}%` }}></div>
-                </div>
-
-                <div className="flex justify-between items-center text-sm">
-                  <div className="text-forest-300">
-                    Spent <span className="text-white font-medium">{formatCurrency(budget.spent)}</span> of {formatCurrency(budget.limit)}
-                  </div>
-                  <div className={`font-bold ${isOver ? 'text-rose-500' : isWarning ? 'text-amber-500' : 'text-primary'}`}>
-                    {isOver ? `-${formatCurrency(overAmount)} Over` : `${Math.round((leftAmount / budget.limit) * 100)}% Left`}
+                  <div className="flex items-center gap-2">
+                    {!isEditing && (
+                      <button
+                        onClick={() => handleEditClick(budget)}
+                        className="text-forest-400 hover:text-primary transition-colors p-1"
+                        title="Edit budget"
+                      >
+                        <Pencil size={16} />
+                      </button>
+                    )}
+                    {isOver && <span className="text-xs font-bold text-rose-500 bg-rose-500/10 px-2 py-1 rounded-lg">error</span>}
+                    {isWarning && <span className="text-xs font-bold text-amber-500 bg-amber-500/10 px-2 py-1 rounded-lg">warning</span>}
                   </div>
                 </div>
+
+                {isEditing ? (
+                  <div className="mb-4">
+                    <label className="text-forest-300 text-sm mb-2 block">Budget Limit</label>
+                    <input
+                      type="number"
+                      value={editedLimit}
+                      onChange={(e) => setEditedLimit(e.target.value)}
+                      className="w-full bg-forest-900 border border-forest-700 rounded-xl py-2 px-3 text-white focus:outline-none focus:border-primary"
+                      placeholder="Enter new limit"
+                      autoFocus
+                    />
+                    <div className="flex gap-2 mt-3">
+                      <button
+                        onClick={() => handleSaveEdit(budget.id)}
+                        className="flex-1 bg-primary hover:bg-primary/90 text-forest-950 font-bold py-2 px-4 rounded-xl transition-colors"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={handleCancelEdit}
+                        className="flex-1 bg-forest-700 hover:bg-forest-600 text-white font-bold py-2 px-4 rounded-xl transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="mb-2 w-full bg-forest-950 rounded-full h-3 overflow-hidden">
+                      <div className={`h-full rounded-full ${statusColor}`} style={{ width: `${percent}%` }}></div>
+                    </div>
+
+                    <div className="flex justify-between items-center text-sm">
+                      <div className="text-forest-300">
+                        Spent <span className="text-white font-medium">{formatCurrency(budget.spent)}</span> of {formatCurrency(displayLimit)}
+                      </div>
+                      <div className={`font-bold ${isOver ? 'text-rose-500' : isWarning ? 'text-amber-500' : 'text-primary'}`}>
+                        {isOver ? `-${formatCurrency(overAmount)} Over` : `${Math.round((leftAmount / displayLimit) * 100)}% Left`}
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             );
           })}
@@ -1835,6 +1901,28 @@ export default function App() {
       setIsBudgetModalOpen(false);
     } catch (err) {
       showError('Failed to create budget. Please try again.');
+    }
+  };
+
+  const handleUpdateBudget = async (id: string, updates: Partial<Budget>) => {
+    if (!clerkUser) return;
+    try {
+      // Optimistic update
+      const updatedBudgets = budgets.map(b =>
+        b.id === id ? { ...b, ...updates } : b
+      );
+      setBudgets(updatedBudgets);
+      cache.set(`budgets_${clerkUser.id}`, updatedBudgets);
+
+      // API call
+      await updateBudget(id, updates);
+      success('Budget updated successfully!');
+    } catch (err) {
+      // Rollback on error
+      const originalBudgets = await getBudgets(clerkUser.id);
+      setBudgets(originalBudgets);
+      cache.set(`budgets_${clerkUser.id}`, originalBudgets);
+      showError('Failed to update budget. Please try again.');
     }
   };
 
@@ -2298,7 +2386,7 @@ export default function App() {
                     onToggleActive={handleToggleRecurringTransaction}
                   />
                 ) : activeView === 'budgets' ? (
-                  <BudgetsView budgets={budgets} onAdd={() => setIsBudgetModalOpen(true)} />
+                  <BudgetsView budgets={budgets} onAdd={() => setIsBudgetModalOpen(true)} onUpdate={handleUpdateBudget} />
                 ) : activeView === 'insights' ? (
                   <InsightsDashboard />
                 ) : activeView === 'investments' ? (

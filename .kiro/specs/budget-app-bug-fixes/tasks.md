@@ -105,8 +105,8 @@
   - Handle deletion errors gracefully
   - _Requirements: 6.1, 6.2, 6.3_
 
-- [ ] 8. Frontend - Budget Management UI
-- [ ] 8.1 Add edit functionality to BudgetsView
+- [x] 8. Frontend - Budget Management UI
+- [x] 8.1 Add edit functionality to BudgetsView
   - Add edit button to each budget item
   - Create inline edit form with current values
   - Implement save and cancel actions
@@ -114,13 +114,13 @@
   - Update local state optimistically
   - _Requirements: 1.1, 1.2, 1.3, 1.4_
 
-- [ ] 8.2 Display total planned budget
+- [x] 8.2 Display total planned budget
   - Calculate sum of all budget limits
   - Display prominently on budgets page
   - Update in real-time when budgets change
   - _Requirements: 1.5_
 
-- [ ] 8.3 Display remaining budget
+- [x] 8.3 Display remaining budget
   - Calculate as total planned budget minus current spending
   - Show with positive/negative styling
   - Update in real-time
