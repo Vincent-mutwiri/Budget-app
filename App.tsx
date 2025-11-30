@@ -1482,7 +1482,7 @@ const SettingsView = ({ userProfile, onUpdateProfile }: { userProfile: UserProfi
 
 // --- Accounts View Component ---
 
-const AccountsView = ({ accounts, onAddAccount }: { accounts: Account[], onAddAccount: () => void }) => {
+const AccountsView = ({ accounts, onAddAccount, metrics }: { accounts: Account[], onAddAccount: () => void, metrics: FinancialMetrics | null }) => {
   const [assetsExpanded, setAssetsExpanded] = useState(true);
   const [liabilitiesExpanded, setLiabilitiesExpanded] = useState(true);
 
@@ -1550,17 +1550,21 @@ const AccountsView = ({ accounts, onAddAccount }: { accounts: Account[], onAddAc
         <div className="flex flex-col gap-2 rounded-3xl border border-forest-700 bg-forest-800 p-6">
           <p className="text-base font-medium text-white">Total Assets</p>
           <p className="text-3xl font-bold text-white">{formatCurrency(totalAssets)}</p>
-          <p className="text-sm font-medium text-primary">+1.2%</p>
+          {/* Historical tracking not yet implemented */}
         </div>
         <div className="flex flex-col gap-2 rounded-3xl border border-forest-700 bg-forest-800 p-6">
           <p className="text-base font-medium text-white">Total Liabilities</p>
           <p className="text-3xl font-bold text-white">{formatCurrency(totalLiabilities)}</p>
-          <p className="text-sm font-medium text-rose-500">-0.5%</p>
+          {/* Historical tracking not yet implemented */}
         </div>
         <div className="flex flex-col gap-2 rounded-3xl border border-forest-700 bg-forest-800 p-6">
           <p className="text-base font-medium text-white">Net Worth</p>
           <p className="text-3xl font-bold text-white">{formatCurrency(netWorth)}</p>
-          <p className="text-sm font-medium text-primary">+2.1%</p>
+          {metrics && (
+            <p className={`text-sm font-medium ${metrics.monthlySavings >= 0 ? 'text-primary' : 'text-rose-500'}`}>
+              {metrics.monthlySavings >= 0 ? '+' : ''}{formatCurrency(metrics.monthlySavings)} this month
+            </p>
+          )}
         </div>
       </div>
 
@@ -2417,7 +2421,7 @@ export default function App() {
 
     // Store original for rollback
     const originalTransactions = [...transactions];
-    
+
     // Optimistically update UI
     setTransactions(prev => prev.filter(t => t.id !== id));
 
@@ -2536,31 +2540,27 @@ export default function App() {
             <div className="flex-1 w-full min-h-0 relative">
               <ExpensePieChart transactions={transactions} />
             </div>
-            {/* Custom Legend */}
-            <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-forest-300">
-              <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[#f59e0b]" /> Food</div>
-              <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[#3b82f6]" /> Transport</div>
-              <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[#ec4899]" /> Shopping</div>
-              <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[#8b5cf6]" /> Bills</div>
-            </div>
           </div>
-        </div>
-
-        {/* Bottom Goals Row */}
-        <div>
-          <h3 className="text-xl font-bold text-white mb-4">Monthly Goals</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <GoalCard title="Emergency Fund" current={75000} target={100000} colorClass="bg-primary" />
-            <GoalCard title="House Deposit" current={300000} target={500000} colorClass="bg-primary" />
-          </div>
+          {/* Legend handled by Chart component */}
         </div>
       </div>
+    </div>
 
-      {/* Right Widget Column */}
-      <div className="xl:col-span-1 flex flex-col gap-6">
+        {/* Bottom Goals Row */ }
+  <div>
+    <h3 className="text-xl font-bold text-white mb-4">Monthly Goals</h3>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <GoalCard title="Emergency Fund" current={75000} target={100000} colorClass="bg-primary" />
+      <GoalCard title="House Deposit" current={300000} target={500000} colorClass="bg-primary" />
+    </div>
+  </div>
+      </div >
 
-        {/* Gamification Card */}
-        <div className="bg-forest-800 border border-forest-700 p-6 rounded-3xl">
+    {/* Right Widget Column */ }
+    < div className = "xl:col-span-1 flex flex-col gap-6" >
+
+      {/* Gamification Card */ }
+      < div className = "bg-forest-800 border border-forest-700 p-6 rounded-3xl" >
           <h3 className="font-bold text-white text-lg mb-6">Your Progress</h3>
 
           <div className="text-center mb-6">
@@ -2593,17 +2593,17 @@ export default function App() {
               <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary"><Flame size={18} /></div>
             </div>
           </div>
-        </div>
+        </div >
 
-        {/* Activity Feed */}
-        <div className="bg-forest-800 border border-forest-700 p-6 rounded-3xl flex-1">
+    {/* Activity Feed */ }
+    < div className = "bg-forest-800 border border-forest-700 p-6 rounded-3xl flex-1" >
           <h3 className="font-bold text-white text-lg mb-4">Recent Activity & Alerts</h3>
           <div className="flex flex-col gap-2">
             {alerts.map(alert => <AlertItem key={alert.id} alert={alert} />)}
           </div>
-        </div>
-      </div>
-    </div>
+        </div >
+      </div >
+    </div >
   );
 
   return (
@@ -2863,7 +2863,7 @@ export default function App() {
                     />
                   </>
                 ) : activeView === 'accounts' ? (
-                  <AccountsView accounts={accounts} onAddAccount={() => setIsAccountModalOpen(true)} />
+                  <AccountsView accounts={accounts} onAddAccount={() => setIsAccountModalOpen(true)} metrics={financialMetrics} />
                 ) : activeView === 'ai-assistant' ? (
                   clerkUser ? <AIAssistantView userId={clerkUser.id} /> : <div>Loading...</div>
                 ) : activeView === 'export' ? (

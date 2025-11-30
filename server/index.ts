@@ -1548,9 +1548,11 @@ app.get('/api/investments', async (req, res) => {
 
         // Calculate metrics for each investment
         const investmentsWithMetrics = investments.map(investment => {
-            const metrics = calculateInvestmentMetrics(investment.toObject());
+            const obj = investment.toObject();
+            const metrics = calculateInvestmentMetrics(obj);
             return {
-                ...investment.toObject(),
+                ...obj,
+                id: obj._id.toString(),
                 calculatedMetrics: metrics
             };
         });
@@ -1589,10 +1591,12 @@ app.post('/api/investments', async (req, res) => {
         await newInvestment.save();
 
         // Calculate metrics for the new investment
-        const metrics = calculateInvestmentMetrics(newInvestment.toObject());
+        const obj = newInvestment.toObject();
+        const metrics = calculateInvestmentMetrics(obj);
 
         res.status(201).json({
-            ...newInvestment.toObject(),
+            ...obj,
+            id: obj._id.toString(),
             calculatedMetrics: metrics
         });
     } catch (error) {
@@ -1627,10 +1631,12 @@ app.put('/api/investments/:id', async (req, res) => {
         await investment.save();
 
         // Calculate metrics for the updated investment
-        const metrics = calculateInvestmentMetrics(investment.toObject());
+        const obj = investment.toObject();
+        const metrics = calculateInvestmentMetrics(obj);
 
         res.json({
-            ...investment.toObject(),
+            ...obj,
+            id: obj._id.toString(),
             calculatedMetrics: metrics
         });
     } catch (error) {
@@ -1660,10 +1666,12 @@ app.patch('/api/investments/:id/value', async (req, res) => {
         await investment.save();
 
         // Calculate metrics for the updated investment
-        const metrics = calculateInvestmentMetrics(investment.toObject());
+        const obj = investment.toObject();
+        const metrics = calculateInvestmentMetrics(obj);
 
         res.json({
-            ...investment.toObject(),
+            ...obj,
+            id: obj._id.toString(),
             calculatedMetrics: metrics
         });
     } catch (error) {
@@ -1674,6 +1682,7 @@ app.patch('/api/investments/:id/value', async (req, res) => {
 
 // Delete an investment
 app.delete('/api/investments/:id', async (req, res) => {
+    console.log('DELETE /api/investments/:id called with id:', req.params.id);
     try {
         const { id } = req.params;
 
