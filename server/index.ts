@@ -3,12 +3,14 @@ import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
+import multer from 'multer';
 
 // Load environment variables from Budget-app/.env
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 import uploadRoutes from './routes/upload';
 import receiptRoutes from './routes/receipts';
+import { validateImageType } from './services/imageService';
 import { User } from './models/User';
 import { Transaction } from './models/Transaction';
 import { Budget } from './models/Budget';
@@ -57,6 +59,19 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(rateLimit(100, 60000));
+
+// Configure Multer for image uploads (memory storage for validation)
+const imageUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+    fileFilter: (req, file, cb) => {
+        if (validateImageType(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(new Error('Invalid file type. Only JPG, JPEG, PNG, and WEBP files are allowed.'));
+        }
+    }
+});
 
 // Database Connection
 const MONGODB_URI = process.env.MONGODB_URI;
@@ -528,6 +543,67 @@ app.put('/api/goals/:id', async (req, res) => {
     }
 });
 
+// Upload Goal Image
+app.post('/api/goals/:id/image', imageUpload.single('image'), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { userId } = req.body;
+
+        if (!userId) {
+            return res.status(400).json({ error: 'UserId required', code: 'MISSING_USER_ID' });
+        }
+
+        // Find the goal
+        const goal = await SavingsGoal.findById(id);
+        if (!goal) {
+            return res.status(404).json({ error: 'Goal not found', code: 'GOAL_NOT_FOUND' });
+        }
+
+        // Validate user ownership
+        if (goal.userId !== userId) {
+            return res.status(403).json({ error: 'Unauthorized', code: 'UNAUTHORIZED' });
+        }
+
+        // Check if file was uploaded
+        if (!req.file) {
+            return res.status(400).json({ error: 'No image file provided', code: 'NO_FILE' });
+        }
+
+        // Upload image to S3 with validation
+        const { uploadImageToS3 } = await import('./services/imageService');
+        const uploadResult = await uploadImageToS3(req.file as Express.Multer.File, 'goals');
+
+        if (!uploadResult.success) {
+            return res.status(400).json({
+                error: uploadResult.error,
+                code: uploadResult.errorCode
+            });
+        }
+
+        // Delete old image from S3 if it exists
+        if (goal.imageUrl && goal.imageUrl.includes('amazonaws.com')) {
+            const { deleteImageFromS3 } = await import('./services/imageService');
+            await deleteImageFromS3(goal.imageUrl);
+            // Don't fail if old image deletion fails
+        }
+
+        // Update goal with new image URL
+        goal.imageUrl = uploadResult.imageUrl || '';
+        goal.updatedAt = new Date();
+        await goal.save();
+
+        res.json({
+            success: true,
+            message: 'Image uploaded successfully',
+            imageUrl: uploadResult.imageUrl,
+            goal: goal.toObject()
+        });
+    } catch (error) {
+        console.error('Error uploading goal image:', error);
+        res.status(500).json({ error: 'Server error', code: 'SERVER_ERROR' });
+    }
+});
+
 // Remove Goal Image
 app.delete('/api/goals/:id/image', async (req, res) => {
     try {
@@ -549,33 +625,14 @@ app.delete('/api/goals/:id/image', async (req, res) => {
             return res.status(403).json({ error: 'Unauthorized', code: 'UNAUTHORIZED' });
         }
 
-        // Extract S3 key from image URL if it exists
+        // Delete image from S3 if it exists
         if (goal.imageUrl && goal.imageUrl.includes('amazonaws.com')) {
-            try {
-                const { DeleteObjectCommand } = await import('@aws-sdk/client-s3');
-                const { S3Client } = await import('@aws-sdk/client-s3');
+            const { deleteImageFromS3 } = await import('./services/imageService');
+            const deleteResult = await deleteImageFromS3(goal.imageUrl);
 
-                const s3 = new S3Client({
-                    region: process.env.AWS_S3_REGION,
-                    credentials: {
-                        accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
-                        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
-                    },
-                });
-
-                // Extract key from URL (format: https://bucket.s3.region.amazonaws.com/key)
-                const url = new URL(goal.imageUrl);
-                const key = url.pathname.substring(1); // Remove leading slash
-
-                const deleteCommand = new DeleteObjectCommand({
-                    Bucket: process.env.AWS_S3_BUCKET_NAME || '',
-                    Key: key,
-                });
-
-                await s3.send(deleteCommand);
-            } catch (s3Error) {
-                console.error('Error deleting image from S3:', s3Error);
-                // Continue even if S3 deletion fails
+            if (!deleteResult.success) {
+                console.error('Error deleting image from S3:', deleteResult.error);
+                // Continue even if S3 deletion fails - we still want to update the database
             }
         }
 

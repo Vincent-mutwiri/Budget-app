@@ -1,50 +1,55 @@
 import express from 'express';
 import multer from 'multer';
-import multerS3 from 'multer-s3';
-import { S3Client } from '@aws-sdk/client-s3';
-import path from 'path';
+import { uploadImageToS3, validateImageType } from '../services/imageService';
 
 const router = express.Router();
 
-// Initialize S3 Client
-const s3 = new S3Client({
-    region: process.env.AWS_S3_REGION,
-    credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
-    },
-});
-
-// Configure Multer S3
+// Configure Multer to use memory storage for validation before S3 upload
 const upload = multer({
-    storage: multerS3({
-        s3: s3,
-        bucket: process.env.AWS_S3_BUCKET_NAME || '',
-        metadata: function (req, file, cb) {
-            cb(null, { fieldName: file.fieldname });
-        },
-        key: function (req, file, cb) {
-            const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-            cb(null, 'uploads/' + uniqueSuffix + path.extname(file.originalname));
-        },
-    }),
+    storage: multer.memoryStorage(),
     limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+    fileFilter: (req, file, cb) => {
+        // Validate file type
+        if (validateImageType(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(new Error('Invalid file type. Only JPG, JPEG, PNG, and WEBP files are allowed.'));
+        }
+    }
 });
 
-// Upload Route
-router.post('/', upload.single('file'), (req, res) => {
-    if (!req.file) {
-        return res.status(400).json({ error: 'No file uploaded' });
+// Upload Route with enhanced validation
+router.post('/', upload.single('file'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({
+                error: 'No file uploaded',
+                errorCode: 'NO_FILE'
+            });
+        }
+
+        // Upload to S3 with validation
+        const result = await uploadImageToS3(req.file, 'uploads');
+
+        if (!result.success) {
+            return res.status(400).json({
+                error: result.error,
+                errorCode: result.errorCode
+            });
+        }
+
+        res.json({
+            message: 'File uploaded successfully',
+            url: result.imageUrl,
+            key: result.key
+        });
+    } catch (error) {
+        console.error('Error in upload route:', error);
+        res.status(500).json({
+            error: 'Failed to upload file',
+            errorCode: 'UPLOAD_ERROR'
+        });
     }
-
-    // Type assertion for multer-s3 file object
-    const file = req.file as any;
-
-    res.json({
-        message: 'File uploaded successfully',
-        url: file.location, // S3 URL
-        key: file.key
-    });
 });
 
 export default router;

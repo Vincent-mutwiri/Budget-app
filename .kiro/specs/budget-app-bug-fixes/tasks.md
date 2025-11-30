@@ -90,8 +90,8 @@
   - Create achievements for budget milestones
   - _Requirements: 12.1, 12.2, 12.3, 12.4_
 
-- [ ] 7. Backend Services - Image Management
-- [ ] 7.1 Enhance image upload validation
+- [x] 7. Backend Services - Image Management
+- [x] 7.1 Enhance image upload validation
   - Validate file type (jpg, jpeg, png, webp)
   - Validate file size (max 5MB)
   - Generate unique filename
@@ -99,7 +99,7 @@
   - Return image URL
   - _Requirements: 7.1, 7.2, 7.3, 7.4_
 
-- [ ] 7.2 Implement image deletion from S3
+- [x] 7.2 Implement image deletion from S3
   - Extract S3 key from image URL
   - Delete file from S3 bucket
   - Handle deletion errors gracefully
