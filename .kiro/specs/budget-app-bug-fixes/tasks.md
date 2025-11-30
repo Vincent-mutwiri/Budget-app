@@ -256,8 +256,8 @@
   - Create index on goals (userId, status)
   - _Requirements: 8.1, 9.1, 11.1_
 
-- [ ] 16. Integration and End-to-End Testing
-- [ ] 16.1 Test complete transaction flow
+- [x] 16. Integration and End-to-End Testing
+- [x] 16.1 Test complete transaction flow
   - Create transaction with same-day date
   - Verify XP reward is calculated correctly
   - Verify budgets are updated
@@ -265,7 +265,7 @@
   - Delete transaction and verify cleanup
   - _Requirements: 2.1, 3.1, 4.1, 8.1, 9.1_
 
-- [ ] 16.2 Test complete goal contribution flow
+- [x] 16.2 Test complete goal contribution flow
   - Create goal
   - Upload custom image
   - Make contribution
@@ -275,7 +275,7 @@
   - Remove image
   - _Requirements: 6.1, 7.1, 14.1, 14.2, 14.3, 14.4, 14.5_
 
-- [ ] 16.3 Test budget management flow
+- [x] 16.3 Test budget management flow
   - Create budget
   - Edit budget limit
   - Verify total planned budget updates
