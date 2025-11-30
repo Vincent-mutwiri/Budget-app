@@ -22,6 +22,14 @@ export const XP_REWARDS = {
 };
 
 export const formatCurrency = (amount: number) => {
+  if (amount === null || amount === undefined || isNaN(amount)) {
+    return new Intl.NumberFormat('en-KE', {
+      style: 'currency',
+      currency: 'KES',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    }).format(0);
+  }
   return new Intl.NumberFormat('en-KE', {
     style: 'currency',
     currency: 'KES',
