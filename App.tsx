@@ -28,7 +28,7 @@ import {
   calculateLevel, formatCurrency
 } from './constants';
 import { ExpensePieChart, TrendChart } from './components/Charts';
-import { generateFinancialAdvice } from './services/geminiService';
+
 import { Modal } from './components/Modal';
 import { AddBudgetForm, AddGoalForm } from './components/Forms';
 import { AddAccountForm } from './components/AddAccountForm';

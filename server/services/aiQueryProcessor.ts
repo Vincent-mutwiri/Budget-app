@@ -4,7 +4,7 @@ import { Investment } from '../models/Investment';
 import { Debt } from '../models/Debt';
 import { SavingsGoal } from '../models/SavingsGoal';
 import { User } from '../models/User';
-import { generateEnhancedFinancialAdvice } from './enhancedGeminiService';
+import { generateEnhancedFinancialAdvice } from './inflectionAIService';
 import { calculateInvestmentMetrics, calculatePortfolioMetrics } from './investmentCalculator';
 import { calculateDebtMetrics, calculateDebtSummary } from './debtCalculator';
 

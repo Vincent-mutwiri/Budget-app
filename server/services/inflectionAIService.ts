@@ -1,15 +1,56 @@
-import { GoogleGenAI } from "@google/genai";
+import axios from 'axios';
+import dotenv from 'dotenv';
+import {
+    generateEnhancedFinancialAdvice as generateGeminiAdvice,
+    generateInvestmentRecommendations as generateGeminiInvestment,
+    generateSpendingInsights as generateGeminiSpending,
+    generateDebtPayoffStrategy as generateGeminiDebt
+} from './enhancedGeminiService';
 
-// Initialize Gemini Client
-// Note: API_KEY is used by the SDK, but we can also explicitly pass it if needed.
-// Using process.env.GEMINI_API_KEY as per our .env setup
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || process.env.API_KEY });
+dotenv.config();
+
+const INFLECTION_API_URL = process.env.INFLECTION_API_URL || "https://api.inflection.ai/external/api/inference";
+const INFLECTION_API_KEY = process.env.INFLECTION_API_KEY;
+
+if (!INFLECTION_API_KEY) {
+    console.warn('WARNING: INFLECTION_API_KEY not set - AI features will fallback to Gemini if available');
+}
 
 interface UserFinancialContext {
     xp?: number;
     level?: number;
     streak?: number;
     monthlyIncome?: number;
+}
+
+async function callInflectionAI(prompt: string): Promise<string> {
+    if (!INFLECTION_API_KEY) {
+        throw new Error("Inflection AI API key not configured");
+    }
+
+    try {
+        const response = await axios.post(
+            INFLECTION_API_URL,
+            {
+                context: [
+                    { text: prompt, type: "Human" }
+                ],
+                config: "Pi-3.1"
+            },
+            {
+                headers: {
+                    'Authorization': `Bearer ${INFLECTION_API_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                timeout: 30000
+            }
+        );
+
+        return response.data.text || response.data.choices?.[0]?.message?.content || "No response generated";
+    } catch (error: any) {
+        console.error("Inflection AI API Error:", error.response?.data || error.message);
+        throw error; // Re-throw to trigger fallback
+    }
 }
 
 /**
@@ -113,19 +154,10 @@ Response Format:
 Generate your response:`;
 
     try {
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-            config: {
-                temperature: 0.7,
-                maxOutputTokens: 500
-            }
-        });
-
-        return response.text || "I couldn't generate advice at this moment. Please try again later.";
+        return await callInflectionAI(prompt);
     } catch (error) {
-        console.error("Gemini API Error:", error);
-        return "Financial Advisor is currently offline. Please check your connection.";
+        console.log("Falling back to Gemini AI...");
+        return await generateGeminiAdvice(user, financialData, query);
     }
 }
 
@@ -166,19 +198,10 @@ Guidelines:
 Generate your response:`;
 
     try {
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-            config: {
-                temperature: 0.6,
-                maxOutputTokens: 400
-            }
-        });
-
-        return response.text || "I couldn't generate recommendations at this moment. Please try again later.";
+        return await callInflectionAI(prompt);
     } catch (error) {
-        console.error("Gemini API Error:", error);
-        return "⚠️ DISCLAIMER: This is general educational information, not professional financial advice. Always consult a licensed financial advisor before making investment decisions.\n\nInvestment recommendations are currently unavailable. Please try again later.";
+        console.log("Falling back to Gemini AI...");
+        return await generateGeminiInvestment(user, portfolioData);
     }
 }
 
@@ -227,19 +250,10 @@ Guidelines:
 Generate your insights:`;
 
     try {
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-            config: {
-                temperature: 0.7,
-                maxOutputTokens: 400
-            }
-        });
-
-        return response.text || "I couldn't analyze your spending at this moment. Please try again later.";
+        return await callInflectionAI(prompt);
     } catch (error) {
-        console.error("Gemini API Error:", error);
-        return "Spending analysis is currently unavailable. Please try again later.";
+        console.log("Falling back to Gemini AI...");
+        return await generateGeminiSpending(spendingData, budgetData);
     }
 }
 
@@ -279,18 +293,9 @@ Guidelines:
 Generate your strategy:`;
 
     try {
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-            config: {
-                temperature: 0.7,
-                maxOutputTokens: 400
-            }
-        });
-
-        return response.text || "I couldn't generate a debt strategy at this moment. Please try again later.";
+        return await callInflectionAI(prompt);
     } catch (error) {
-        console.error("Gemini API Error:", error);
-        return "Debt strategy generation is currently unavailable. Please try again later.";
+        console.log("Falling back to Gemini AI...");
+        return await generateGeminiDebt(debtData);
     }
 }

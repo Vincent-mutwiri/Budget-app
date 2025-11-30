@@ -59,7 +59,9 @@ CLERK_PUBLISHABLE_KEY=pk_test_xxxxx
 CLERK_SECRET_KEY=sk_test_xxxxx
 CLERK_WEBHOOK_SECRET=whsec_xxxxx
 
-# Google Gemini AI
+# Inflection AI
+INFLECTION_API_URL=https://api.inflection.ai/external/api/inference
+INFLECTION_API_KEY=xxxxx
 GEMINI_API_KEY=xxxxx
 
 # Google Vision API (OCR)
@@ -118,8 +120,9 @@ CLERK_PUBLISHABLE_KEY=pk_live_xxxxx
 CLERK_SECRET_KEY=sk_live_xxxxx
 CLERK_WEBHOOK_SECRET=whsec_xxxxx
 
-# Google Gemini AI
-GEMINI_API_KEY=xxxxx
+# Inflection AI
+INFLECTION_API_URL=https://api.inflection.ai/external/api/inference
+INFLECTION_API_KEY=xxxxx
 
 # Google Vision API (OCR)
 GOOGLE_VISION_API_KEY=xxxxx
