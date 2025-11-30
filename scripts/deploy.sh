@@ -93,27 +93,29 @@ cd ../..
 log_info "✓ Backend built successfully"
 
 # Database migrations
-if [ "$ENVIRONMENT" = "production" ]; then
-    log_warn "Production deployment detected"
-    read -p "Run database migrations? (yes/no): " confirm
-    if [ "$confirm" = "yes" ]; then
-        log_info "Running database migrations..."
-        ./scripts/migrate.sh production || {
-            log_error "Database migrations failed"
-            exit 1
-        }
-        log_info "✓ Database migrations completed"
-    else
-        log_warn "Skipping database migrations"
-    fi
-else
-    log_info "Running database migrations..."
-    ./scripts/migrate.sh staging || {
-        log_error "Database migrations failed"
-        exit 1
-    }
-    log_info "✓ Database migrations completed"
-fi
+# Note: MongoDB migrations are handled via application code or separate scripts, not SQL files.
+# See DEPLOYMENT_GUIDE.md for details.
+# if [ "$ENVIRONMENT" = "production" ]; then
+#     log_warn "Production deployment detected"
+#     read -p "Run database migrations? (yes/no): " confirm
+#     if [ "$confirm" = "yes" ]; then
+#         log_info "Running database migrations..."
+#         ./scripts/migrate.sh production || {
+#             log_error "Database migrations failed"
+#             exit 1
+#         }
+#         log_info "✓ Database migrations completed"
+#     else
+#         log_warn "Skipping database migrations"
+#     fi
+# else
+#     log_info "Running database migrations..."
+#     ./scripts/migrate.sh staging || {
+#         log_error "Database migrations failed"
+#         exit 1
+#     }
+#     log_info "✓ Database migrations completed"
+# fi
 
 # Deploy backend
 log_info "Deploying backend..."

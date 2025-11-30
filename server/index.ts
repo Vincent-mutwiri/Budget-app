@@ -113,7 +113,7 @@ app.post('/api/categories/custom', async (req, res) => {
         const user = await User.findOne({ clerkId: userId });
         if (!user) return res.status(404).json({ error: 'User not found' });
 
-        if (!user.customCategories) user.customCategories = [];
+        if (!user.customCategories) user.customCategories = [] as any;
         if (!user.customCategories.find((c: any) => c.name === category)) {
             user.customCategories.push({ name: category, type });
             await user.save();
@@ -134,7 +134,7 @@ app.delete('/api/categories/custom/:category', async (req, res) => {
         const user = await User.findOne({ clerkId: userId });
         if (!user) return res.status(404).json({ error: 'User not found' });
 
-        user.customCategories = (user.customCategories || []).filter((c: any) => c.name !== category);
+        user.customCategories = (user.customCategories || []).filter((c: any) => c.name !== category) as any;
         await user.save();
         res.json(user.customCategories);
     } catch (error) {

@@ -47,13 +47,12 @@ Create environment-specific `.env` files:
 ```env
 # Application
 NODE_ENV=staging
-PORT=3001
+PORT=5000
 FRONTEND_URL=https://staging.smartwallet.com
 API_URL=https://api-staging.smartwallet.com
 
 # Database
-DATABASE_URL=postgresql://user:password@staging-db.example.com:5432/smartwallet_staging
-DATABASE_POOL_SIZE=20
+MONGODB_URI=mongodb+srv://user:password@staging-cluster.mongodb.net/smartwallet_staging
 
 # Clerk Authentication
 CLERK_PUBLISHABLE_KEY=pk_test_xxxxx
@@ -67,11 +66,11 @@ GEMINI_API_KEY=xxxxx
 GOOGLE_VISION_API_KEY=xxxxx
 GOOGLE_CLOUD_PROJECT=smartwallet-staging
 
-# Cloud Storage
+# Cloud Storage (AWS S3)
 AWS_ACCESS_KEY_ID=xxxxx
 AWS_SECRET_ACCESS_KEY=xxxxx
-AWS_S3_BUCKET=smartwallet-receipts-staging
-AWS_REGION=us-east-1
+AWS_S3_BUCKET_NAME=smartwallet-receipts-staging
+AWS_S3_REGION=us-east-1
 
 # Email Service (SendGrid)
 SENDGRID_API_KEY=xxxxx
@@ -107,14 +106,12 @@ ENCRYPTION_KEY=xxxxx
 ```env
 # Application
 NODE_ENV=production
-PORT=3001
+PORT=5000
 FRONTEND_URL=https://smartwallet.com
 API_URL=https://api.smartwallet.com
 
 # Database
-DATABASE_URL=postgresql://user:password@prod-db.example.com:5432/smartwallet_prod
-DATABASE_POOL_SIZE=50
-DATABASE_SSL=true
+MONGODB_URI=mongodb+srv://user:password@prod-cluster.mongodb.net/smartwallet_prod
 
 # Clerk Authentication
 CLERK_PUBLISHABLE_KEY=pk_live_xxxxx
@@ -128,11 +125,11 @@ GEMINI_API_KEY=xxxxx
 GOOGLE_VISION_API_KEY=xxxxx
 GOOGLE_CLOUD_PROJECT=smartwallet-prod
 
-# Cloud Storage
+# Cloud Storage (AWS S3)
 AWS_ACCESS_KEY_ID=xxxxx
 AWS_SECRET_ACCESS_KEY=xxxxx
-AWS_S3_BUCKET=smartwallet-receipts-prod
-AWS_REGION=us-east-1
+AWS_S3_BUCKET_NAME=smartwallet-receipts-prod
+AWS_S3_REGION=us-east-1
 
 # Email Service (SendGrid)
 SENDGRID_API_KEY=xxxxx
@@ -165,108 +162,51 @@ ENCRYPTION_KEY=xxxxx
 
 ---
 
-## Database Migrations
+## Database Schema Management
 
-### Migration Files Structure
+Since the application uses MongoDB with Mongoose, schema definitions are handled within the application code (`server/models`).
 
-```
-Budget-app/server/migrations/
-├── 001_initial_schema.sql
-├── 002_recurring_transactions.sql
-├── 003_notifications.sql
-├── 004_investments.sql
-├── 005_debts.sql
-├── 006_gamification.sql
-├── 007_receipts.sql
-├── 008_user_preferences.sql
-└── 009_indexes.sql
-```
+### Schema Updates
 
-### Running Migrations
+1.  **Modify Mongoose Models**: Update the schema definitions in `server/models/`.
+2.  **Data Migration**: If existing data needs to be transformed, create a one-off script in `server/scripts/` (e.g., `migrate_users.ts`) to update documents.
 
-#### Manual Migration
+### Example Migration Script
 
-```bash
-# Connect to database
-psql $DATABASE_URL
+Create `server/scripts/migrate_example.ts`:
 
-# Run migration files in order
-\i server/migrations/001_initial_schema.sql
-\i server/migrations/002_recurring_transactions.sql
-# ... continue for all migrations
+```typescript
+import mongoose from 'mongoose';
+import dotenv from 'dotenv';
+import path from 'path';
+import { User } from '../models/User';
 
-# Verify migrations
-SELECT * FROM schema_migrations;
-```
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
-#### Automated Migration Script
+const migrate = async () => {
+    try {
+        await mongoose.connect(process.env.MONGODB_URI!);
+        console.log('Connected to MongoDB');
 
-Create `scripts/migrate.sh`:
+        // Example: Add a new field to all users
+        const result = await User.updateMany(
+            { newField: { $exists: false } },
+            { $set: { newField: 'defaultValue' } }
+        );
 
-```bash
-#!/bin/bash
+        console.log(`Updated ${result.modifiedCount} users`);
+        process.exit(0);
+    } catch (error) {
+        console.error('Migration failed:', error);
+        process.exit(1);
+    }
+};
 
-set -e
-
-ENVIRONMENT=$1
-MIGRATION_DIR="server/migrations"
-
-if [ -z "$ENVIRONMENT" ]; then
-  echo "Usage: ./scripts/migrate.sh [staging|production]"
-  exit 1
-fi
-
-# Load environment variables
-source .env.$ENVIRONMENT
-
-echo "Running migrations for $ENVIRONMENT environment..."
-
-# Get list of migration files
-MIGRATIONS=$(ls $MIGRATION_DIR/*.sql | sort)
-
-for migration in $MIGRATIONS; do
-  echo "Running migration: $migration"
-  psql $DATABASE_URL -f $migration
-  
-  if [ $? -eq 0 ]; then
-    echo "✓ Migration completed: $migration"
-  else
-    echo "✗ Migration failed: $migration"
-    exit 1
-  fi
-done
-
-echo "All migrations completed successfully!"
+migrate();
 ```
 
-Make it executable:
+Run with `ts-node server/scripts/migrate_example.ts`.
 
-```bash
-chmod +x scripts/migrate.sh
-```
-
-Run migrations:
-
-```bash
-# Staging
-./scripts/migrate.sh staging
-
-# Production
-./scripts/migrate.sh production
-```
-
-### Migration Rollback
-
-Create rollback scripts for each migration:
-
-```
-Budget-app/server/migrations/rollback/
-├── 009_indexes_rollback.sql
-├── 008_user_preferences_rollback.sql
-└── ...
-```
-
----
 
 ## Staging Deployment
 
