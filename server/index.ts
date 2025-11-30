@@ -269,6 +269,9 @@ app.post('/api/transactions', validateTransaction, async (req, res) => {
             newTransaction.xpAwarded = totalXP;
             await newTransaction.save();
 
+            // Invalidate metrics cache since transaction affects financial metrics
+            invalidateMetricsCache(userId);
+
             // Return transaction with XP reward details
             res.status(201).json({
                 transaction: newTransaction.toObject(),
@@ -282,6 +285,9 @@ app.post('/api/transactions', validateTransaction, async (req, res) => {
                 }
             });
         } else {
+            // Invalidate metrics cache even if user not found
+            invalidateMetricsCache(userId);
+
             // User not found, return transaction without XP
             res.status(201).json({
                 transaction: newTransaction.toObject(),
@@ -369,6 +375,9 @@ app.delete('/api/transactions/:id', async (req, res) => {
         // Get all budgets for remaining budget calculation
         const budgets = await Budget.find({ userId: userId as string });
 
+        // Invalidate metrics cache since transaction deletion affects financial metrics
+        invalidateMetricsCache(userId as string);
+
         console.log(`Transaction deleted successfully: ${id}`);
 
         res.json({
@@ -406,6 +415,10 @@ app.post('/api/budgets', validateBudget, async (req, res) => {
     try {
         const newBudget = new Budget(req.body);
         await newBudget.save();
+
+        // Invalidate metrics cache since new budget affects total planned budget
+        invalidateMetricsCache(req.body.userId);
+
         res.status(201).json(newBudget);
     } catch (error) {
         res.status(500).json({ error: 'Server error' });
@@ -463,6 +476,9 @@ app.put('/api/budgets/:id', async (req, res) => {
         // Calculate total planned budget for this user
         const allBudgets = await Budget.find({ userId: budget.userId });
         const totalPlannedBudget = allBudgets.reduce((sum, b) => sum + b.limit, 0);
+
+        // Invalidate metrics cache since budget update affects financial metrics
+        invalidateMetricsCache(budget.userId);
 
         res.json({
             budget: budget.toObject(),
@@ -804,6 +820,9 @@ app.post('/api/goals/:id/contribute', async (req, res) => {
         // Save both user and goal
         await user.save();
         await goal.save();
+
+        // Invalidate metrics cache since goal contribution affects user balance
+        invalidateMetricsCache(userId);
 
         // Create notification for contribution
         try {
@@ -1398,6 +1417,24 @@ import { calculateFinancialMetrics } from './services/metricsService';
 // In-memory cache for metrics
 const metricsCache = new Map<string, { data: any; timestamp: number }>();
 const METRICS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Invalidate metrics cache for a user
+ * This should be called whenever data changes that affect metrics:
+ * - Transaction creation/deletion
+ * - Budget updates
+ * - Goal contributions
+ */
+function invalidateMetricsCache(userId: string): void {
+    // Remove all cache entries for this user
+    const keysToDelete: string[] = [];
+    metricsCache.forEach((_, key) => {
+        if (key.startsWith(`${userId}:`)) {
+            keysToDelete.push(key);
+        }
+    });
+    keysToDelete.forEach(key => metricsCache.delete(key));
+}
 
 // Get financial metrics for a user
 app.get('/api/metrics/:userId', async (req, res) => {

@@ -243,14 +243,14 @@
   - Log errors for monitoring
   - _Requirements: 1.1, 4.1, 6.1, 7.1, 14.1_
 
-- [ ] 15. Performance Optimization
-- [ ] 15.1 Implement metrics caching
+- [x] 15. Performance Optimization
+- [x] 15.1 Implement metrics caching
   - Cache metrics results for 5 minutes
   - Invalidate cache on data changes
   - Use Redis or in-memory cache
   - _Requirements: 8.1, 9.1, 10.1, 11.1, 13.1_
 
-- [ ] 15.2 Add database indexes
+- [x] 15.2 Add database indexes
   - Create compound index on transactions (userId, date)
   - Create compound index on budgets (userId, category)
   - Create index on goals (userId, status)
