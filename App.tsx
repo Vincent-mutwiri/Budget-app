@@ -11,7 +11,7 @@ import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from "@clerk/c
 import {
   getTransactions, createTransaction,
   getBudgets, updateBudget,
-  getGoals, createGoal, removeGoalImage, contributeToGoal,
+  getGoals, createGoal, updateGoal, removeGoalImage, contributeToGoal,
   getAccounts,
   getUser,
   createAccount,
@@ -2260,23 +2260,83 @@ export default function App() {
     }
   };
 
+  const handleUpdateGoal = async (goalId: string, updates: Partial<SavingsGoal>) => {
+    if (!clerkUser) return;
+
+    // Store original goal for rollback
+    const originalGoal = savingsGoals.find(g => g.id === goalId);
+    if (!originalGoal) return;
+
+    // Optimistic update
+    const optimisticGoals = savingsGoals.map(g =>
+      g.id === goalId ? { ...g, ...updates } : g
+    );
+    setSavingsGoals(optimisticGoals);
+
+    try {
+      await updateGoal(goalId, updates);
+      cache.set(`goals_${clerkUser.id}`, optimisticGoals);
+      success('Goal updated successfully!');
+    } catch (err) {
+      // Rollback on error
+      setSavingsGoals(prev => prev.map(g =>
+        g.id === goalId ? originalGoal : g
+      ));
+      showError('Failed to update goal. Please try again.');
+    }
+  };
+
   const handleRemoveGoalImage = async (goalId: string) => {
     if (!clerkUser) return;
+
+    // Store original goal for rollback
+    const originalGoal = savingsGoals.find(g => g.id === goalId);
+    if (!originalGoal) return;
+
+    // Optimistic update - immediately show default image
+    const defaultImageUrl = 'https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?w=400';
+    const optimisticGoals = savingsGoals.map(g =>
+      g.id === goalId ? { ...g, imageUrl: defaultImageUrl } : g
+    );
+    setSavingsGoals(optimisticGoals);
+
     try {
       const result = await removeGoalImage(goalId);
       const updatedGoals = savingsGoals.map(g =>
-        g.id === goalId ? { ...g, imageUrl: result.defaultImageUrl || 'https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?w=400' } : g
+        g.id === goalId ? { ...g, imageUrl: result.defaultImageUrl || defaultImageUrl } : g
       );
       setSavingsGoals(updatedGoals);
       cache.set(`goals_${clerkUser.id}`, updatedGoals);
       success('Image removed successfully!');
     } catch (err) {
+      // Rollback on error
+      setSavingsGoals(prev => prev.map(g =>
+        g.id === goalId ? originalGoal : g
+      ));
       showError('Failed to remove image. Please try again.');
     }
   };
 
   const handleContributeToGoal = async (goalId: string, amount: number) => {
     if (!clerkUser) return;
+
+    // Store original state for rollback
+    const originalGoal = savingsGoals.find(g => g.id === goalId);
+    const originalUser = { ...user };
+    if (!originalGoal) return;
+
+    // Optimistic update - immediately update goal progress and user balance
+    const optimisticGoals = savingsGoals.map(g =>
+      g.id === goalId ? { ...g, currentAmount: g.currentAmount + amount } : g
+    );
+    setSavingsGoals(optimisticGoals);
+
+    // Optimistically update user balance
+    setUser(prev => ({
+      ...prev,
+      totalBalance: (prev.totalBalance || 0) - amount
+    }));
+
     try {
       const result = await contributeToGoal(goalId, amount, clerkUser.id);
       const updatedGoals = savingsGoals.map(g =>
@@ -2285,7 +2345,7 @@ export default function App() {
       setSavingsGoals(updatedGoals);
       cache.set(`goals_${clerkUser.id}`, updatedGoals);
 
-      // Update user balance and XP
+      // Update user balance and XP with actual values from server
       setUser(prev => ({
         ...prev,
         totalBalance: result.newBalance,
@@ -2293,8 +2353,17 @@ export default function App() {
         level: result.xpReward?.newLevel || prev.level
       }));
 
+      // Refresh metrics
+      await fetchMetrics();
+
       success(`Contributed ${formatCurrency(amount)} to goal! ${result.xpReward ? `+${result.xpReward.amount} XP` : ''}`);
     } catch (err: any) {
+      // Rollback on error
+      setSavingsGoals(prev => prev.map(g =>
+        g.id === goalId ? originalGoal : g
+      ));
+      setUser(originalUser);
+
       const errorMessage = err?.response?.data?.error || 'Failed to contribute. Please try again.';
       showError(errorMessage);
     }

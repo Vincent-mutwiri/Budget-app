@@ -212,8 +212,8 @@
   - Show achievement unlocks
   - _Requirements: 3.3, 12.1, 12.2_
 
-- [ ] 13. Frontend Services - API Integration
-- [ ] 13.1 Add new API methods to services/api.ts
+- [x] 13. Frontend Services - API Integration
+- [x] 13.1 Add new API methods to services/api.ts
   - Add updateBudget method
   - Add deleteTransaction method
   - Add updateGoal method
@@ -222,7 +222,7 @@
   - Add getMetrics method
   - _Requirements: 1.1, 4.1, 6.1, 7.1, 14.1, 8.1_
 
-- [ ] 13.2 Implement optimistic updates
+- [x] 13.2 Implement optimistic updates
   - Update local state before API response
   - Rollback on error
   - Show loading indicators
