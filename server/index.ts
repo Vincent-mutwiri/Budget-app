@@ -343,6 +343,7 @@ app.post('/api/transactions', validateTransaction, async (req, res) => {
             // Invalidate metrics cache since transaction affects financial metrics
             try {
                 invalidateMetricsCache(userId);
+                console.log(`Metrics cache invalidated for user ${userId}`);
             } catch (cacheError) {
                 console.error('Cache invalidation error:', cacheError);
             }

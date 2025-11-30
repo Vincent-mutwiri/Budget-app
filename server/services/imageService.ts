@@ -87,7 +87,6 @@ export async function uploadImageToS3(
             Key: key,
             Body: file.buffer,
             ContentType: file.mimetype,
-            ACL: 'public-read', // Make the image publicly accessible
         });
 
         await s3Client.send(uploadCommand);

@@ -1938,7 +1938,82 @@ export default function App() {
   const [metricsError, setMetricsError] = useState<string | null>(null);
 
   // Alerts
-  const alerts: Alert[] = [];
+  const alerts: Alert[] = useMemo(() => {
+    const newAlerts: Alert[] = [];
+    const now = new Date();
+
+    // 1. Budget Alerts
+    budgets.forEach(budget => {
+      const percentage = (budget.spent / budget.limit) * 100;
+      if (percentage >= 100) {
+        newAlerts.push({
+          id: `budget-over-${budget.id}`,
+          title: 'Budget Exceeded',
+          message: `You've exceeded your ${budget.category} budget by ${formatCurrency(budget.spent - budget.limit)}.`,
+          type: 'danger',
+          time: 'Just now'
+        });
+      } else if (percentage >= 80) {
+        newAlerts.push({
+          id: `budget-warn-${budget.id}`,
+          title: 'Budget Warning',
+          message: `You've used ${percentage.toFixed(0)}% of your ${budget.category} budget.`,
+          type: 'warning',
+          time: 'Today'
+        });
+      }
+    });
+
+    // 2. Goal Achievements
+    savingsGoals.forEach(goal => {
+      if (goal.currentAmount >= goal.targetAmount && goal.status !== 'completed') {
+        newAlerts.push({
+          id: `goal-reached-${goal.id}`,
+          title: 'Goal Reached!',
+          message: `Congratulations! You've reached your savings goal for ${goal.title}.`,
+          type: 'success',
+          time: 'Today'
+        });
+      }
+    });
+
+    // 3. Recurring Transactions Due Soon
+    recurringTransactions.forEach(rt => {
+      if (!rt.isActive) return;
+      const nextDate = new Date(rt.nextOccurrence);
+      const diffTime = nextDate.getTime() - now.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays >= 0 && diffDays <= 3) {
+        newAlerts.push({
+          id: `recurring-due-${rt.id}`,
+          title: 'Upcoming Payment',
+          message: `${rt.description} (${formatCurrency(rt.amount)}) is due ${diffDays === 0 ? 'today' : `in ${diffDays} days`}.`,
+          type: 'info',
+          time: diffDays === 0 ? 'Today' : `${diffDays} days left`
+        });
+      }
+    });
+
+    // 4. Large Transactions (last 3 days)
+    const threeDaysAgo = new Date();
+    threeDaysAgo.setDate(now.getDate() - 3);
+
+    transactions.forEach(t => {
+      const txDate = new Date(t.date);
+      if (txDate >= threeDaysAgo && t.amount > 5000) {
+        newAlerts.push({
+          id: `large-tx-${t.id}`,
+          title: 'Large Transaction',
+          message: `A large ${t.type} of ${formatCurrency(t.amount)} was recorded for ${t.category}.`,
+          type: 'info',
+          time: txDate.toLocaleDateString() === now.toLocaleDateString() ? 'Today' : 'Recent'
+        });
+      }
+    });
+
+    return newAlerts.slice(0, 5); // Show top 5 alerts
+  }, [budgets, savingsGoals, recurringTransactions, transactions]);
 
   const snapshot: FinancialSnapshot = useMemo(() => {
     const totalIncome = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
@@ -2018,14 +2093,13 @@ export default function App() {
   // Fetch Financial Metrics
   const fetchMetrics = async () => {
     if (!clerkUser) return;
-
     setMetricsLoading(true);
     setMetricsError(null);
 
     try {
-      const metrics = await getMetrics(clerkUser.id);
-      setFinancialMetrics(metrics);
-      cache.set(`metrics_${clerkUser.id}`, metrics);
+      const response = await getMetrics(clerkUser.id);
+      setFinancialMetrics(response.metrics);
+      cache.set(`metrics_${clerkUser.id}`, response.metrics);
     } catch (err) {
       console.error('Failed to fetch metrics:', err);
       setMetricsError('Failed to load financial metrics');
@@ -2331,7 +2405,7 @@ export default function App() {
     setSavingsGoals(optimisticGoals);
 
     try {
-      const result = await removeGoalImage(goalId);
+      const result = await removeGoalImage(goalId, clerkUser.id);
       const updatedGoals = savingsGoals.map(g =>
         g.id === goalId ? { ...g, imageUrl: result.defaultImageUrl || defaultImageUrl } : g
       );
@@ -2543,24 +2617,22 @@ export default function App() {
           </div>
           {/* Legend handled by Chart component */}
         </div>
+
+        {/* Bottom Goals Row */}
+        <div>
+          <h3 className="text-xl font-bold text-white mb-4">Monthly Goals</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <GoalCard title="Emergency Fund" current={75000} target={100000} colorClass="bg-primary" />
+            <GoalCard title="House Deposit" current={300000} target={500000} colorClass="bg-primary" />
+          </div>
+        </div>
       </div>
-    </div>
 
-        {/* Bottom Goals Row */ }
-  <div>
-    <h3 className="text-xl font-bold text-white mb-4">Monthly Goals</h3>
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <GoalCard title="Emergency Fund" current={75000} target={100000} colorClass="bg-primary" />
-      <GoalCard title="House Deposit" current={300000} target={500000} colorClass="bg-primary" />
-    </div>
-  </div>
-      </div >
+      {/* Right Widget Column */}
+      <div className="xl:col-span-1 flex flex-col gap-6">
 
-    {/* Right Widget Column */ }
-    < div className = "xl:col-span-1 flex flex-col gap-6" >
-
-      {/* Gamification Card */ }
-      < div className = "bg-forest-800 border border-forest-700 p-6 rounded-3xl" >
+        {/* Gamification Card */}
+        <div className="bg-forest-800 border border-forest-700 p-6 rounded-3xl">
           <h3 className="font-bold text-white text-lg mb-6">Your Progress</h3>
 
           <div className="text-center mb-6">
@@ -2593,17 +2665,17 @@ export default function App() {
               <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary"><Flame size={18} /></div>
             </div>
           </div>
-        </div >
+        </div>
 
-    {/* Activity Feed */ }
-    < div className = "bg-forest-800 border border-forest-700 p-6 rounded-3xl flex-1" >
+        {/* Activity Feed */}
+        <div className="bg-forest-800 border border-forest-700 p-6 rounded-3xl flex-1">
           <h3 className="font-bold text-white text-lg mb-4">Recent Activity & Alerts</h3>
           <div className="flex flex-col gap-2">
             {alerts.map(alert => <AlertItem key={alert.id} alert={alert} />)}
           </div>
-        </div >
-      </div >
-    </div >
+        </div>
+      </div>
+    </div>
   );
 
   return (

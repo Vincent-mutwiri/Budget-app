@@ -79,8 +79,8 @@ export const updateGoal = async (id: string, updates: any) => {
     return response.data;
 };
 
-export const removeGoalImage = async (id: string) => {
-    const response = await api.delete(`/goals/${id}/image`);
+export const removeGoalImage = async (id: string, userId: string) => {
+    const response = await api.delete(`/goals/${id}/image`, { params: { userId } });
     return response.data;
 };
 
