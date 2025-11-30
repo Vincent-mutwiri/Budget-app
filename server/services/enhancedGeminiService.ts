@@ -1,9 +1,8 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // Initialize Gemini Client
-// Note: API_KEY is used by the SDK, but we can also explicitly pass it if needed.
-// Using process.env.GEMINI_API_KEY as per our .env setup
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || process.env.API_KEY });
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || process.env.API_KEY || "");
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
 interface UserFinancialContext {
     xp?: number;
@@ -113,16 +112,9 @@ Response Format:
 Generate your response:`;
 
     try {
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-            config: {
-                temperature: 0.7,
-                maxOutputTokens: 500
-            }
-        });
-
-        return response.text || "I couldn't generate advice at this moment. Please try again later.";
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        return response.text() || "I couldn't generate advice at this moment. Please try again later.";
     } catch (error) {
         console.error("Gemini API Error:", error);
         return "Financial Advisor is currently offline. Please check your connection.";
@@ -166,16 +158,9 @@ Guidelines:
 Generate your response:`;
 
     try {
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-            config: {
-                temperature: 0.6,
-                maxOutputTokens: 400
-            }
-        });
-
-        return response.text || "I couldn't generate recommendations at this moment. Please try again later.";
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        return response.text() || "I couldn't generate recommendations at this moment. Please try again later.";
     } catch (error) {
         console.error("Gemini API Error:", error);
         return "⚠️ DISCLAIMER: This is general educational information, not professional financial advice. Always consult a licensed financial advisor before making investment decisions.\n\nInvestment recommendations are currently unavailable. Please try again later.";
@@ -227,16 +212,9 @@ Guidelines:
 Generate your insights:`;
 
     try {
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-            config: {
-                temperature: 0.7,
-                maxOutputTokens: 400
-            }
-        });
-
-        return response.text || "I couldn't analyze your spending at this moment. Please try again later.";
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        return response.text() || "I couldn't analyze your spending at this moment. Please try again later.";
     } catch (error) {
         console.error("Gemini API Error:", error);
         return "Spending analysis is currently unavailable. Please try again later.";
@@ -279,16 +257,9 @@ Guidelines:
 Generate your strategy:`;
 
     try {
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-            config: {
-                temperature: 0.7,
-                maxOutputTokens: 400
-            }
-        });
-
-        return response.text || "I couldn't generate a debt strategy at this moment. Please try again later.";
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        return response.text() || "I couldn't generate a debt strategy at this moment. Please try again later.";
     } catch (error) {
         console.error("Gemini API Error:", error);
         return "Debt strategy generation is currently unavailable. Please try again later.";

@@ -1,7 +1,7 @@
 import { Transaction } from '../models/Transaction';
 import { Budget } from '../models/Budget';
 import { BudgetRecommendation } from '../models/BudgetRecommendation';
-import { Category } from '../../types';
+import { Category } from '../types';
 
 interface CategorySpending {
     category: string;

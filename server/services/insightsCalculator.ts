@@ -3,7 +3,7 @@ import { Budget } from '../models/Budget';
 import { Debt } from '../models/Debt';
 import { Investment } from '../models/Investment';
 import { RecurringTransaction } from '../models/RecurringTransaction';
-import { Category, CategoryTrend, SpendingAnomaly, FinancialInsights } from '../../types';
+import { Category, CategoryTrend, SpendingAnomaly, FinancialInsights } from '../types';
 
 /**
  * Calculate financial health score with component breakdown

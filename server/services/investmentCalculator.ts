@@ -1,4 +1,4 @@
-import type { InvestmentMetrics } from '../../types';
+import type { InvestmentMetrics } from '../types';
 
 // Type for investment data that can come from Mongoose (with _id) or frontend (with id)
 type InvestmentData = {

@@ -1,4 +1,4 @@
-import { DebtMetrics, DebtPayment } from '../../types';
+import { DebtMetrics, DebtPayment } from '../types';
 
 // Type for debt data that can come from Mongoose (with _id) or frontend (with id)
 type DebtData = {
