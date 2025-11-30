@@ -12,4 +12,12 @@ const AccountSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now }
 });
 
+AccountSchema.set('toJSON', {
+    virtuals: true,
+    versionKey: false,
+    transform: function (doc, ret) {
+        delete (ret as any)._id;
+    }
+});
+
 export const Account = mongoose.model('Account', AccountSchema);

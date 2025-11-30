@@ -115,6 +115,11 @@ export const createAccount = async (account: any) => {
     return response.data;
 };
 
+export const updateAccount = async (id: string, account: any) => {
+    const response = await api.put(`/accounts/${id}`, account);
+    return response.data;
+};
+
 // User
 export const getUser = async (clerkId: string, email?: string, fullName?: string) => {
     const response = await api.get(`/user/${clerkId}`, { params: { email, fullName } });

@@ -1001,6 +1001,20 @@ app.post('/api/accounts', async (req, res) => {
     }
 });
 
+// Update Account
+app.put('/api/accounts/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const account = await Account.findByIdAndUpdate(id, req.body, { new: true });
+        if (!account) {
+            return res.status(404).json({ error: 'Account not found' });
+        }
+        res.json(account);
+    } catch (error) {
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
 // Recurring Transactions Routes
 
 // Get all recurring transactions for a user

@@ -15,6 +15,7 @@ import {
   getAccounts,
   getUser,
   createAccount,
+  updateAccount,
   getCustomCategories,
   addCustomCategory,
   deleteCustomCategory,
@@ -1686,11 +1687,9 @@ const SettingsView = ({ userProfile, onUpdateProfile }: { userProfile: UserProfi
 
 // --- Accounts View Component ---
 
-const AccountsView = ({ accounts, onAddAccount, metrics }: { accounts: Account[], onAddAccount: () => void, metrics: FinancialMetrics | null }) => {
+const AccountsView = ({ accounts, onAddAccount, onEditAccount, metrics }: { accounts: Account[], onAddAccount: () => void, onEditAccount: (account: Account) => void, metrics: FinancialMetrics | null }) => {
   const [assetsExpanded, setAssetsExpanded] = useState(true);
   const [liabilitiesExpanded, setLiabilitiesExpanded] = useState(true);
-  const [editingAccount, setEditingAccount] = useState<string | null>(null);
-  const [editBalance, setEditBalance] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   const assets = accounts.filter(a => a.type === 'asset');
@@ -1714,8 +1713,6 @@ const AccountsView = ({ accounts, onAddAccount, metrics }: { accounts: Account[]
   };
 
   const AccountItem = ({ account }: { account: Account }) => {
-    const isEditing = editingAccount === account.id;
-
     return (
       <div className="group flex items-center justify-between gap-4 py-4 hover:bg-forest-700/30 -mx-4 px-4 transition-colors rounded-xl">
         <div className="flex items-center gap-4 flex-1">
@@ -1725,67 +1722,34 @@ const AccountsView = ({ accounts, onAddAccount, metrics }: { accounts: Account[]
           ></div>
           <div className="flex flex-col justify-center min-w-0 flex-1">
             <p className="text-base font-medium text-white truncate">{account.name}</p>
+            <p className="text-sm text-forest-300 truncate">{account.institution}</p>
             <p className={`text-sm font-normal ${account.syncStatus === 'error' ? 'text-rose-500' : 'text-forest-400'}`}>
               {account.syncStatus === 'error' ? 'Sync error' : formatSyncTime(account.lastSynced)}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {isEditing ? (
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                value={editBalance}
-                onChange={(e) => setEditBalance(e.target.value)}
-                className="w-32 px-3 py-1.5 bg-forest-950 border border-forest-700 rounded-lg text-white text-sm focus:outline-none focus:border-primary"
-                placeholder="Balance"
-                autoFocus
-              />
+
+          <>
+            <p className="text-base font-semibold text-white">{formatCurrency(account.balance)}</p>
+            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <button
-                onClick={() => {
-                  setEditingAccount(null);
-                  setEditBalance('');
-                }}
-                className="p-1.5 text-primary hover:bg-primary/10 rounded-lg transition-colors"
-                title="Save"
+                onClick={() => onEditAccount(account)}
+                className="p-1.5 text-forest-400 hover:text-primary hover:bg-forest-800 rounded-lg transition-colors"
+                title="Edit account"
               >
-                <CheckCircle2 size={18} />
+                <Pencil size={16} />
               </button>
               <button
-                onClick={() => {
-                  setEditingAccount(null);
-                  setEditBalance('');
-                }}
-                className="p-1.5 text-forest-400 hover:bg-forest-800 rounded-lg transition-colors"
-                title="Cancel"
+                onClick={() => setDeleteConfirm(account.id || (account as any)._id)}
+                className="p-1.5 text-forest-400 hover:text-rose-500 hover:bg-forest-800 rounded-lg transition-colors"
+                title="Delete account"
               >
-                <X size={18} />
+                <Trash2 size={16} />
               </button>
             </div>
-          ) : (
-            <>
-              <p className="text-base font-semibold text-white">{formatCurrency(account.balance)}</p>
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button
-                  onClick={() => {
-                    setEditingAccount(account.id);
-                    setEditBalance(account.balance.toString());
-                  }}
-                  className="p-1.5 text-forest-400 hover:text-primary hover:bg-forest-800 rounded-lg transition-colors"
-                  title="Edit balance"
-                >
-                  <Pencil size={16} />
-                </button>
-                <button
-                  onClick={() => setDeleteConfirm(account.id)}
-                  className="p-1.5 text-forest-400 hover:text-rose-500 hover:bg-forest-800 rounded-lg transition-colors"
-                  title="Delete account"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            </>
-          )}
+          </>
+
         </div>
       </div>
     );
@@ -2175,6 +2139,7 @@ export default function App() {
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
   const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
+  const [editingAccountData, setEditingAccountData] = useState<Account | undefined>(undefined);
   const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
   const [customCategories, setCustomCategories] = useState<Array<{ name: string; type: 'income' | 'expense' }>>([]);
 
@@ -2808,18 +2773,35 @@ export default function App() {
     }
   };
 
-  const handleAddAccount = async (newAccount: any) => {
+  const handleSaveAccount = async (accountData: any) => {
     if (!clerkUser) return;
     try {
-      const savedAccount = await createAccount({ ...newAccount, userId: clerkUser.id });
-      const updatedAccounts = [...accounts, savedAccount];
-      setAccounts(updatedAccounts);
-      cache.set(`accounts_${clerkUser.id}`, updatedAccounts);
-      success('Account added successfully!');
+      if (editingAccountData) {
+        // Update existing account
+        const id = editingAccountData.id || (editingAccountData as any)._id;
+        const updatedAccount = await updateAccount(id, accountData);
+        setAccounts(prev => prev.map(a => (a.id === id || (a as any)._id === id) ? updatedAccount : a));
+        success('Account updated successfully!');
+      } else {
+        // Create new account
+        const newAccount = await createAccount({ ...accountData, userId: clerkUser.id });
+        setAccounts(prev => [...prev, newAccount]);
+        success('Account created successfully!');
+      }
+
+      // Refresh metrics
+      fetchMetrics();
       setIsAccountModalOpen(false);
+      setEditingAccountData(undefined);
     } catch (err) {
-      showError('Failed to add account. Please try again.');
+      console.error('Failed to save account:', err);
+      showError('Failed to save account. Please try again.');
     }
+  };
+
+  const handleAddAccount = async (account: any) => {
+    // Legacy handler, now using handleSaveAccount
+    await handleSaveAccount(account);
   };
 
   const handleDeleteTransaction = async (id: string) => {
@@ -3302,7 +3284,18 @@ export default function App() {
                     />
                   </>
                 ) : activeView === 'accounts' ? (
-                  <AccountsView accounts={accounts} onAddAccount={() => setIsAccountModalOpen(true)} metrics={financialMetrics} />
+                  <AccountsView
+                    accounts={accounts}
+                    onAddAccount={() => {
+                      setEditingAccountData(undefined);
+                      setIsAccountModalOpen(true);
+                    }}
+                    onEditAccount={(account) => {
+                      setEditingAccountData(account);
+                      setIsAccountModalOpen(true);
+                    }}
+                    metrics={financialMetrics}
+                  />
                 ) : activeView === 'ai-assistant' ? (
                   clerkUser ? <AIAssistantView userId={clerkUser.id} /> : <div>Loading...</div>
                 ) : activeView === 'export' ? (
@@ -3336,10 +3329,20 @@ export default function App() {
 
             <Modal
               isOpen={isAccountModalOpen}
-              onClose={() => setIsAccountModalOpen(false)}
-              title="Add Account"
+              onClose={() => {
+                setIsAccountModalOpen(false);
+                setEditingAccountData(undefined);
+              }}
+              title={editingAccountData ? "Edit Account" : "Add Account"}
             >
-              <AddAccountForm onAdd={handleAddAccount} onClose={() => setIsAccountModalOpen(false)} />
+              <AddAccountForm
+                onAdd={handleSaveAccount}
+                onClose={() => {
+                  setIsAccountModalOpen(false);
+                  setEditingAccountData(undefined);
+                }}
+                initialData={editingAccountData}
+              />
             </Modal>
 
             <Modal

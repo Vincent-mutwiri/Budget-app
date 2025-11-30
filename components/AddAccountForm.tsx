@@ -4,13 +4,14 @@ import { Loader2 } from 'lucide-react';
 interface AddAccountFormProps {
   onAdd: (account: any) => Promise<void>;
   onClose: () => void;
+  initialData?: any;
 }
 
-export const AddAccountForm: React.FC<AddAccountFormProps> = ({ onAdd, onClose }) => {
-  const [name, setName] = useState('');
-  const [type, setType] = useState<'asset' | 'liability'>('asset');
-  const [balance, setBalance] = useState('');
-  const [institution, setInstitution] = useState('');
+export const AddAccountForm: React.FC<AddAccountFormProps> = ({ onAdd, onClose, initialData }) => {
+  const [name, setName] = useState(initialData?.name || '');
+  const [type, setType] = useState<'asset' | 'liability'>(initialData?.type || 'asset');
+  const [balance, setBalance] = useState(initialData?.balance?.toString() || '');
+  const [institution, setInstitution] = useState(initialData?.institution || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -20,13 +21,14 @@ export const AddAccountForm: React.FC<AddAccountFormProps> = ({ onAdd, onClose }
     setIsSubmitting(true);
     try {
       await onAdd({
+        ...initialData, // Preserve existing fields like id, logoUrl, etc.
         name,
         type,
         balance: parseFloat(balance),
         institution,
-        logoUrl: 'https://via.placeholder.com/48',
-        lastSynced: new Date().toISOString(),
-        syncStatus: 'success'
+        logoUrl: initialData?.logoUrl || 'https://via.placeholder.com/48',
+        lastSynced: initialData?.lastSynced || new Date().toISOString(),
+        syncStatus: initialData?.syncStatus || 'success'
       });
       onClose();
     } catch (error) {
@@ -95,7 +97,7 @@ export const AddAccountForm: React.FC<AddAccountFormProps> = ({ onAdd, onClose }
         className="w-full bg-primary hover:bg-primary/90 text-forest-950 font-bold py-3.5 rounded-xl transition-colors mt-2 flex items-center justify-center gap-2"
       >
         {isSubmitting && <Loader2 size={18} className="animate-spin" />}
-        Add Account
+        {initialData ? 'Update Account' : 'Add Account'}
       </button>
     </form>
   );
