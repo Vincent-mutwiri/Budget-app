@@ -7,14 +7,20 @@ interface RecurringTransactionListProps {
     onEdit: (id: string) => void;
     onDelete: (id: string) => void;
     onToggleActive: (id: string, active: boolean) => void;
+    onPay: (id: string) => void;
 }
 
 export const RecurringTransactionList: React.FC<RecurringTransactionListProps> = ({
     transactions,
     onEdit,
     onDelete,
-    onToggleActive
+    onToggleActive,
+    onPay
 }) => {
+    // ... existing helper functions ...
+
+    // ... inside the map loop ...
+
     const formatDate = (dateString: string) => {
         const date = new Date(dateString);
         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -54,12 +60,12 @@ export const RecurringTransactionList: React.FC<RecurringTransactionListProps> =
 
     return (
         <div className="space-y-3">
-            {transactions.map((transaction) => (
+            {transactions.map((transaction, index) => (
                 <div
-                    key={transaction.id}
+                    key={transaction.id || `transaction-${index}`}
                     className={`bg-forest-900 border rounded-xl p-4 transition-all ${transaction.isActive
-                            ? 'border-forest-700 hover:border-forest-600'
-                            : 'border-forest-800 opacity-60'
+                        ? 'border-forest-700 hover:border-forest-600'
+                        : 'border-forest-800 opacity-60'
                         }`}
                 >
                     <div className="flex items-start justify-between">
@@ -118,11 +124,20 @@ export const RecurringTransactionList: React.FC<RecurringTransactionListProps> =
 
                             <div className="flex items-center gap-2 border-l border-forest-700 pl-3">
                                 <button
-                                    onClick={() => onToggleActive(transaction.id, !transaction.isActive)}
+                                    onClick={() => (transaction.id || (transaction as any)._id) && onPay(transaction.id || (transaction as any)._id)}
+                                    disabled={(!transaction.id && !(transaction as any)._id) || !transaction.isActive}
+                                    className="p-2 text-forest-400 hover:text-primary hover:bg-forest-800 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title="Pay Now"
+                                >
+                                    <div className="font-bold text-lg leading-none">$</div>
+                                </button>
+                                <button
+                                    onClick={() => (transaction.id || (transaction as any)._id) && onToggleActive(transaction.id || (transaction as any)._id, !transaction.isActive)}
+                                    disabled={!transaction.id && !(transaction as any)._id}
                                     className={`p-2 rounded-lg transition-colors ${transaction.isActive
-                                            ? 'text-primary hover:bg-forest-800'
-                                            : 'text-forest-600 hover:bg-forest-800'
-                                        }`}
+                                        ? 'text-primary hover:bg-forest-800'
+                                        : 'text-forest-600 hover:bg-forest-800'
+                                        } disabled:opacity-50 disabled:cursor-not-allowed`}
                                     title={transaction.isActive ? 'Deactivate' : 'Activate'}
                                 >
                                     {transaction.isActive ? (
@@ -132,15 +147,17 @@ export const RecurringTransactionList: React.FC<RecurringTransactionListProps> =
                                     )}
                                 </button>
                                 <button
-                                    onClick={() => onEdit(transaction.id)}
-                                    className="p-2 text-forest-400 hover:text-white hover:bg-forest-800 rounded-lg transition-colors"
+                                    onClick={() => (transaction.id || (transaction as any)._id) && onEdit(transaction.id || (transaction as any)._id)}
+                                    disabled={!transaction.id && !(transaction as any)._id}
+                                    className="p-2 text-forest-400 hover:text-white hover:bg-forest-800 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                     title="Edit"
                                 >
                                     <Edit2 size={18} />
                                 </button>
                                 <button
-                                    onClick={() => onDelete(transaction.id)}
-                                    className="p-2 text-forest-400 hover:text-red-400 hover:bg-forest-800 rounded-lg transition-colors"
+                                    onClick={() => (transaction.id || (transaction as any)._id) && onDelete(transaction.id || (transaction as any)._id)}
+                                    disabled={!transaction.id && !(transaction as any)._id}
+                                    className="p-2 text-forest-400 hover:text-red-400 hover:bg-forest-800 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                     title="Delete"
                                 >
                                     <Trash2 size={18} />

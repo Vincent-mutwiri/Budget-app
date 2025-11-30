@@ -34,7 +34,7 @@ import { Modal } from './components/Modal';
 import { AddBudgetForm, AddGoalForm } from './components/Forms';
 import { AddAccountForm } from './components/AddAccountForm';
 import { CategoryManager } from './components/CategoryManager';
-import { createBudget, createGoal, getRecurringTransactions, createRecurringTransaction, updateRecurringTransaction, deleteRecurringTransaction, toggleRecurringTransaction, deleteTransaction } from './services/api';
+import { createBudget, createGoal, getRecurringTransactions, createRecurringTransaction, updateRecurringTransaction, deleteRecurringTransaction, toggleRecurringTransaction, deleteTransaction, payRecurringTransaction } from './services/api';
 import { RecurringTransactionsView } from './components/RecurringTransactionsView';
 import type { RecurringTransaction, RecurringTransactionInput } from './types';
 import { NotificationCenter } from './components/NotificationCenter';
@@ -1689,6 +1689,9 @@ const SettingsView = ({ userProfile, onUpdateProfile }: { userProfile: UserProfi
 const AccountsView = ({ accounts, onAddAccount, metrics }: { accounts: Account[], onAddAccount: () => void, metrics: FinancialMetrics | null }) => {
   const [assetsExpanded, setAssetsExpanded] = useState(true);
   const [liabilitiesExpanded, setLiabilitiesExpanded] = useState(true);
+  const [editingAccount, setEditingAccount] = useState<string | null>(null);
+  const [editBalance, setEditBalance] = useState('');
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   const assets = accounts.filter(a => a.type === 'asset');
   const liabilities = accounts.filter(a => a.type === 'liability');
@@ -1710,26 +1713,83 @@ const AccountsView = ({ accounts, onAddAccount, metrics }: { accounts: Account[]
     return `Synced ${diffDays}d ago`;
   };
 
-  const AccountItem = ({ account }: { account: Account }) => (
-    <div className="flex items-center justify-between gap-4 py-4 hover:bg-forest-700/30 -mx-4 px-4 cursor-pointer transition-colors rounded-xl">
-      <div className="flex items-center gap-4">
-        <div
-          className="w-12 h-12 rounded-xl bg-center bg-cover border border-forest-700"
-          style={{ backgroundImage: `url("${account.logoUrl}")` }}
-        ></div>
-        <div className="flex flex-col justify-center">
-          <p className="text-base font-medium text-white">{account.name}</p>
-          <p className={`text-sm font-normal ${account.syncStatus === 'error' ? 'text-rose-500' : 'text-forest-400'
-            }`}>
-            {account.syncStatus === 'error' ? 'Sync error' : formatSyncTime(account.lastSynced)}
-          </p>
+  const AccountItem = ({ account }: { account: Account }) => {
+    const isEditing = editingAccount === account.id;
+
+    return (
+      <div className="group flex items-center justify-between gap-4 py-4 hover:bg-forest-700/30 -mx-4 px-4 transition-colors rounded-xl">
+        <div className="flex items-center gap-4 flex-1">
+          <div
+            className="w-12 h-12 rounded-xl bg-center bg-cover border border-forest-700 shrink-0"
+            style={{ backgroundImage: `url("${account.logoUrl}")` }}
+          ></div>
+          <div className="flex flex-col justify-center min-w-0 flex-1">
+            <p className="text-base font-medium text-white truncate">{account.name}</p>
+            <p className={`text-sm font-normal ${account.syncStatus === 'error' ? 'text-rose-500' : 'text-forest-400'}`}>
+              {account.syncStatus === 'error' ? 'Sync error' : formatSyncTime(account.lastSynced)}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          {isEditing ? (
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                value={editBalance}
+                onChange={(e) => setEditBalance(e.target.value)}
+                className="w-32 px-3 py-1.5 bg-forest-950 border border-forest-700 rounded-lg text-white text-sm focus:outline-none focus:border-primary"
+                placeholder="Balance"
+                autoFocus
+              />
+              <button
+                onClick={() => {
+                  setEditingAccount(null);
+                  setEditBalance('');
+                }}
+                className="p-1.5 text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                title="Save"
+              >
+                <CheckCircle2 size={18} />
+              </button>
+              <button
+                onClick={() => {
+                  setEditingAccount(null);
+                  setEditBalance('');
+                }}
+                className="p-1.5 text-forest-400 hover:bg-forest-800 rounded-lg transition-colors"
+                title="Cancel"
+              >
+                <X size={18} />
+              </button>
+            </div>
+          ) : (
+            <>
+              <p className="text-base font-semibold text-white">{formatCurrency(account.balance)}</p>
+              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                  onClick={() => {
+                    setEditingAccount(account.id);
+                    setEditBalance(account.balance.toString());
+                  }}
+                  className="p-1.5 text-forest-400 hover:text-primary hover:bg-forest-800 rounded-lg transition-colors"
+                  title="Edit balance"
+                >
+                  <Pencil size={16} />
+                </button>
+                <button
+                  onClick={() => setDeleteConfirm(account.id)}
+                  className="p-1.5 text-forest-400 hover:text-rose-500 hover:bg-forest-800 rounded-lg transition-colors"
+                  title="Delete account"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
-      <div className="text-right">
-        <p className="text-base font-semibold text-white">{formatCurrency(account.balance)}</p>
-      </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="flex flex-col gap-8 w-full max-w-full overflow-hidden">
@@ -1831,6 +1891,34 @@ const AccountsView = ({ accounts, onAddAccount, metrics }: { accounts: Account[]
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-forest-800 rounded-2xl p-6 max-w-md w-full border border-forest-700">
+            <h3 className="text-xl font-bold text-white mb-4">Delete Account?</h3>
+            <p className="text-forest-400 mb-6">
+              Are you sure you want to delete this account? This action cannot be undone.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="px-4 py-2 rounded-xl bg-forest-700 hover:bg-forest-600 text-white transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setDeleteConfirm(null);
+                }}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -2652,13 +2740,13 @@ export default function App() {
         deadline: formData.deadline
       };
       const updatedGoal = await updateGoal(goalId, updates);
-      
+
       // Upload image if selected
       if (imageFile) {
         const imageResult = await uploadGoalImage(goalId, clerkUser.id, imageFile);
         updatedGoal.imageUrl = imageResult.imageUrl;
       }
-      
+
       const updatedGoals = savingsGoals.map(g => g.id === goalId ? { ...g, ...updatedGoal } : g);
       setSavingsGoals(updatedGoals);
       cache.set(`goals_${clerkUser.id}`, updatedGoals);
@@ -2796,7 +2884,7 @@ export default function App() {
     if (!clerkUser) return;
     try {
       const updatedRecTx = await updateRecurringTransaction(id, data);
-      const updated = recurringTransactions.map(rt => rt.id === id ? updatedRecTx : rt);
+      const updated = recurringTransactions.map(rt => (rt.id === id || (rt as any)._id === id) ? updatedRecTx : rt);
       setRecurringTransactions(updated);
       cache.set(`recurring_${clerkUser.id}`, updated);
       success('Recurring transaction updated successfully!');
@@ -2809,7 +2897,7 @@ export default function App() {
     if (!clerkUser) return;
     try {
       await deleteRecurringTransaction(id);
-      const updated = recurringTransactions.filter(rt => rt.id !== id);
+      const updated = recurringTransactions.filter(rt => rt.id !== id && (rt as any)._id !== id);
       setRecurringTransactions(updated);
       cache.set(`recurring_${clerkUser.id}`, updated);
       success('Recurring transaction deleted successfully!');
@@ -2822,12 +2910,34 @@ export default function App() {
     if (!clerkUser) return;
     try {
       const updatedRecTx = await toggleRecurringTransaction(id, isActive);
-      const updated = recurringTransactions.map(rt => rt.id === id ? updatedRecTx : rt);
+      const updated = recurringTransactions.map(rt => (rt.id === id || (rt as any)._id === id) ? updatedRecTx : rt);
       setRecurringTransactions(updated);
       cache.set(`recurring_${clerkUser.id}`, updated);
       success(`Recurring transaction ${isActive ? 'activated' : 'deactivated'} successfully!`);
     } catch (err) {
       showError('Failed to update recurring transaction. Please try again.');
+    }
+  };
+
+  const handlePayRecurringTransaction = async (id: string) => {
+    try {
+      const response = await payRecurringTransaction(id);
+      const { transaction, recurringTransaction } = response;
+
+      // Update recurring transactions list with new next occurrence
+      // Update recurring transactions list with new next occurrence
+      setRecurringTransactions(prev => prev.map(t => (t.id === id || (t as any)._id === id) ? recurringTransaction : t));
+
+      // Add new transaction to list
+      setTransactions(prev => [transaction, ...prev]);
+
+      // Refresh metrics to update balance
+      fetchMetrics();
+
+      success('Payment processed successfully');
+    } catch (err) {
+      console.error('Failed to pay recurring transaction:', err);
+      showError('Failed to process payment');
     }
   };
 
@@ -3164,8 +3274,8 @@ export default function App() {
                   clerkUser ? <DebtTracker userId={clerkUser.id} /> : <div>Loading...</div>
                 ) : activeView === 'gamification' ? (
                   clerkUser ? (
-                    <GamificationViewIntegrated 
-                      budgets={budgets} 
+                    <GamificationViewIntegrated
+                      budgets={budgets}
                       userXP={user.xp}
                       userLevel={user.level}
                       userStreak={user.streak}

@@ -147,6 +147,11 @@ export const toggleRecurringTransaction = async (id: string, isActive: boolean) 
     return response.data;
 };
 
+export const payRecurringTransaction = async (id: string) => {
+    const response = await api.post(`/recurring-transactions/${id}/pay`);
+    return response.data;
+};
+
 // Notifications
 export const getNotifications = async (userId: string, filters?: { type?: string; isRead?: boolean; limit?: number }) => {
     const params: any = { userId };

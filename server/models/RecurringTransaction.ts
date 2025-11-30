@@ -24,4 +24,12 @@ const RecurringTransactionSchema = new mongoose.Schema({
 // Index for efficient querying of active recurring transactions due for processing
 RecurringTransactionSchema.index({ userId: 1, isActive: 1, nextOccurrence: 1 });
 
+RecurringTransactionSchema.set('toJSON', {
+    virtuals: true,
+    versionKey: false,
+    transform: function (doc, ret) {
+        delete (ret as any)._id;
+    }
+});
+
 export const RecurringTransaction = mongoose.model('RecurringTransaction', RecurringTransactionSchema);

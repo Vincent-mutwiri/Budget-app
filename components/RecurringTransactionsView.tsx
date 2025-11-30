@@ -11,6 +11,7 @@ interface RecurringTransactionsViewProps {
     onUpdate: (id: string, data: RecurringTransactionInput) => Promise<void>;
     onDelete: (id: string) => Promise<void>;
     onToggleActive: (id: string, active: boolean) => Promise<void>;
+    onPay: (id: string) => Promise<void>;
 }
 
 export const RecurringTransactionsView: React.FC<RecurringTransactionsViewProps> = ({
@@ -18,13 +19,15 @@ export const RecurringTransactionsView: React.FC<RecurringTransactionsViewProps>
     onAdd,
     onUpdate,
     onDelete,
-    onToggleActive
+    onToggleActive,
+    onPay
 }) => {
+
     const [isFormModalOpen, setIsFormModalOpen] = useState(false);
     const [editingTransaction, setEditingTransaction] = useState<RecurringTransaction | undefined>();
 
     const handleEdit = (id: string) => {
-        const transaction = recurringTransactions.find(t => t.id === id);
+        const transaction = recurringTransactions.find(t => t.id === id || (t as any)._id === id);
         if (transaction) {
             setEditingTransaction(transaction);
             setIsFormModalOpen(true);
@@ -108,6 +111,7 @@ export const RecurringTransactionsView: React.FC<RecurringTransactionsViewProps>
                     onEdit={handleEdit}
                     onDelete={onDelete}
                     onToggleActive={onToggleActive}
+                    onPay={onPay}
                 />
             </div>
 

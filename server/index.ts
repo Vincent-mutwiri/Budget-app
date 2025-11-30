@@ -1129,6 +1129,48 @@ app.patch('/api/recurring-transactions/:id/toggle', async (req, res) => {
     }
 });
 
+// Manually pay a recurring transaction
+app.post('/api/recurring-transactions/:id/pay', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const recurringTx = await RecurringTransaction.findById(id);
+        if (!recurringTx) {
+            return res.status(404).json({ error: 'Recurring transaction not found' });
+        }
+
+        // Create a new transaction from the template
+        const newTransaction = new Transaction({
+            userId: recurringTx.userId,
+            amount: recurringTx.amount,
+            description: recurringTx.description,
+            category: recurringTx.category,
+            date: new Date(), // Pay NOW
+            type: recurringTx.type,
+            createdAt: new Date()
+        });
+
+        await newTransaction.save();
+
+        // Update next occurrence date
+        // We assume paying now means we skip the current scheduled one and move to the next
+        recurringTx.nextOccurrence = calculateNextOccurrence(
+            recurringTx.nextOccurrence,
+            recurringTx.frequency
+        );
+        recurringTx.updatedAt = new Date();
+        await recurringTx.save();
+
+        res.json({
+            transaction: newTransaction,
+            recurringTransaction: recurringTx
+        });
+    } catch (error) {
+        console.error('Error paying recurring transaction:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
 // Notification Routes
 
 // Get notifications with filters
@@ -1303,6 +1345,8 @@ import {
     calculateForecast,
     detectAnomalies
 } from './services/insightsCalculator';
+
+import { calculateNextOccurrence } from './services/recurringTransactionScheduler';
 
 // Investment calculation service
 import { calculateInvestmentMetrics, calculatePortfolioMetrics } from './services/investmentCalculator';
