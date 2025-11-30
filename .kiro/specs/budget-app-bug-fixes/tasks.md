@@ -8,15 +8,15 @@
   - Create database indexes for performance optimization
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 8.1, 8.2, 8.3, 14.1, 14.2, 14.3_
 
-- [ ] 2. Backend API - Budget Management
-- [ ] 2.1 Implement PUT /api/budgets/:id endpoint
+- [x] 2. Backend API - Budget Management
+- [x] 2.1 Implement PUT /api/budgets/:id endpoint
   - Create endpoint to update budget limit and other fields
   - Validate user ownership and input data
   - Recalculate budget utilization percentage
   - Return updated budget with calculations
   - _Requirements: 1.1, 1.2, 1.3, 1.4_
 
-- [ ] 2.2 Implement GET /api/budgets/total endpoint
+- [x] 2.2 Implement GET /api/budgets/total endpoint
   - Calculate sum of all budget limits for a user
   - Return total planned budget
   - _Requirements: 1.5_

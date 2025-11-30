@@ -213,6 +213,80 @@ app.post('/api/budgets', validateBudget, async (req, res) => {
     }
 });
 
+// Update Budget
+app.put('/api/budgets/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { limit, category, icon, userId } = req.body;
+
+        // Find the budget
+        const budget = await Budget.findById(id);
+        if (!budget) {
+            return res.status(404).json({ error: 'Budget not found', code: 'BUDGET_NOT_FOUND' });
+        }
+
+        // Validate user ownership
+        if (userId && budget.userId !== userId) {
+            return res.status(403).json({ error: 'Unauthorized', code: 'UNAUTHORIZED' });
+        }
+
+        // Validate limit is positive if provided
+        if (limit !== undefined) {
+            if (typeof limit !== 'number' || limit <= 0) {
+                return res.status(400).json({ error: 'Budget limit must be a positive number', code: 'INVALID_AMOUNT' });
+            }
+            budget.limit = limit;
+        }
+
+        // Update other fields if provided
+        if (category !== undefined) budget.category = category;
+        if (icon !== undefined) budget.icon = icon;
+
+        // Update timestamp
+        budget.updatedAt = new Date();
+
+        await budget.save();
+
+        // Calculate utilization percentage
+        const utilizationPercentage = budget.limit > 0 ? (budget.spent / budget.limit) * 100 : 0;
+
+        // Calculate total planned budget for this user
+        const allBudgets = await Budget.find({ userId: budget.userId });
+        const totalPlannedBudget = allBudgets.reduce((sum, b) => sum + b.limit, 0);
+
+        res.json({
+            budget: budget.toObject(),
+            totalPlannedBudget,
+            utilizationPercentage
+        });
+    } catch (error) {
+        console.error('Error updating budget:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Get Total Planned Budget
+app.get('/api/budgets/total', async (req, res) => {
+    const { userId } = req.query;
+
+    if (!userId) {
+        return res.status(400).json({ error: 'UserId required' });
+    }
+
+    try {
+        const budgets = await Budget.find({ userId });
+        const totalPlannedBudget = budgets.reduce((sum, budget) => sum + budget.limit, 0);
+
+        res.json({
+            totalPlannedBudget,
+            budgetCount: budgets.length
+        });
+    } catch (error) {
+        console.error('Error calculating total planned budget:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
 // Get Savings Goals
 app.get('/api/goals', async (req, res) => {
     const { userId } = req.query;
