@@ -40,7 +40,7 @@ export const ExpensePieChart: React.FC<ChartsProps> = ({ transactions }) => {
     <div className="h-full w-full relative">
       <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
         <span className="text-forest-300 text-xs">Total Spent</span>
-        <span className="text-white font-bold text-xl">${data.total.toLocaleString()}</span>
+        <span className="text-white font-bold text-xl">${(data.total || 0).toLocaleString()}</span>
       </div>
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
