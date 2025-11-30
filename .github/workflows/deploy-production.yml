@@ -126,14 +126,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
       
-      - name: Setup PostgreSQL client
+      - name: Setup MongoDB tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y postgresql-client
+          wget -qO - https://www.mongodb.org/static/pgp/server-6.0.asc | sudo apt-key add -
+          echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/6.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-6.0.list
+          sudo apt-get update
+          sudo apt-get install -y mongodb-mongosh mongodb-org-tools
       
       - name: Create database backup
         run: |
-          pg_dump ${{ secrets.PROD_DATABASE_URL }} > backup_$(date +%Y%m%d_%H%M%S).sql
+          mongodump --uri="${{ secrets.PROD_DATABASE_URL }}" --archive="backup_$(date +%Y%m%d_%H%M%S).archive" --gzip
         continue-on-error: true
       
       - name: Run migrations
@@ -146,7 +149,7 @@ jobs:
       
       - name: Verify migrations
         run: |
-          psql ${{ secrets.PROD_DATABASE_URL }} -c "SELECT * FROM schema_migrations ORDER BY applied_at DESC LIMIT 5;"
+          mongosh "${{ secrets.PROD_DATABASE_URL }}" --eval "db.runCommand({ ping: 1 })"
 
   deploy-backend:
     name: Deploy Backend

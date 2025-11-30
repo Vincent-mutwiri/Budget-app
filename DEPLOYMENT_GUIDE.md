@@ -22,7 +22,7 @@ This guide covers deployment procedures for staging and production environments.
 - Node.js 18+ and npm
 - Docker and Docker Compose
 - Git
-- PostgreSQL client (psql)
+- MongoDB tools (mongosh, mongodump, mongorestore)
 - AWS CLI (if using AWS)
 - kubectl (if using Kubernetes)
 
@@ -284,7 +284,7 @@ curl https://api-staging.smartwallet.com/health
 curl https://staging.smartwallet.com
 
 # Check database connection
-psql $DATABASE_URL -c "SELECT 1;"
+mongosh $MONGODB_URI --eval "db.runCommand({ ping: 1 })"
 ```
 
 ### Automated Deployment with CI/CD
@@ -561,10 +561,10 @@ curl https://api.smartwallet.com/health
 
 ```bash
 # Restore from backup
-pg_restore -d smartwallet_prod backup_YYYYMMDD.dump
+mongorestore --uri $MONGODB_URI backup_YYYYMMDD
 
 # Or run rollback migrations
-psql $DATABASE_URL -f server/migrations/rollback/009_indexes_rollback.sql
+# Rollback logic depends on your migration strategy. For Mongoose, revert code and restart.
 ```
 
 ### Application Rollback
@@ -669,10 +669,10 @@ curl https://api.smartwallet.com/metrics/users
 
 ```bash
 # Check database connectivity
-psql $DATABASE_URL -c "SELECT 1;"
+mongosh $MONGODB_URI --eval "db.runCommand({ ping: 1 })"
 
 # Check connection pool
-psql $DATABASE_URL -c "SELECT count(*) FROM pg_stat_activity;"
+mongosh $MONGODB_URI --eval "db.currentOp()"
 
 # Restart database connection pool
 pm2 restart smartwallet-api
@@ -695,10 +695,10 @@ node --inspect server/dist/index.js
 
 ```bash
 # Check database query performance
-psql $DATABASE_URL -c "SELECT * FROM pg_stat_statements ORDER BY mean_time DESC LIMIT 10;"
+mongosh $MONGODB_URI --eval "db.system.profile.find().sort({millis:-1}).limit(10)"
 
 # Enable query logging
-psql $DATABASE_URL -c "ALTER SYSTEM SET log_min_duration_statement = 1000;"
+mongosh $MONGODB_URI --eval "db.setProfilingLevel(1, { slowms: 1000 })"
 
 # Check API logs
 pm2 logs smartwallet-api --lines 100
