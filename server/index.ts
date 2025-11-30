@@ -487,6 +487,236 @@ app.post('/api/goals', async (req, res) => {
     }
 });
 
+// Update Savings Goal
+app.put('/api/goals/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { userId, title, targetAmount, deadline, imageUrl, status } = req.body;
+
+        // Find the goal
+        const goal = await SavingsGoal.findById(id);
+        if (!goal) {
+            return res.status(404).json({ error: 'Goal not found', code: 'GOAL_NOT_FOUND' });
+        }
+
+        // Validate user ownership
+        if (userId && goal.userId !== userId) {
+            return res.status(403).json({ error: 'Unauthorized', code: 'UNAUTHORIZED' });
+        }
+
+        // Update fields if provided
+        if (title !== undefined) goal.title = title;
+        if (targetAmount !== undefined) {
+            if (typeof targetAmount !== 'number' || targetAmount <= 0) {
+                return res.status(400).json({ error: 'Target amount must be a positive number', code: 'INVALID_AMOUNT' });
+            }
+            goal.targetAmount = targetAmount;
+        }
+        if (deadline !== undefined) goal.deadline = new Date(deadline);
+        if (imageUrl !== undefined) goal.imageUrl = imageUrl;
+        if (status !== undefined) goal.status = status;
+
+        // Update timestamp
+        goal.updatedAt = new Date();
+
+        await goal.save();
+
+        res.json(goal.toObject());
+    } catch (error) {
+        console.error('Error updating goal:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Remove Goal Image
+app.delete('/api/goals/:id/image', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { userId } = req.query;
+
+        if (!userId) {
+            return res.status(400).json({ error: 'UserId required' });
+        }
+
+        // Find the goal
+        const goal = await SavingsGoal.findById(id);
+        if (!goal) {
+            return res.status(404).json({ error: 'Goal not found', code: 'GOAL_NOT_FOUND' });
+        }
+
+        // Validate user ownership
+        if (goal.userId !== userId) {
+            return res.status(403).json({ error: 'Unauthorized', code: 'UNAUTHORIZED' });
+        }
+
+        // Extract S3 key from image URL if it exists
+        if (goal.imageUrl && goal.imageUrl.includes('amazonaws.com')) {
+            try {
+                const { DeleteObjectCommand } = await import('@aws-sdk/client-s3');
+                const { S3Client } = await import('@aws-sdk/client-s3');
+
+                const s3 = new S3Client({
+                    region: process.env.AWS_S3_REGION,
+                    credentials: {
+                        accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+                        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+                    },
+                });
+
+                // Extract key from URL (format: https://bucket.s3.region.amazonaws.com/key)
+                const url = new URL(goal.imageUrl);
+                const key = url.pathname.substring(1); // Remove leading slash
+
+                const deleteCommand = new DeleteObjectCommand({
+                    Bucket: process.env.AWS_S3_BUCKET_NAME || '',
+                    Key: key,
+                });
+
+                await s3.send(deleteCommand);
+            } catch (s3Error) {
+                console.error('Error deleting image from S3:', s3Error);
+                // Continue even if S3 deletion fails
+            }
+        }
+
+        // Set to default image URL (empty string or a default placeholder)
+        const defaultImageUrl = '';
+        goal.imageUrl = defaultImageUrl;
+        goal.updatedAt = new Date();
+
+        await goal.save();
+
+        res.json({
+            success: true,
+            message: 'Image removed successfully',
+            defaultImageUrl,
+            goal: goal.toObject()
+        });
+    } catch (error) {
+        console.error('Error removing goal image:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Contribute to Goal
+app.post('/api/goals/:id/contribute', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { userId, amount, note } = req.body;
+
+        if (!userId || amount === undefined) {
+            return res.status(400).json({ error: 'UserId and amount required' });
+        }
+
+        // Validate amount is positive
+        if (typeof amount !== 'number' || amount <= 0) {
+            return res.status(400).json({ error: 'Contribution amount must be a positive number', code: 'INVALID_AMOUNT' });
+        }
+
+        // Find the goal
+        const goal = await SavingsGoal.findById(id);
+        if (!goal) {
+            return res.status(404).json({ error: 'Goal not found', code: 'GOAL_NOT_FOUND' });
+        }
+
+        // Validate user ownership
+        if (goal.userId !== userId) {
+            return res.status(403).json({ error: 'Unauthorized', code: 'UNAUTHORIZED' });
+        }
+
+        // Check goal status
+        if (goal.status !== 'in-progress') {
+            return res.status(400).json({ error: 'Cannot contribute to a goal that is not in progress', code: 'INVALID_GOAL_STATUS' });
+        }
+
+        // Get user and validate balance
+        const user = await User.findOne({ clerkId: userId });
+        if (!user) {
+            return res.status(404).json({ error: 'User not found', code: 'USER_NOT_FOUND' });
+        }
+
+        // Check if user has sufficient balance
+        if (user.totalBalance < amount) {
+            return res.status(400).json({
+                error: 'Insufficient balance',
+                code: 'INSUFFICIENT_BALANCE',
+                availableBalance: user.totalBalance,
+                requestedAmount: amount
+            });
+        }
+
+        // Deduct from user's total balance
+        user.totalBalance -= amount;
+
+        // Add to goal's current amount
+        goal.currentAmount += amount;
+
+        // Record contribution in contributions array
+        goal.contributions.push({
+            amount,
+            date: new Date(),
+            note: note || ''
+        });
+
+        // Check if goal is completed
+        if (goal.currentAmount >= goal.targetAmount) {
+            goal.status = 'completed';
+        }
+
+        // Update timestamp
+        goal.updatedAt = new Date();
+
+        // Award XP for contribution (25 XP base)
+        const contributionXP = 25;
+        user.xp = (user.xp || 0) + contributionXP;
+
+        // Calculate new level
+        const newLevel = Math.floor(user.xp / 100) + 1;
+        user.level = newLevel;
+
+        // Save both user and goal
+        await user.save();
+        await goal.save();
+
+        // Create notification for contribution
+        try {
+            const notification = new Notification({
+                userId,
+                type: 'gamification',
+                title: 'Goal Contribution',
+                message: `You contributed $${amount.toFixed(2)} to "${goal.title}" and earned ${contributionXP} XP!`,
+                priority: 'medium',
+                isRead: false,
+                createdAt: new Date()
+            });
+            await notification.save();
+        } catch (notifError) {
+            console.error('Error creating notification:', notifError);
+            // Continue even if notification fails
+        }
+
+        res.json({
+            success: true,
+            message: 'Contribution successful',
+            goal: goal.toObject(),
+            newBalance: user.totalBalance,
+            contribution: {
+                amount,
+                date: new Date(),
+                note: note || ''
+            },
+            xpReward: {
+                amount: contributionXP,
+                newXP: user.xp,
+                newLevel: user.level
+            }
+        });
+    } catch (error) {
+        console.error('Error contributing to goal:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
 // Get Accounts
 app.get('/api/accounts', async (req, res) => {
     const { userId } = req.query;

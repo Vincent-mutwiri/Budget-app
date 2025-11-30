@@ -35,20 +35,20 @@
   - Return transaction with XP reward details
   - _Requirements: 3.1, 3.2, 3.3, 3.4_
 
-- [ ] 4. Backend API - Goals Management
-- [ ] 4.1 Implement PUT /api/goals/:id endpoint
+- [x] 4. Backend API - Goals Management
+- [x] 4.1 Implement PUT /api/goals/:id endpoint
   - Create endpoint to update goal details
   - Validate user ownership
   - Handle image URL updates
   - _Requirements: 7.1, 7.2, 7.3_
 
-- [ ] 4.2 Implement DELETE /api/goals/:id/image endpoint
+- [x] 4.2 Implement DELETE /api/goals/:id/image endpoint
   - Remove image from S3 storage
   - Update goal record with default image URL
   - Return success response with default image
   - _Requirements: 6.1, 6.2, 6.3, 6.4_
 
-- [ ] 4.3 Implement POST /api/goals/:id/contribute endpoint
+- [x] 4.3 Implement POST /api/goals/:id/contribute endpoint
   - Validate contribution amount against user balance
   - Deduct amount from user's totalBalance
   - Add amount to goal's currentAmount
