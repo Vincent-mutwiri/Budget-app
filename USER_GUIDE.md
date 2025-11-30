@@ -224,7 +224,7 @@ Set and achieve your financial goals with visual tracking and smart contribution
 ### Creating a Savings Goal
 
 1. Navigate to **Goals** in the sidebar
-2. Click **Add New Goal** (there's only one button - we fixed the duplicate!)
+2. Click **Add New Goal**
 3. Fill in the details:
    - **Title**: Name your goal (e.g., "Emergency Fund", "Vacation")
    - **Target Amount**: How much you want to save
@@ -289,13 +289,13 @@ This is where the magic happens - actually saving toward your goals!
 
 **Example**:
 ```
-Your Balance: $5,000
-Goal Progress: $2,000 / $10,000
-Contribution: $500
+Your Balance: KSh 5,000
+Goal Progress: KSh 2,000 / KSh 10,000
+Contribution: KSh 500
 
 After Contributing:
-Your Balance: $4,500 ✓
-Goal Progress: $2,500 / $10,000 (25%) ✓
+Your Balance: KSh 4,500 ✓
+Goal Progress: KSh 2,500 / KSh 10,000 (25%) ✓
 XP Earned: +25 XP 🎉
 ```
 
@@ -798,22 +798,22 @@ Complete challenges to earn bonus XP:
 
 **Weekly Challenges**:
 - Stay within budget for 7 days
-- Save $100 this week
+- Save KSh 100 this week
 - Log all transactions
 
 **Monthly Challenges**:
 - Achieve savings goal
-- Reduce debt by $500
+- Reduce debt by KSh 500
 - Maintain 30-day streak
 
 ### Badges & Achievements
 
 Unlock badges for milestones:
-- 💰 **Super Saver**: Save $1000 in a month
+- 💰 **Super Saver**: Save KSh 1000 in a month
 - 📊 **Budget Master**: Stay within budget for 30 days
 - 🔥 **Streak Champion**: 100-day activity streak
 - 🎯 **Goal Getter**: Complete 5 savings goals
-- 📈 **Investment Pro**: Portfolio reaches $10,000
+- 📈 **Investment Pro**: Portfolio reaches KSh 10,000
 
 ### Leaderboards
 
@@ -1099,12 +1099,11 @@ View past exports:
 
 Speed up your workflow with keyboard shortcuts:
 
-- `Ctrl/Cmd + N`: New transaction
-- `Ctrl/Cmd + B`: View budgets
-- `Ctrl/Cmd + I`: Open insights
-- `Ctrl/Cmd + K`: Open AI Assistant
-- `Ctrl/Cmd + ,`: Open settings
-- `Esc`: Close modal/dialog
+- `Ctrl/Cmd + N`: Go to Transactions
+- `Ctrl/Cmd + B`: Go to Budgets
+- `Ctrl/Cmd + D`: Go to Dashboard
+- `Ctrl/Cmd + G`: Go to Goals
+- `Ctrl/Cmd + S`: Go to Settings
 
 ---
 

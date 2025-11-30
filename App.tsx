@@ -154,7 +154,7 @@ const TransactionsView = ({
     // Reset form - keep date if retainDate is enabled
     setAmount('');
     setDescription('');
-    setCategory('');
+    setCategory('' as Category);
     setCustomCategory('');
     if (!retainDate) {
       setDate(new Date().toISOString().split('T')[0]);
@@ -2407,12 +2407,15 @@ export default function App() {
     const transaction = transactions.find(t => t.id === id);
     if (!transaction) return;
 
+    // Store original for rollback
+    const originalTransactions = [...transactions];
+    
     // Optimistically update UI
     setTransactions(prev => prev.filter(t => t.id !== id));
 
     try {
-      // Call API to delete transaction
-      await deleteTransaction(id);
+      // Call API to delete transaction with userId
+      await deleteTransaction(id, clerkUser.id);
 
       const updatedTransactions = transactions.filter(t => t.id !== id);
       cache.set(`transactions_${clerkUser.id}`, updatedTransactions);
@@ -2437,7 +2440,7 @@ export default function App() {
       success('Transaction deleted successfully!');
     } catch (err) {
       // Rollback on error
-      setTransactions(prev => [...prev, transaction]);
+      setTransactions(originalTransactions);
       showError('Failed to delete transaction. Please try again.');
     }
   };
