@@ -984,12 +984,22 @@ const GoalsView = ({
 
   const handleContribute = async (goalId: string) => {
     const amount = parseFloat(contributionAmount);
-    if (isNaN(amount) || amount <= 0) {
+
+    // Validate contribution amount is a valid number
+    if (isNaN(amount)) {
       alert('Please enter a valid amount');
       return;
     }
+
+    // Validate contribution amount is positive
+    if (amount <= 0) {
+      alert('Contribution amount must be greater than zero');
+      return;
+    }
+
+    // Validate contribution amount is within available balance
     if (amount > userBalance) {
-      alert('Insufficient balance');
+      alert(`Insufficient balance. Available: ${formatCurrency(userBalance)}`);
       return;
     }
 
@@ -1644,7 +1654,15 @@ const BudgetsView = ({ budgets, onAdd, onUpdate }: { budgets: Budget[], onAdd: (
 
   const handleSaveEdit = async (budgetId: string) => {
     const newLimit = parseFloat(editedLimit);
-    if (isNaN(newLimit) || newLimit <= 0) {
+
+    // Validate budget limit is positive
+    if (isNaN(newLimit)) {
+      alert('Please enter a valid number');
+      return;
+    }
+
+    if (newLimit <= 0) {
+      alert('Budget limit must be greater than zero');
       return;
     }
 

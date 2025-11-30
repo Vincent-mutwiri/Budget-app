@@ -31,7 +31,8 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 import { rateLimit } from './middleware/rateLimit';
-import { validateTransaction, validateBudget } from './middleware/validation';
+import { validateTransaction, validateBudget, validateGoal, validateContribution } from './middleware/validation';
+import { createErrorResponse, ERROR_CODES } from './middleware/errorHandler';
 
 app.use(cors({
     origin: (origin, callback) => {
@@ -300,25 +301,28 @@ app.delete('/api/transactions/:id', async (req, res) => {
         const { userId } = req.query;
 
         if (!userId) {
-            return res.status(400).json({ error: 'UserId required' });
+            console.error('Missing userId in transaction deletion request');
+            return res.status(400).json(
+                createErrorResponse('User ID is required', ERROR_CODES.MISSING_REQUIRED_FIELD)
+            );
         }
 
         // Find the transaction by unique ID
         const transaction = await Transaction.findById(id);
 
         if (!transaction) {
-            return res.status(404).json({
-                error: 'Transaction not found',
-                code: 'TRANSACTION_NOT_FOUND'
-            });
+            console.error(`Transaction not found: ${id}`);
+            return res.status(404).json(
+                createErrorResponse('Transaction not found', ERROR_CODES.TRANSACTION_NOT_FOUND, { transactionId: id })
+            );
         }
 
         // Validate user ownership
         if (transaction.userId !== userId) {
-            return res.status(403).json({
-                error: 'Unauthorized',
-                code: 'UNAUTHORIZED'
-            });
+            console.error(`Unauthorized transaction deletion attempt: user ${userId} tried to delete transaction ${id} owned by ${transaction.userId}`);
+            return res.status(403).json(
+                createErrorResponse('You do not have permission to delete this transaction', ERROR_CODES.UNAUTHORIZED)
+            );
         }
 
         // Delete the transaction
@@ -365,6 +369,8 @@ app.delete('/api/transactions/:id', async (req, res) => {
         // Get all budgets for remaining budget calculation
         const budgets = await Budget.find({ userId: userId as string });
 
+        console.log(`Transaction deleted successfully: ${id}`);
+
         res.json({
             success: true,
             message: 'Transaction deleted successfully',
@@ -376,7 +382,9 @@ app.delete('/api/transactions/:id', async (req, res) => {
         });
     } catch (error) {
         console.error('Error deleting transaction:', error);
-        res.status(500).json({ error: 'Server error' });
+        res.status(500).json(
+            createErrorResponse('Failed to delete transaction', ERROR_CODES.SERVER_ERROR)
+        );
     }
 });
 
@@ -413,18 +421,27 @@ app.put('/api/budgets/:id', async (req, res) => {
         // Find the budget
         const budget = await Budget.findById(id);
         if (!budget) {
-            return res.status(404).json({ error: 'Budget not found', code: 'BUDGET_NOT_FOUND' });
+            console.error(`Budget not found: ${id}`);
+            return res.status(404).json(
+                createErrorResponse('Budget not found', ERROR_CODES.BUDGET_NOT_FOUND, { budgetId: id })
+            );
         }
 
         // Validate user ownership
         if (userId && budget.userId !== userId) {
-            return res.status(403).json({ error: 'Unauthorized', code: 'UNAUTHORIZED' });
+            console.error(`Unauthorized budget update attempt: user ${userId} tried to update budget ${id} owned by ${budget.userId}`);
+            return res.status(403).json(
+                createErrorResponse('You do not have permission to update this budget', ERROR_CODES.UNAUTHORIZED)
+            );
         }
 
         // Validate limit is positive if provided
         if (limit !== undefined) {
             if (typeof limit !== 'number' || limit <= 0) {
-                return res.status(400).json({ error: 'Budget limit must be a positive number', code: 'INVALID_AMOUNT' });
+                console.error(`Invalid budget limit: ${limit}`);
+                return res.status(400).json(
+                    createErrorResponse('Budget limit must be a positive number', ERROR_CODES.INVALID_AMOUNT, { limit })
+                );
             }
             budget.limit = limit;
         }
@@ -437,6 +454,8 @@ app.put('/api/budgets/:id', async (req, res) => {
         budget.updatedAt = new Date();
 
         await budget.save();
+
+        console.log(`Budget updated successfully: ${id}`);
 
         // Calculate utilization percentage
         const utilizationPercentage = budget.limit > 0 ? (budget.spent / budget.limit) * 100 : 0;
@@ -452,7 +471,9 @@ app.put('/api/budgets/:id', async (req, res) => {
         });
     } catch (error) {
         console.error('Error updating budget:', error);
-        res.status(500).json({ error: 'Server error' });
+        res.status(500).json(
+            createErrorResponse('Failed to update budget', ERROR_CODES.SERVER_ERROR)
+        );
     }
 });
 
@@ -550,23 +571,35 @@ app.post('/api/goals/:id/image', imageUpload.single('image'), async (req, res) =
         const { userId } = req.body;
 
         if (!userId) {
-            return res.status(400).json({ error: 'UserId required', code: 'MISSING_USER_ID' });
+            console.error('Missing userId in goal image upload request');
+            return res.status(400).json(
+                createErrorResponse('User ID is required', ERROR_CODES.MISSING_REQUIRED_FIELD)
+            );
         }
 
         // Find the goal
         const goal = await SavingsGoal.findById(id);
         if (!goal) {
-            return res.status(404).json({ error: 'Goal not found', code: 'GOAL_NOT_FOUND' });
+            console.error(`Goal not found: ${id}`);
+            return res.status(404).json(
+                createErrorResponse('Goal not found', ERROR_CODES.GOAL_NOT_FOUND, { goalId: id })
+            );
         }
 
         // Validate user ownership
         if (goal.userId !== userId) {
-            return res.status(403).json({ error: 'Unauthorized', code: 'UNAUTHORIZED' });
+            console.error(`Unauthorized image upload attempt: user ${userId} tried to upload image for goal ${id} owned by ${goal.userId}`);
+            return res.status(403).json(
+                createErrorResponse('You do not have permission to upload an image for this goal', ERROR_CODES.UNAUTHORIZED)
+            );
         }
 
         // Check if file was uploaded
         if (!req.file) {
-            return res.status(400).json({ error: 'No image file provided', code: 'NO_FILE' });
+            console.error('No image file provided in upload request');
+            return res.status(400).json(
+                createErrorResponse('No image file provided', ERROR_CODES.MISSING_REQUIRED_FIELD, { field: 'image' })
+            );
         }
 
         // Upload image to S3 with validation
@@ -574,10 +607,10 @@ app.post('/api/goals/:id/image', imageUpload.single('image'), async (req, res) =
         const uploadResult = await uploadImageToS3(req.file as Express.Multer.File, 'goals');
 
         if (!uploadResult.success) {
-            return res.status(400).json({
-                error: uploadResult.error,
-                code: uploadResult.errorCode
-            });
+            console.error(`Image upload failed: ${uploadResult.error}`);
+            return res.status(400).json(
+                createErrorResponse(uploadResult.error || 'Image upload failed', uploadResult.errorCode || ERROR_CODES.UPLOAD_FAILED)
+            );
         }
 
         // Delete old image from S3 if it exists
@@ -592,6 +625,8 @@ app.post('/api/goals/:id/image', imageUpload.single('image'), async (req, res) =
         goal.updatedAt = new Date();
         await goal.save();
 
+        console.log(`Image uploaded successfully for goal ${id}`);
+
         res.json({
             success: true,
             message: 'Image uploaded successfully',
@@ -600,7 +635,9 @@ app.post('/api/goals/:id/image', imageUpload.single('image'), async (req, res) =
         });
     } catch (error) {
         console.error('Error uploading goal image:', error);
-        res.status(500).json({ error: 'Server error', code: 'SERVER_ERROR' });
+        res.status(500).json(
+            createErrorResponse('Failed to upload image', ERROR_CODES.SERVER_ERROR)
+        );
     }
 });
 
@@ -611,18 +648,27 @@ app.delete('/api/goals/:id/image', async (req, res) => {
         const { userId } = req.query;
 
         if (!userId) {
-            return res.status(400).json({ error: 'UserId required' });
+            console.error('Missing userId in goal image removal request');
+            return res.status(400).json(
+                createErrorResponse('User ID is required', ERROR_CODES.MISSING_REQUIRED_FIELD)
+            );
         }
 
         // Find the goal
         const goal = await SavingsGoal.findById(id);
         if (!goal) {
-            return res.status(404).json({ error: 'Goal not found', code: 'GOAL_NOT_FOUND' });
+            console.error(`Goal not found: ${id}`);
+            return res.status(404).json(
+                createErrorResponse('Goal not found', ERROR_CODES.GOAL_NOT_FOUND, { goalId: id })
+            );
         }
 
         // Validate user ownership
         if (goal.userId !== userId) {
-            return res.status(403).json({ error: 'Unauthorized', code: 'UNAUTHORIZED' });
+            console.error(`Unauthorized image removal attempt: user ${userId} tried to remove image from goal ${id} owned by ${goal.userId}`);
+            return res.status(403).json(
+                createErrorResponse('You do not have permission to remove the image from this goal', ERROR_CODES.UNAUTHORIZED)
+            );
         }
 
         // Delete image from S3 if it exists
@@ -643,6 +689,8 @@ app.delete('/api/goals/:id/image', async (req, res) => {
 
         await goal.save();
 
+        console.log(`Image removed successfully from goal ${id}`);
+
         res.json({
             success: true,
             message: 'Image removed successfully',
@@ -651,7 +699,9 @@ app.delete('/api/goals/:id/image', async (req, res) => {
         });
     } catch (error) {
         console.error('Error removing goal image:', error);
-        res.status(500).json({ error: 'Server error' });
+        res.status(500).json(
+            createErrorResponse('Failed to remove image', ERROR_CODES.SERVER_ERROR)
+        );
     }
 });
 
@@ -662,44 +712,64 @@ app.post('/api/goals/:id/contribute', async (req, res) => {
         const { userId, amount, note } = req.body;
 
         if (!userId || amount === undefined) {
-            return res.status(400).json({ error: 'UserId and amount required' });
+            console.error('Missing userId or amount in contribution request');
+            return res.status(400).json(
+                createErrorResponse('User ID and amount are required', ERROR_CODES.MISSING_REQUIRED_FIELD)
+            );
         }
 
         // Validate amount is positive
         if (typeof amount !== 'number' || amount <= 0) {
-            return res.status(400).json({ error: 'Contribution amount must be a positive number', code: 'INVALID_AMOUNT' });
+            console.error(`Invalid contribution amount: ${amount}`);
+            return res.status(400).json(
+                createErrorResponse('Contribution amount must be a positive number', ERROR_CODES.INVALID_AMOUNT, { amount })
+            );
         }
 
         // Find the goal
         const goal = await SavingsGoal.findById(id);
         if (!goal) {
-            return res.status(404).json({ error: 'Goal not found', code: 'GOAL_NOT_FOUND' });
+            console.error(`Goal not found: ${id}`);
+            return res.status(404).json(
+                createErrorResponse('Goal not found', ERROR_CODES.GOAL_NOT_FOUND, { goalId: id })
+            );
         }
 
         // Validate user ownership
         if (goal.userId !== userId) {
-            return res.status(403).json({ error: 'Unauthorized', code: 'UNAUTHORIZED' });
+            console.error(`Unauthorized contribution attempt: user ${userId} tried to contribute to goal ${id} owned by ${goal.userId}`);
+            return res.status(403).json(
+                createErrorResponse('You do not have permission to contribute to this goal', ERROR_CODES.UNAUTHORIZED)
+            );
         }
 
         // Check goal status
         if (goal.status !== 'in-progress') {
-            return res.status(400).json({ error: 'Cannot contribute to a goal that is not in progress', code: 'INVALID_GOAL_STATUS' });
+            console.error(`Cannot contribute to goal with status: ${goal.status}`);
+            return res.status(400).json(
+                createErrorResponse('Cannot contribute to a goal that is not in progress', ERROR_CODES.INVALID_GOAL_STATUS, { status: goal.status })
+            );
         }
 
         // Get user and validate balance
         const user = await User.findOne({ clerkId: userId });
         if (!user) {
-            return res.status(404).json({ error: 'User not found', code: 'USER_NOT_FOUND' });
+            console.error(`User not found: ${userId}`);
+            return res.status(404).json(
+                createErrorResponse('User not found', ERROR_CODES.USER_NOT_FOUND, { userId })
+            );
         }
 
         // Check if user has sufficient balance
         if (user.totalBalance < amount) {
-            return res.status(400).json({
-                error: 'Insufficient balance',
-                code: 'INSUFFICIENT_BALANCE',
-                availableBalance: user.totalBalance,
-                requestedAmount: amount
-            });
+            console.error(`Insufficient balance: user has ${user.totalBalance}, requested ${amount}`);
+            return res.status(400).json(
+                createErrorResponse('Insufficient balance for this contribution', ERROR_CODES.INSUFFICIENT_BALANCE, {
+                    availableBalance: user.totalBalance,
+                    requestedAmount: amount,
+                    shortfall: amount - user.totalBalance
+                })
+            );
         }
 
         // Deduct from user's total balance
@@ -768,9 +838,13 @@ app.post('/api/goals/:id/contribute', async (req, res) => {
                 newLevel: user.level
             }
         });
+
+        console.log(`Contribution successful: ${amount} to goal ${id} by user ${userId}`);
     } catch (error) {
         console.error('Error contributing to goal:', error);
-        res.status(500).json({ error: 'Server error' });
+        res.status(500).json(
+            createErrorResponse('Failed to process contribution', ERROR_CODES.SERVER_ERROR)
+        );
     }
 });
 

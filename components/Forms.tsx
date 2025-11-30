@@ -13,16 +13,31 @@ export const AddBudgetForm = ({ onAdd, onClose }: { onAdd: (budget: any) => Prom
         e.preventDefault();
         if (!category || !limit) return;
 
+        const limitValue = parseFloat(limit);
+
+        // Validate limit is a valid number
+        if (isNaN(limitValue)) {
+            alert('Please enter a valid budget limit');
+            return;
+        }
+
+        // Validate limit is positive
+        if (limitValue <= 0) {
+            alert('Budget limit must be greater than zero');
+            return;
+        }
+
         setIsSubmitting(true);
         try {
             await onAdd({
                 category,
-                limit: parseFloat(limit),
+                limit: limitValue,
                 icon: 'tag' // Default icon
             });
             onClose();
         } catch (error) {
             console.error(error);
+            alert('Failed to create budget. Please try again.');
         } finally {
             setIsSubmitting(false);
         }
@@ -95,18 +110,21 @@ export const AddGoalForm = ({ onAdd, onClose }: { onAdd: (goal: any) => Promise<
         }
 
         // Validate file type
-        if (!ALLOWED_TYPES.includes(selectedFile.type)) {
-            setError('Invalid file type. Please upload a JPG, PNG, or WebP image.');
+        if (!ALLOWED_TYPES.includes(selectedFile.type.toLowerCase())) {
+            setError(`Invalid file type: ${selectedFile.type}. Please upload a JPG, PNG, or WebP image.`);
             setFile(null);
             setFilePreview(null);
+            e.target.value = ''; // Clear the input
             return;
         }
 
         // Validate file size
         if (selectedFile.size > MAX_FILE_SIZE) {
-            setError('File size exceeds 5MB. Please choose a smaller image.');
+            const sizeMB = (selectedFile.size / (1024 * 1024)).toFixed(2);
+            setError(`File size (${sizeMB}MB) exceeds the maximum limit of 5MB. Please choose a smaller image.`);
             setFile(null);
             setFilePreview(null);
+            e.target.value = ''; // Clear the input
             return;
         }
 
@@ -123,6 +141,29 @@ export const AddGoalForm = ({ onAdd, onClose }: { onAdd: (goal: any) => Promise<
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!title || !targetAmount || !deadline) return;
+
+        const targetValue = parseFloat(targetAmount);
+
+        // Validate target amount is a valid number
+        if (isNaN(targetValue)) {
+            setError('Please enter a valid target amount');
+            return;
+        }
+
+        // Validate target amount is positive
+        if (targetValue <= 0) {
+            setError('Target amount must be greater than zero');
+            return;
+        }
+
+        // Validate deadline is in the future
+        const deadlineDate = new Date(deadline);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (deadlineDate < today) {
+            setError('Target date must be in the future');
+            return;
+        }
 
         setIsSubmitting(true);
         setError('');
@@ -152,7 +193,7 @@ export const AddGoalForm = ({ onAdd, onClose }: { onAdd: (goal: any) => Promise<
 
             await onAdd({
                 title,
-                targetAmount: parseFloat(targetAmount),
+                targetAmount: targetValue,
                 deadline,
                 imageUrl,
                 currentAmount: 0,
