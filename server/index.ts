@@ -167,20 +167,19 @@ app.get('/api/categories/custom', async (req, res) => {
     if (!userId) return res.status(400).json({ error: 'UserId required' });
 
     try {
-        // Use lean() to avoid validation error if corrupted
-        let user = await User.findOne({ clerkId: userId }).lean();
+        const user = await User.findOne({ clerkId: userId });
 
-        // Fix corruption if present
-        if (user && (!Array.isArray(user.customCategories) || typeof user.customCategories === 'string')) {
-            console.log(`Fixing corrupted customCategories for user ${userId} in GET categories`);
-            await User.updateOne(
-                { clerkId: userId },
-                { $set: { customCategories: [] } }
-            );
+        if (!user) {
+            // Return empty array if user not found (will be created on first login/transaction)
             return res.json([]);
         }
 
-        res.json(user?.customCategories || []);
+        // Safety check for customCategories
+        if (!user.customCategories || !Array.isArray(user.customCategories)) {
+            return res.json([]);
+        }
+
+        res.json(user.customCategories);
     } catch (error) {
         console.error('Error getting custom categories:', error);
         res.status(500).json({ error: 'Server error' });
@@ -193,36 +192,39 @@ app.post('/api/categories/custom', async (req, res) => {
     if (!userId || !category || !type) return res.status(400).json({ error: 'UserId, category, and type required' });
 
     try {
-        // Use lean first to check/fix corruption
-        let userLean = await User.findOne({ clerkId: userId }).lean();
-        if (!userLean) return res.status(404).json({ error: 'User not found' });
+        let user = await User.findOne({ clerkId: userId });
 
-        // Fix corruption if present
-        if (!Array.isArray(userLean.customCategories) || typeof userLean.customCategories === 'string') {
-            console.log(`Fixing corrupted customCategories for user ${userId} in POST category`);
-            await User.updateOne(
-                { clerkId: userId },
-                { $set: { customCategories: [] } }
-            );
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
         }
 
-        // Now fetch properly to update
-        const user = await User.findOne({ clerkId: userId });
-        if (!user) return res.status(404).json({ error: 'User not found' });
-
-        // Ensure customCategories is an array (should be now, but safe check)
-        if (!Array.isArray(user.customCategories)) {
+        // Initialize if missing or invalid
+        if (!user.customCategories || !Array.isArray(user.customCategories)) {
             user.customCategories = [] as any;
         }
 
-        if (!user.customCategories.find((c: any) => c.name === category)) {
+        // Check if already exists
+        const exists = user.customCategories.find((c: any) => c.name === category);
+        if (!exists) {
             user.customCategories.push({ name: category, type });
-            await user.save();
+            try {
+                await user.save();
+            } catch (saveError) {
+                console.error('Error saving user with new category:', saveError);
+                return res.status(500).json({
+                    error: 'Failed to save category',
+                    details: saveError instanceof Error ? saveError.message : 'Unknown validation error'
+                });
+            }
         }
+
         res.json(user.customCategories);
     } catch (error) {
         console.error('Error adding custom category:', error);
-        res.status(500).json({ error: 'Server error' });
+        res.status(500).json({
+            error: 'Server error',
+            details: error instanceof Error ? error.message : 'Unknown error'
+        });
     }
 });
 
@@ -233,27 +235,15 @@ app.delete('/api/categories/custom/:category', async (req, res) => {
     if (!userId) return res.status(400).json({ error: 'UserId required' });
 
     try {
-        // Use lean first to check/fix corruption
-        let userLean = await User.findOne({ clerkId: userId }).lean();
-        if (!userLean) return res.status(404).json({ error: 'User not found' });
-
-        // Fix corruption if present
-        if (!Array.isArray(userLean.customCategories) || typeof userLean.customCategories === 'string') {
-            console.log(`Fixing corrupted customCategories for user ${userId} in DELETE category`);
-            await User.updateOne(
-                { clerkId: userId },
-                { $set: { customCategories: [] } }
-            );
-            // If it was corrupted/empty, there's nothing to delete, so just return empty
-            return res.json([]);
-        }
-
         const user = await User.findOne({ clerkId: userId });
         if (!user) return res.status(404).json({ error: 'User not found' });
 
-        user.customCategories = (user.customCategories || []).filter((c: any) => c.name !== category) as any;
-        await user.save();
-        res.json(user.customCategories);
+        if (user.customCategories && Array.isArray(user.customCategories)) {
+            user.customCategories = user.customCategories.filter((c: any) => c.name !== category) as any;
+            await user.save();
+        }
+
+        res.json(user.customCategories || []);
     } catch (error) {
         console.error('Error deleting custom category:', error);
         res.status(500).json({ error: 'Server error' });

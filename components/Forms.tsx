@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { Category, CategoriesList } from '../types';
 import { uploadFile } from '../services/api';
 import { Loader2 } from 'lucide-react';
+import { CustomSelect } from './CustomSelect';
 
 // --- Add Budget Form ---
-export const AddBudgetForm = ({ onAdd, onClose }: { onAdd: (budget: any) => Promise<void>, onClose: () => void }) => {
-    const [category, setCategory] = useState<Category | ''>('');
+export const AddBudgetForm = ({ onAdd, onClose, customCategories = [] }: { onAdd: (budget: any) => Promise<void>, onClose: () => void, customCategories?: Array<{ name: string; type: 'income' | 'expense' }> }) => {
+    const [category, setCategory] = useState<Category | string | ''>('');
     const [limit, setLimit] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -47,17 +48,16 @@ export const AddBudgetForm = ({ onAdd, onClose }: { onAdd: (budget: any) => Prom
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div>
                 <label className="block text-forest-300 text-sm font-medium mb-2">Category</label>
-                <select
+                <CustomSelect
                     value={category}
-                    onChange={(e) => setCategory(e.target.value as Category)}
-                    className="w-full bg-forest-950 border border-forest-700 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary appearance-none"
+                    onChange={(val) => setCategory(val)}
+                    options={[
+                        ...CategoriesList.map(cat => ({ value: cat, label: cat, key: cat })),
+                        ...customCategories.map((cat, idx) => ({ value: cat.name, label: cat.name, key: `custom-${cat.name}-${idx}` }))
+                    ]}
+                    placeholder="Select a category"
                     required
-                >
-                    <option value="" disabled>Select a category</option>
-                    {CategoriesList.map(cat => (
-                        <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                </select>
+                />
             </div>
             <div>
                 <label className="block text-forest-300 text-sm font-medium mb-2">Monthly Limit</label>

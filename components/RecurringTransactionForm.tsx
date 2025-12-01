@@ -1,5 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
-import { Category, CategoriesList, TransactionType, RecurringTransaction, RecurringTransactionInput } from '../types';
+import { RecurringTransactionInput, RecurringFrequency, Category, CategoriesList, RecurringTransaction } from '../types';
+import { CustomSelect } from './CustomSelect';
 import { Loader2 } from 'lucide-react';
 
 interface RecurringTransactionFormProps {
@@ -8,13 +10,14 @@ interface RecurringTransactionFormProps {
     initialData?: RecurringTransaction;
 }
 
-export const RecurringTransactionForm: React.FC<RecurringTransactionFormProps> = ({
+export const RecurringTransactionForm: React.FC<RecurringTransactionFormProps & { customCategories?: Array<{ name: string; type: 'income' | 'expense' }> }> = ({
     onSubmit,
     onClose,
-    initialData
+    initialData,
+    customCategories = []
 }) => {
     const [amount, setAmount] = useState(initialData?.amount.toString() || '');
-    const [category, setCategory] = useState<Category | ''>(initialData?.category || '');
+    const [category, setCategory] = useState<Category | string | ''>(initialData?.category || '');
     const [description, setDescription] = useState(initialData?.description || '');
     const [type, setType] = useState<TransactionType>(initialData?.type || 'expense');
     const [frequency, setFrequency] = useState<'daily' | 'weekly' | 'bi-weekly' | 'monthly' | 'quarterly' | 'yearly'>(
@@ -63,20 +66,20 @@ export const RecurringTransactionForm: React.FC<RecurringTransactionFormProps> =
                     <button
                         type="button"
                         onClick={() => setType('expense')}
-                        className={`flex-1 py-3 px-4 rounded-xl font-medium transition-colors ${type === 'expense'
+                        className={`flex - 1 py - 3 px - 4 rounded - xl font - medium transition - colors ${type === 'expense'
                                 ? 'bg-red-500/20 text-red-400 border-2 border-red-500'
                                 : 'bg-forest-950 text-forest-400 border border-forest-700 hover:border-forest-600'
-                            }`}
+                            } `}
                     >
                         Expense
                     </button>
                     <button
                         type="button"
                         onClick={() => setType('income')}
-                        className={`flex-1 py-3 px-4 rounded-xl font-medium transition-colors ${type === 'income'
+                        className={`flex - 1 py - 3 px - 4 rounded - xl font - medium transition - colors ${type === 'income'
                                 ? 'bg-green-500/20 text-green-400 border-2 border-green-500'
                                 : 'bg-forest-950 text-forest-400 border border-forest-700 hover:border-forest-600'
-                            }`}
+                            } `}
                     >
                         Income
                     </button>
@@ -101,17 +104,16 @@ export const RecurringTransactionForm: React.FC<RecurringTransactionFormProps> =
 
             <div>
                 <label className="block text-forest-300 text-sm font-medium mb-2">Category</label>
-                <select
+                <CustomSelect
                     value={category}
-                    onChange={(e) => setCategory(e.target.value as Category)}
-                    className="w-full bg-forest-950 border border-forest-700 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary appearance-none"
+                    onChange={(val) => setCategory(val)}
+                    options={[
+                        ...CategoriesList.map(cat => ({ value: cat, label: cat, key: cat })),
+                        ...customCategories.map((cat, idx) => ({ value: cat.name, label: cat.name, key: `custom - ${cat.name} -${idx} ` }))
+                    ]}
+                    placeholder="Select a category"
                     required
-                >
-                    <option value="" disabled>Select a category</option>
-                    {CategoriesList.map(cat => (
-                        <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                </select>
+                />
             </div>
 
             <div>
@@ -171,12 +173,12 @@ export const RecurringTransactionForm: React.FC<RecurringTransactionFormProps> =
                     <button
                         type="button"
                         onClick={() => setReminderEnabled(!reminderEnabled)}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${reminderEnabled ? 'bg-primary' : 'bg-forest-700'
-                            }`}
+                        className={`relative inline - flex h - 6 w - 11 items - center rounded - full transition - colors ${reminderEnabled ? 'bg-primary' : 'bg-forest-700'
+                            } `}
                     >
                         <span
-                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${reminderEnabled ? 'translate-x-6' : 'translate-x-1'
-                                }`}
+                            className={`inline - block h - 4 w - 4 transform rounded - full bg - white transition - transform ${reminderEnabled ? 'translate-x-6' : 'translate-x-1'
+                                } `}
                         />
                     </button>
                 </div>

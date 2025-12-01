@@ -117,12 +117,14 @@ const TransactionsView = ({
   transactions,
   onAdd,
   onDelete,
-  onOpenCategoryManager
+  onOpenCategoryManager,
+  customCategories
 }: {
   transactions: Transaction[],
   onAdd: (t: Omit<Transaction, 'id'>) => void,
   onDelete: (id: string) => void,
-  onOpenCategoryManager: () => void
+  onOpenCategoryManager: () => void,
+  customCategories: Array<{ name: string; type: 'income' | 'expense' }>
 }) => {
   const [type, setType] = useState<TransactionType>('expense');
   const [amount, setAmount] = useState('');
@@ -138,6 +140,8 @@ const TransactionsView = ({
   const [retainDate, setRetainDate] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState<{ isOpen: boolean; transaction: Transaction | null }>({ isOpen: false, transaction: null });
   const { user: clerkUser } = useUser();
+
+  console.log('Custom categories in TransactionsView:', customCategories);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -266,31 +270,29 @@ const TransactionsView = ({
             {/* Category */}
             <div>
               <label className="block text-forest-300 text-sm font-medium mb-2">Category</label>
-              <div className="relative">
-                <select
-                  value={category === 'custom' || (category && !CategoriesList.includes(category as Category)) ? 'custom' : category}
-                  onChange={(e) => {
-                    if (e.target.value === 'custom') {
-                      setCategory('custom' as Category);
-                      setCustomCategory('');
-                    } else {
-                      setCategory(e.target.value as Category);
-                      setCustomCategory('');
-                    }
-                  }}
-                  className="w-full bg-forest-950 border border-forest-700 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary appearance-none cursor-pointer"
-                  required
-                >
-                  <option value="" disabled>Select a category</option>
-                  {CategoriesList.map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                  <option value="custom">+ Add Custom Category</option>
-                </select>
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-forest-400">
-                  <ChevronRight className="rotate-90" size={16} />
-                </div>
-              </div>
+              <select
+                value={category === 'custom' || (category && !CategoriesList.includes(category as Category)) ? 'custom' : category}
+                onChange={(e) => {
+                  if (e.target.value === 'custom') {
+                    setCategory('custom' as Category);
+                    setCustomCategory('');
+                  } else {
+                    setCategory(e.target.value as Category);
+                    setCustomCategory('');
+                  }
+                }}
+                className="w-full bg-forest-950 border border-forest-700 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary cursor-pointer"
+                required
+              >
+                <option value="" disabled>Select a category</option>
+                {CategoriesList.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+                {customCategories.map((cat, idx) => (
+                  <option key={`custom-${cat.name}-${idx}`} value={cat.name}>{cat.name}</option>
+                ))}
+                <option key="add-custom" value="custom">+ Add Custom Category</option>
+              </select>
               {category === 'custom' && (
                 <input
                   type="text"
@@ -2540,6 +2542,20 @@ export default function App() {
     }
   };
 
+  const handleDeleteDefaultCategory = async (categoryName: string) => {
+    if (!clerkUser) return;
+    try {
+      // Remove from CategoriesList
+      const index = CategoriesList.indexOf(categoryName as any);
+      if (index > -1) {
+        CategoriesList.splice(index, 1);
+      }
+      success(`"${categoryName}" removed from default categories!`);
+    } catch (err) {
+      showError('Failed to delete default category.');
+    }
+  };
+
   const handleAddToDefault = async (categoryName: string) => {
     if (!clerkUser) return;
     try {
@@ -3231,6 +3247,7 @@ export default function App() {
                     onAdd={handleAddTransaction}
                     onDelete={handleDeleteTransaction}
                     onOpenCategoryManager={() => setIsCategoryManagerOpen(true)}
+                    customCategories={customCategories}
                   />
                 ) : activeView === 'recurring' ? (
                   <RecurringTransactionsView
@@ -3239,6 +3256,8 @@ export default function App() {
                     onUpdate={handleUpdateRecurringTransaction}
                     onDelete={handleDeleteRecurringTransaction}
                     onToggleActive={handleToggleRecurringTransaction}
+                    onPay={handlePayRecurringTransaction}
+                    customCategories={customCategories}
                   />
                 ) : activeView === 'budgets' ? (
                   <BudgetsView budgets={budgets} onAdd={() => setIsBudgetModalOpen(true)} onUpdate={handleUpdateBudget} />
@@ -3310,7 +3329,7 @@ export default function App() {
               onClose={() => setIsBudgetModalOpen(false)}
               title="Create New Budget"
             >
-              <AddBudgetForm onAdd={handleAddBudget} onClose={() => setIsBudgetModalOpen(false)} />
+              <AddBudgetForm onAdd={handleAddBudget} onClose={() => setIsBudgetModalOpen(false)} customCategories={customCategories} />
             </Modal>
 
             <Modal
@@ -3350,6 +3369,7 @@ export default function App() {
                 onDeleteCategory={handleDeleteCategory}
                 onAddToDefault={handleAddToDefault}
                 onAddCategory={handleAddCategory}
+                onDeleteDefaultCategory={handleDeleteDefaultCategory}
               />
             </Modal>
 

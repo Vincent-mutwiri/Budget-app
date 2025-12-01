@@ -8,6 +8,7 @@ interface CategoryManagerProps {
   onDeleteCategory: (category: string) => void;
   onAddToDefault: (category: string) => void;
   onAddCategory?: (name: string, type: 'income' | 'expense') => void;
+  onDeleteDefaultCategory?: (category: string) => void;
 }
 
 export const CategoryManager: React.FC<CategoryManagerProps> = ({
@@ -15,7 +16,8 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
   customCategories,
   onDeleteCategory,
   onAddToDefault,
-  onAddCategory
+  onAddCategory,
+  onDeleteDefaultCategory
 }) => {
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newCategoryType, setNewCategoryType] = useState<'income' | 'expense'>('expense');
@@ -38,14 +40,25 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
         </button>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
         <div>
           <h4 className="text-sm font-medium text-forest-300 mb-2">Default Categories</h4>
           <div className="space-y-2">
             {CategoriesList.map((cat, idx) => (
-              <div key={`default-${cat}-${idx}`} className="flex items-center justify-between p-3 bg-forest-900 rounded-lg">
+              <div key={`default-${cat}-${idx}`} className="flex items-center justify-between p-3 bg-forest-900 rounded-lg group">
                 <span className="text-white">{cat}</span>
-                <span className="text-xs text-forest-500">Default</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-forest-500">Default</span>
+                  {onDeleteDefaultCategory && (
+                    <button
+                      onClick={() => onDeleteDefaultCategory(cat)}
+                      className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 transition-all p-1"
+                      title="Delete category"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -55,8 +68,8 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
           <div>
             <h4 className="text-sm font-medium text-forest-300 mb-2">Custom Categories</h4>
             <div className="space-y-2">
-              {customCategories.map(cat => (
-                <div key={cat.name} className="flex items-center justify-between p-3 bg-forest-800 border border-forest-700 rounded-lg group">
+              {customCategories.map((cat, idx) => (
+                <div key={`custom-${cat.name}-${idx}`} className="flex items-center justify-between p-3 bg-forest-800 border border-forest-700 rounded-lg group">
                   <div className="flex items-center gap-2 flex-1 min-w-0">
                     <span className="text-white truncate">{cat.name}</span>
                     <span className={`text-xs px-2 py-0.5 rounded whitespace-nowrap font-medium ${cat.type === 'income' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
@@ -117,8 +130,8 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
               <button
                 onClick={() => setNewCategoryType('expense')}
                 className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${newCategoryType === 'expense'
-                    ? 'bg-red-500/20 text-red-400 border-2 border-red-500'
-                    : 'bg-forest-950 text-forest-400 border border-forest-700'
+                  ? 'bg-red-500/20 text-red-400 border-2 border-red-500'
+                  : 'bg-forest-950 text-forest-400 border border-forest-700'
                   }`}
               >
                 Expense
@@ -126,8 +139,8 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
               <button
                 onClick={() => setNewCategoryType('income')}
                 className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${newCategoryType === 'income'
-                    ? 'bg-green-500/20 text-green-400 border-2 border-green-500'
-                    : 'bg-forest-950 text-forest-400 border border-forest-700'
+                  ? 'bg-green-500/20 text-green-400 border-2 border-green-500'
+                  : 'bg-forest-950 text-forest-400 border border-forest-700'
                   }`}
               >
                 Income
