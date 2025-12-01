@@ -2078,8 +2078,7 @@ const BudgetsView = ({ budgets, onAdd, onUpdate }: { budgets: Budget[], onAdd: (
                     />
                     <div className="flex gap-2 mt-3">
                       <button
-                        onClick={() => budget.id && handleSaveEdit(budget.id)}
-                        disabled={!budget.id}
+                        onClick={() => handleSaveEdit(budget.id || (budget as any)._id)}
                         className="flex-1 bg-primary hover:bg-primary/90 text-forest-950 font-bold py-2 px-4 rounded-xl transition-colors"
                       >
                         Save
@@ -2587,25 +2586,19 @@ export default function App() {
   const handleUpdateBudget = async (id: string, updates: Partial<Budget>) => {
     if (!clerkUser) return;
     try {
-      // Optimistic update
-      const updatedBudgets = budgets.map(b =>
-        b.id === id ? { ...b, ...updates } : b
-      );
-      setBudgets(updatedBudgets);
-      cache.set(`budgets_${clerkUser.id}`, updatedBudgets);
-
       // API call
       await updateBudget(id, updates);
+
+      // Re-fetch budgets to get updated data
+      const updatedBudgets = await getBudgets(clerkUser.id);
+      setBudgets(updatedBudgets);
+      cache.set(`budgets_${clerkUser.id}`, updatedBudgets);
 
       // Refresh metrics
       await fetchMetrics();
 
       success('Budget updated successfully!');
     } catch (err) {
-      // Rollback on error
-      const originalBudgets = await getBudgets(clerkUser.id);
-      setBudgets(originalBudgets);
-      cache.set(`budgets_${clerkUser.id}`, originalBudgets);
       showError('Failed to update budget. Please try again.');
     }
   };
