@@ -503,10 +503,14 @@ app.get('/api/budgets', async (req, res) => {
         });
 
         // Update budgets with current month spending
-        const budgetsWithCurrentSpending = budgets.map(budget => ({
-            ...budget.toObject(),
-            spent: spendingByCategory[budget.category] || 0
-        }));
+        const budgetsWithCurrentSpending = budgets.map(budget => {
+            const b = budget.toObject();
+            return {
+                ...b,
+                id: b._id.toString(),
+                spent: spendingByCategory[budget.category] || 0
+            };
+        });
 
         res.json(budgetsWithCurrentSpending);
     } catch (error) {
@@ -523,7 +527,8 @@ app.post('/api/budgets', validateBudget, async (req, res) => {
         // Invalidate metrics cache since new budget affects total planned budget
         invalidateMetricsCache(req.body.userId);
 
-        res.status(201).json(newBudget);
+        const budgetObj = newBudget.toObject();
+        res.status(201).json({ ...budgetObj, id: budgetObj._id.toString() });
     } catch (error) {
         res.status(500).json({ error: 'Server error' });
     }
