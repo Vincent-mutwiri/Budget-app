@@ -32,7 +32,9 @@ export async function calculateCurrentMonthIncome(
     month: Date = new Date()
 ): Promise<number> {
     const startOfMonth = new Date(month.getFullYear(), month.getMonth(), 1);
-    const endOfMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0, 23, 59, 59, 999);
+    startOfMonth.setHours(0, 0, 0, 0);
+    const endOfMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0);
+    endOfMonth.setHours(23, 59, 59, 999);
 
     const incomeTransactions = await Transaction.find({
         userId,
@@ -72,7 +74,9 @@ export async function calculateCurrentMonthSpending(
     month: Date = new Date()
 ): Promise<number> {
     const startOfMonth = new Date(month.getFullYear(), month.getMonth(), 1);
-    const endOfMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0, 23, 59, 59, 999);
+    startOfMonth.setHours(0, 0, 0, 0);
+    const endOfMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0);
+    endOfMonth.setHours(23, 59, 59, 999);
 
     const expenseTransactions = await Transaction.find({
         userId,

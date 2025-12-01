@@ -482,7 +482,33 @@ app.get('/api/budgets', async (req, res) => {
 
     try {
         const budgets = await Budget.find({ userId });
-        res.json(budgets);
+        
+        // Calculate current month spending for each budget
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        startOfMonth.setHours(0, 0, 0, 0);
+        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        endOfMonth.setHours(23, 59, 59, 999);
+        
+        const transactions = await Transaction.find({
+            userId,
+            type: 'expense',
+            date: { $gte: startOfMonth, $lte: endOfMonth }
+        });
+        
+        // Calculate spending by category
+        const spendingByCategory: Record<string, number> = {};
+        transactions.forEach(t => {
+            spendingByCategory[t.category] = (spendingByCategory[t.category] || 0) + t.amount;
+        });
+        
+        // Update budgets with current month spending
+        const budgetsWithCurrentSpending = budgets.map(budget => ({
+            ...budget.toObject(),
+            spent: spendingByCategory[budget.category] || 0
+        }));
+        
+        res.json(budgetsWithCurrentSpending);
     } catch (error) {
         res.status(500).json({ error: 'Server error' });
     }
