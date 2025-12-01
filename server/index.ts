@@ -2752,6 +2752,53 @@ app.post('/api/export/summary', async (req, res) => {
     }
 });
 
+// Spending History Route
+app.get('/api/spending-history', async (req, res) => {
+    const { userId, year, month } = req.query;
+
+    if (!userId || !year || !month) {
+        return res.status(400).json({ error: 'UserId, year, and month required' });
+    }
+
+    try {
+        const startDate = new Date(Number(year), Number(month) - 1, 1);
+        startDate.setHours(0, 0, 0, 0);
+        const endDate = new Date(Number(year), Number(month), 0);
+        endDate.setHours(23, 59, 59, 999);
+
+        const transactions = await Transaction.find({
+            userId,
+            type: 'expense',
+            date: { $gte: startDate, $lte: endDate }
+        }).sort({ date: 1 });
+
+        // Group by day
+        const dailySpending: Record<string, any> = {};
+        transactions.forEach(tx => {
+            const dateKey = tx.date.toISOString().split('T')[0];
+            if (!dailySpending[dateKey]) {
+                dailySpending[dateKey] = {
+                    date: dateKey,
+                    total: 0,
+                    transactions: []
+                };
+            }
+            dailySpending[dateKey].total += tx.amount;
+            dailySpending[dateKey].transactions.push({
+                id: tx._id.toString(),
+                description: tx.description,
+                amount: tx.amount,
+                category: tx.category
+            });
+        });
+
+        res.json(Object.values(dailySpending));
+    } catch (error) {
+        console.error('Error fetching spending history:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
 // Error handling
 import { errorHandler, notFound } from './middleware/errorHandler';
 app.use(notFound);

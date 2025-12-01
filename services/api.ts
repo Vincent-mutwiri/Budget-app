@@ -454,4 +454,10 @@ export const getMetrics = async (userId: string, month?: string) => {
     return response.data;
 };
 
+// Spending History
+export const getMonthlySpendingHistory = async (userId: string, year: number, month: number) => {
+    const response = await api.get('/spending-history', { params: { userId, year, month } });
+    return response.data;
+};
+
 export default api;

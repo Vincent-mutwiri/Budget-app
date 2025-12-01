@@ -6,6 +6,7 @@ import FinancialHealthScore from './FinancialHealthScore';
 import SpendingTrends from './SpendingTrends';
 import IncomeExpenseForecast from './IncomeExpenseForecast';
 import AnomalyAlerts from './AnomalyAlerts';
+import SpendingCalendar from './SpendingCalendar';
 
 const InsightsDashboard: React.FC = () => {
     const { user } = useUser();
@@ -159,6 +160,11 @@ const InsightsDashboard: React.FC = () => {
                                 // In a full implementation, this would navigate to the transaction details
                             }}
                         />
+                    </div>
+
+                    {/* Spending Calendar */}
+                    <div className="lg:col-span-2">
+                        <SpendingCalendar />
                     </div>
                 </div>
 
