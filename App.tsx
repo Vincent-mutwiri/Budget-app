@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from "@clerk/clerk-react";
 import {
-  getTransactions, createTransaction,
+  getTransactions, createTransaction, updateTransaction,
   getBudgets, updateBudget,
   getGoals, updateGoal, deleteGoal, uploadGoalImage, removeGoalImage, contributeToGoal,
   getAccounts,
@@ -116,12 +116,14 @@ const AlertItem: React.FC<{ alert: Alert }> = ({ alert }) => {
 const TransactionsView = ({
   transactions,
   onAdd,
+  onUpdate,
   onDelete,
   onOpenCategoryManager,
   customCategories
 }: {
   transactions: Transaction[],
   onAdd: (t: Omit<Transaction, 'id'>) => void,
+  onUpdate: (id: string, t: Partial<Transaction>) => void,
   onDelete: (id: string) => void,
   onOpenCategoryManager: () => void,
   customCategories: Array<{ name: string; type: 'income' | 'expense' }>
@@ -131,6 +133,7 @@ const TransactionsView = ({
   const [category, setCategory] = useState<Category | ''>('');
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [description, setDescription] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<Category | ''>('');
   const [amountFilter, setAmountFilter] = useState({ min: '', max: '' });
@@ -143,19 +146,50 @@ const TransactionsView = ({
 
   console.log('Custom categories in TransactionsView:', customCategories);
 
+  const handleEdit = (transaction: Transaction) => {
+    setEditingId(transaction.id);
+    setType(transaction.type);
+    setAmount(transaction.amount.toString());
+    setCategory(transaction.category);
+    setDate(new Date(transaction.date).toISOString().split('T')[0]);
+    setDescription(transaction.description);
+    setCustomCategory('');
+
+    // Scroll to form
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setAmount('');
+    setDescription('');
+    setCategory('' as Category);
+    setCustomCategory('');
+    if (!retainDate) {
+      setDate(new Date().toISOString().split('T')[0]);
+    }
+    setType('expense');
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!amount || !category || !date) return;
 
     const finalCategory = customCategory.trim() || category;
-
-    onAdd({
+    const transactionData = {
       amount: parseFloat(amount),
       category: finalCategory as Category,
       date,
       description: description || 'Untitled Transaction',
       type
-    });
+    };
+
+    if (editingId) {
+      onUpdate(editingId, transactionData);
+      setEditingId(null);
+    } else {
+      onAdd(transactionData);
+    }
 
     // Reset form - keep date if retainDate is enabled
     setAmount('');
@@ -164,6 +198,9 @@ const TransactionsView = ({
     setCustomCategory('');
     if (!retainDate) {
       setDate(new Date().toISOString().split('T')[0]);
+    }
+    if (editingId) {
+      setType('expense'); // Reset type after edit
     }
   };
 
@@ -192,7 +229,7 @@ const TransactionsView = ({
       <div className="lg:col-span-1 flex flex-col gap-6">
         <div className="bg-forest-800 border border-forest-700 rounded-3xl p-6">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-bold text-white">Add New Transaction</h2>
+            <h2 className="text-xl font-bold text-white">{editingId ? 'Edit Transaction' : 'Add New Transaction'}</h2>
             <div className="flex gap-2">
               <button
                 type="button"
@@ -393,8 +430,17 @@ const TransactionsView = ({
               type="submit"
               className="w-full bg-primary hover:bg-primary/90 text-forest-950 font-bold py-3.5 rounded-xl transition-colors mt-2"
             >
-              Add Transaction
+              {editingId ? 'Update Transaction' : 'Add Transaction'}
             </button>
+            {editingId && (
+              <button
+                type="button"
+                onClick={cancelEdit}
+                className="w-full bg-forest-800 hover:bg-forest-700 text-white font-bold py-3.5 rounded-xl transition-colors mt-2 border border-forest-700"
+              >
+                Cancel Edit
+              </button>
+            )}
           </form>
         </div>
 
@@ -471,7 +517,10 @@ const TransactionsView = ({
                   </td>
                   <td className="py-4 pr-2 text-right">
                     <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button className="p-1.5 text-forest-400 hover:text-primary transition-colors rounded-lg hover:bg-forest-900">
+                      <button
+                        onClick={() => handleEdit(t)}
+                        className="p-1.5 text-forest-400 hover:text-primary transition-colors rounded-lg hover:bg-forest-900"
+                      >
                         <Pencil size={16} />
                       </button>
                       <button
@@ -2814,6 +2863,32 @@ export default function App() {
     await handleSaveAccount(account);
   };
 
+  const handleUpdateTransaction = async (id: string, updates: Partial<Transaction>) => {
+    if (!clerkUser) return;
+
+    // Optimistically update UI
+    setTransactions(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
+
+    try {
+      await updateTransaction(id, { ...updates, userId: clerkUser.id });
+
+      // Refresh data to ensure consistency
+      const updatedTransactions = await getTransactions(clerkUser.id);
+      setTransactions(updatedTransactions);
+      cache.set(`transactions_${clerkUser.id}`, updatedTransactions);
+
+      await fetchMetrics();
+      success('Transaction updated successfully!');
+    } catch (err) {
+      // Revert on error (fetching from cache or API would be better, but simple revert for now)
+      const original = transactions.find(t => t.id === id);
+      if (original) {
+        setTransactions(prev => prev.map(t => t.id === id ? original : t));
+      }
+      showError('Failed to update transaction.');
+    }
+  };
+
   const handleDeleteTransaction = async (id: string) => {
     if (!clerkUser) return;
 
@@ -3245,6 +3320,7 @@ export default function App() {
                   <TransactionsView
                     transactions={transactions}
                     onAdd={handleAddTransaction}
+                    onUpdate={handleUpdateTransaction}
                     onDelete={handleDeleteTransaction}
                     onOpenCategoryManager={() => setIsCategoryManagerOpen(true)}
                     customCategories={customCategories}
