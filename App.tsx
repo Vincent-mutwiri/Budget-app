@@ -27,7 +27,7 @@ import {
 } from './types';
 import {
   MOCK_TRANSACTIONS, LEVEL_THRESHOLDS, XP_REWARDS,
-  calculateLevel, formatCurrency
+  calculateLevel, formatCurrency, INCOME_CATEGORIES, EXPENSE_CATEGORIES
 } from './constants';
 import { ExpensePieChart, TrendChart } from './components/Charts';
 
@@ -255,7 +255,7 @@ const TransactionsView = ({
             <div className="bg-forest-900 p-1.5 rounded-xl flex gap-2">
               <button
                 type="button"
-                onClick={() => setType('expense')}
+                onClick={() => { setType('expense'); setCategory('' as Category); }}
                 className={`flex-1 py-3 rounded-lg font-bold transition-all ${type === 'expense'
                   ? 'bg-rose-500 text-white shadow-lg'
                   : 'bg-forest-800 text-forest-400 hover:text-white hover:bg-forest-700'
@@ -265,7 +265,7 @@ const TransactionsView = ({
               </button>
               <button
                 type="button"
-                onClick={() => setType('income')}
+                onClick={() => { setType('income'); setCategory('' as Category); }}
                 className={`flex-1 py-3 rounded-lg font-bold transition-all ${type === 'income'
                   ? 'bg-primary text-forest-950 shadow-lg'
                   : 'bg-forest-800 text-forest-400 hover:text-white hover:bg-forest-700'
@@ -322,10 +322,10 @@ const TransactionsView = ({
                 required
               >
                 <option value="" disabled>Select a category</option>
-                {CategoriesList.map(cat => (
+                {(type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map(cat => (
                   <option key={cat} value={cat}>{cat}</option>
                 ))}
-                {customCategories.map((cat, idx) => (
+                {customCategories.filter(c => c.type === type).map((cat, idx) => (
                   <option key={`custom-${cat.name}-${idx}`} value={cat.name}>{cat.name}</option>
                 ))}
                 <option key="add-custom" value="custom">+ Add Custom Category</option>

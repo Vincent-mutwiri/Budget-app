@@ -13,6 +13,27 @@ export const LEVEL_THRESHOLDS: LevelData[] = [
   { level: 10, name: 'Wealth Wizard', minXP: 5501, maxXP: 100000 },
 ];
 
+export const INCOME_CATEGORIES = [
+  Category.Income,
+  Category.Other
+];
+
+export const EXPENSE_CATEGORIES = [
+  Category.Housing,
+  Category.Food,
+  Category.Transport,
+  Category.Utilities,
+  Category.Water,
+  Category.Mobile,
+  Category.MPesa,
+  Category.Entertainment,
+  Category.Health,
+  Category.Shopping,
+  Category.Savings,
+  Category.Investment,
+  Category.Other
+];
+
 export const MOCK_TRANSACTIONS: Transaction[] = [];
 
 export const XP_REWARDS = {
