@@ -2028,7 +2028,7 @@ const BudgetsView = ({ budgets, onAdd, onUpdate }: { budgets: Budget[], onAdd: (
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredBudgets.map((budget) => {
+          {filteredBudgets.map((budget, index) => {
             const isEditing = editingBudgetId === budget.id;
             const displayLimit = isEditing ? parseFloat(editedLimit) || budget.limit : budget.limit;
             const percent = Math.min(100, Math.round((budget.spent / displayLimit) * 100));
@@ -2042,7 +2042,7 @@ const BudgetsView = ({ budgets, onAdd, onUpdate }: { budgets: Budget[], onAdd: (
             else if (isWarning) statusColor = 'bg-amber-500';
 
             return (
-              <div key={budget.id} className="bg-forest-800 border border-forest-700 p-6 rounded-3xl hover:border-forest-600 transition-colors">
+              <div key={budget.id || `budget-${index}`} className="bg-forest-800 border border-forest-700 p-6 rounded-3xl hover:border-forest-600 transition-colors">
                 <div className="flex justify-between items-start mb-6">
                   <div className="flex items-center gap-4">
                     <div className={`w-12 h-12 rounded-full flex items-center justify-center ${getIconColor(budget.icon)}`}>
@@ -2078,7 +2078,8 @@ const BudgetsView = ({ budgets, onAdd, onUpdate }: { budgets: Budget[], onAdd: (
                     />
                     <div className="flex gap-2 mt-3">
                       <button
-                        onClick={() => handleSaveEdit(budget.id)}
+                        onClick={() => budget.id && handleSaveEdit(budget.id)}
+                        disabled={!budget.id}
                         className="flex-1 bg-primary hover:bg-primary/90 text-forest-950 font-bold py-2 px-4 rounded-xl transition-colors"
                       >
                         Save
