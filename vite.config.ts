@@ -25,6 +25,18 @@ export default defineConfig(({ mode }) => {
       alias: {
         '@': path.resolve(__dirname, '.'),
       }
+    },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            vendor: ['react', 'react-dom'],
+            charts: ['recharts', 'chart.js', 'react-chartjs-2'],
+            utils: ['axios', 'lucide-react'],
+            clerk: ['@clerk/clerk-react']
+          }
+        }
+      }
     }
   };
 });
