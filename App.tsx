@@ -2438,7 +2438,11 @@ export default function App() {
         const cachedCustomCategories = cache.get<Array<{ name: string; type: 'income' | 'expense' }>>(`customCategories_${clerkUser.id}`);
         const cachedMetrics = cache.get<FinancialMetrics>(`metrics_${clerkUser.id}`);
 
-        if (cachedTransactions) setTransactions(cachedTransactions);
+        if (cachedTransactions) {
+          // Ensure cached transactions have id
+          const sanitizedCache = cachedTransactions.map((t: any) => ({ ...t, id: t.id || t._id }));
+          setTransactions(sanitizedCache);
+        }
         if (cachedCustomCategories) setCustomCategories(cachedCustomCategories);
         if (cachedBudgets) setBudgets(cachedBudgets);
         if (cachedGoals) setSavingsGoals(cachedGoals);
@@ -2477,7 +2481,7 @@ export default function App() {
           setRecurringTransactions(recTxs);
           setCustomCategories(customCats);
 
-          cache.set(`transactions_${clerkUser.id}`, txs);
+          cache.set(`transactions_${clerkUser.id}`, transactionsWithId);
           cache.set(`budgets_${clerkUser.id}`, bgs);
           cache.set(`goals_${clerkUser.id}`, gls);
           cache.set(`accounts_${clerkUser.id}`, accs);

@@ -34,7 +34,7 @@ export const uploadFile = async (file: File) => {
 // Transactions
 export const getTransactions = async (userId: string) => {
     const response = await api.get('/transactions', { params: { userId } });
-    return response.data;
+    return response.data.map((t: any) => ({ ...t, id: t._id }));
 };
 
 export const createTransaction = async (transaction: any) => {
