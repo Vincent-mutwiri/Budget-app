@@ -482,32 +482,32 @@ app.get('/api/budgets', async (req, res) => {
 
     try {
         const budgets = await Budget.find({ userId });
-        
+
         // Calculate current month spending for each budget
         const now = new Date();
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
         startOfMonth.setHours(0, 0, 0, 0);
         const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
         endOfMonth.setHours(23, 59, 59, 999);
-        
+
         const transactions = await Transaction.find({
             userId,
             type: 'expense',
             date: { $gte: startOfMonth, $lte: endOfMonth }
         });
-        
+
         // Calculate spending by category
         const spendingByCategory: Record<string, number> = {};
         transactions.forEach(t => {
             spendingByCategory[t.category] = (spendingByCategory[t.category] || 0) + t.amount;
         });
-        
+
         // Update budgets with current month spending
         const budgetsWithCurrentSpending = budgets.map(budget => ({
             ...budget.toObject(),
             spent: spendingByCategory[budget.category] || 0
         }));
-        
+
         res.json(budgetsWithCurrentSpending);
     } catch (error) {
         res.status(500).json({ error: 'Server error' });
@@ -2761,10 +2761,18 @@ app.get('/api/spending-history', async (req, res) => {
     }
 
     try {
-        const startDate = new Date(Number(year), Number(month) - 1, 1);
-        startDate.setHours(0, 0, 0, 0);
-        const endDate = new Date(Number(year), Number(month), 0);
-        endDate.setHours(23, 59, 59, 999);
+        // EAT is UTC+3
+        const EAT_OFFSET = 3 * 60 * 60 * 1000;
+
+        // Create start date: 1st of the month at 00:00:00 EAT
+        // We construct it in UTC by subtracting the offset
+        const startDate = new Date(Date.UTC(Number(year), Number(month) - 1, 1, 0, 0, 0));
+        startDate.setTime(startDate.getTime() - EAT_OFFSET);
+
+        // Create end date: Last day of the month at 23:59:59.999 EAT
+        // We construct next month 1st at 00:00:00 EAT and subtract 1ms
+        const endDate = new Date(Date.UTC(Number(year), Number(month), 1, 0, 0, 0));
+        endDate.setTime(endDate.getTime() - EAT_OFFSET - 1);
 
         const transactions = await Transaction.find({
             userId,
@@ -2772,10 +2780,13 @@ app.get('/api/spending-history', async (req, res) => {
             date: { $gte: startDate, $lte: endDate }
         }).sort({ date: 1 });
 
-        // Group by day
+        // Group by day using EAT date
         const dailySpending: Record<string, any> = {};
         transactions.forEach(tx => {
-            const dateKey = tx.date.toISOString().split('T')[0];
+            // Shift to EAT before extracting the date string
+            const eatDate = new Date(tx.date.getTime() + EAT_OFFSET);
+            const dateKey = eatDate.toISOString().split('T')[0];
+
             if (!dailySpending[dateKey]) {
                 dailySpending[dateKey] = {
                     date: dateKey,

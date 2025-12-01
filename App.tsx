@@ -3228,7 +3228,7 @@ export default function App() {
               )}
 
               {/* Scrollable Content */}
-              <div className={`flex-1 ${activeView === 'ai-assistant' || activeView === 'insights' ? 'overflow-hidden' : 'overflow-y-auto px-8 pb-8'} scrollbar-thin scrollbar-thumb-forest-700 scrollbar-track-transparent`}>
+              <div className={`flex-1 ${activeView === 'ai-assistant' ? 'overflow-hidden' : 'overflow-y-auto px-8 pb-8'} scrollbar-thin scrollbar-thumb-forest-700 scrollbar-track-transparent`}>
                 {activeView === 'dashboard' ? (
                   <DashboardContent />
                 ) : activeView === 'transactions' ? (

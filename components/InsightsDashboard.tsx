@@ -129,6 +129,7 @@ const InsightsDashboard: React.FC = () => {
 
                 {/* Dashboard Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
                     {/* Financial Health Score */}
                     <div className="lg:col-span-1">
                         <FinancialHealthScore
@@ -166,6 +167,7 @@ const InsightsDashboard: React.FC = () => {
                     <div className="lg:col-span-2">
                         <SpendingCalendar />
                     </div>
+
                 </div>
 
                 {/* Additional Info */}
