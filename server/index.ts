@@ -368,6 +368,63 @@ app.post('/api/transactions', validateTransaction, async (req, res) => {
     }
 });
 
+// Update Transaction
+app.put('/api/transactions/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { userId, amount, category, date, description, type } = req.body;
+
+        // Find the transaction
+        const transaction = await Transaction.findById(id);
+        if (!transaction) {
+            console.error(`Transaction not found: ${id}`);
+            return res.status(404).json(
+                createErrorResponse('Transaction not found', ERROR_CODES.TRANSACTION_NOT_FOUND, { transactionId: id })
+            );
+        }
+
+        // Validate user ownership
+        if (userId && transaction.userId !== userId) {
+            console.error(`Unauthorized transaction update attempt: user ${userId} tried to update transaction ${id} owned by ${transaction.userId}`);
+            return res.status(403).json(
+                createErrorResponse('You do not have permission to update this transaction', ERROR_CODES.UNAUTHORIZED)
+            );
+        }
+
+        // Update fields if provided
+        if (amount !== undefined) transaction.amount = amount;
+        if (category !== undefined) transaction.category = category;
+        if (date !== undefined) transaction.date = new Date(date);
+        if (description !== undefined) transaction.description = description;
+        if (type !== undefined) transaction.type = type;
+
+        // Update timestamp
+        transaction.updatedAt = new Date();
+
+        await transaction.save();
+
+        // Update related budgets if it's an expense
+        // Note: This is a simplified update. Ideally, we should handle the difference if amount changed.
+        // For now, we'll just invalidate the cache and let the next fetch recalculate.
+        // A more robust implementation would adjust the budget spent amount based on the difference.
+
+        // Invalidate metrics cache since transaction update affects financial metrics
+        if (userId) {
+            invalidateMetricsCache(userId);
+        }
+
+        console.log(`Transaction updated successfully: ${id}`);
+
+        const txObj = transaction.toObject();
+        res.json({ ...txObj, id: txObj._id.toString() });
+    } catch (error) {
+        console.error('Error updating transaction:', error);
+        res.status(500).json(
+            createErrorResponse('Failed to update transaction', ERROR_CODES.SERVER_ERROR)
+        );
+    }
+});
+
 // Delete Transaction
 app.delete('/api/transactions/:id', async (req, res) => {
     try {
@@ -397,6 +454,30 @@ app.delete('/api/transactions/:id', async (req, res) => {
             return res.status(403).json(
                 createErrorResponse('You do not have permission to delete this transaction', ERROR_CODES.UNAUTHORIZED)
             );
+        }
+
+        // Deduct XP if it was awarded
+        if (transaction.xpAwarded && transaction.xpAwarded > 0) {
+            try {
+                const user = await User.findOne({ clerkId: userId });
+                if (user) {
+                    const { calculateLevel } = await import('./services/gamificationEngine');
+
+                    // Deduct XP but ensure it doesn't go below 0
+                    user.xp = Math.max(0, (user.xp || 0) - transaction.xpAwarded);
+
+                    // Recalculate level
+                    const oldLevel = user.level || 1;
+                    user.level = calculateLevel(user.xp);
+
+                    await user.save();
+
+                    console.log(`Deducted ${transaction.xpAwarded} XP from user ${userId}. New XP: ${user.xp}, Level: ${user.level}`);
+                }
+            } catch (xpError) {
+                console.error('Error deducting XP during transaction deletion:', xpError);
+                // Continue with deletion even if XP deduction fails
+            }
         }
 
         // Delete the transaction
