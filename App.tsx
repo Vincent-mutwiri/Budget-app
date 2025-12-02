@@ -2605,7 +2605,7 @@ export default function App() {
     if (!clerkUser) return;
     try {
       const updated = await deleteCustomCategory(clerkUser.id, categoryName);
-      setCustomCategories(updated);
+      setCustomCategories([...updated]);
       cache.set(`customCategories_${clerkUser.id}`, updated);
       success('Category deleted successfully!');
     } catch (err) {
@@ -2630,9 +2630,8 @@ export default function App() {
   const handleAddToDefault = async (categoryName: string) => {
     if (!clerkUser) return;
     try {
-      // Promote custom category to default
       const updated = await promoteCustomCategory(clerkUser.id, categoryName);
-      setCustomCategories(updated);
+      setCustomCategories([...updated]);
       cache.set(`customCategories_${clerkUser.id}`, updated);
       success(`"${categoryName}" added to default categories!`);
     } catch (err) {
@@ -2644,7 +2643,7 @@ export default function App() {
     if (!clerkUser) return;
     try {
       const updated = await addCustomCategory(clerkUser.id, name, type);
-      setCustomCategories(updated);
+      setCustomCategories([...updated]);
       cache.set(`customCategories_${clerkUser.id}`, updated);
       success(`Category "${name}" added successfully!`);
     } catch (err) {
