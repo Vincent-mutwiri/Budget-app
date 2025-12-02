@@ -6,26 +6,22 @@ import { Loader2 } from 'lucide-react';
 import { CustomSelect } from './CustomSelect';
 
 // --- Add Budget Form ---
-export const AddBudgetForm = ({ onAdd, onClose, customCategories = [], onAddCategory }: { onAdd: (budget: any) => Promise<void>, onClose: () => void, customCategories?: Array<{ name: string; type: 'income' | 'expense' }>, onAddCategory?: (name: string, type: 'income' | 'expense') => Promise<void> }) => {
+export const AddBudgetForm = ({ onAdd, onClose, customCategories = [] }: { onAdd: (budget: any) => Promise<void>, onClose: () => void, customCategories?: Array<{ name: string; type: 'income' | 'expense' }> }) => {
     const [category, setCategory] = useState<Category | string | ''>('');
     const [limit, setLimit] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [customCategoryName, setCustomCategoryName] = useState('');
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!category || !limit) return;
-        if (category === 'custom' && !customCategoryName.trim()) return;
 
         const limitValue = parseFloat(limit);
 
-        // Validate limit is a valid number
         if (isNaN(limitValue)) {
             alert('Please enter a valid budget limit');
             return;
         }
 
-        // Validate limit is positive
         if (limitValue <= 0) {
             alert('Budget limit must be greater than zero');
             return;
@@ -33,18 +29,10 @@ export const AddBudgetForm = ({ onAdd, onClose, customCategories = [], onAddCate
 
         setIsSubmitting(true);
         try {
-            let finalCategory = category;
-
-            // Handle custom category creation
-            if (category === 'custom' && onAddCategory) {
-                await onAddCategory(customCategoryName, 'expense');
-                finalCategory = customCategoryName;
-            }
-
             await onAdd({
-                category: finalCategory,
+                category,
                 limit: limitValue,
-                icon: 'tag' // Default icon
+                icon: 'tag'
             });
             onClose();
         } catch (error) {
@@ -64,30 +52,11 @@ export const AddBudgetForm = ({ onAdd, onClose, customCategories = [], onAddCate
                 <CustomSelect
                     value={category}
                     onChange={(val) => setCategory(val)}
-                    options={[
-                        ...EXPENSE_CATEGORIES.map(cat => ({ value: cat, label: cat, key: cat })),
-                        ...expenseCustomCategories.map((cat, idx) => ({ value: cat.name, label: cat.name, key: `custom-${cat.name}-${idx}` })),
-                        { value: 'custom', label: '+ Add Custom Category', key: 'add-custom' }
-                    ]}
+                    options={expenseCustomCategories.map((cat, idx) => ({ value: cat.name, label: cat.name, key: `cat-${cat.name}-${idx}` }))}
                     placeholder="Select a category"
                     required
                 />
             </div>
-
-            {category === 'custom' && (
-                <div className="animate-in fade-in slide-in-from-top-2 duration-200">
-                    <label className="block text-forest-300 text-sm font-medium mb-2">Custom Category Name</label>
-                    <input
-                        type="text"
-                        value={customCategoryName}
-                        onChange={(e) => setCustomCategoryName(e.target.value)}
-                        placeholder="e.g. Groceries"
-                        className="w-full bg-forest-950 border border-forest-700 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                        required
-                        autoFocus
-                    />
-                </div>
-            )}
 
             <div>
                 <label className="block text-forest-300 text-sm font-medium mb-2">Monthly Limit</label>

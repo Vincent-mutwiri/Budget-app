@@ -175,28 +175,9 @@ const TransactionsView = ({
     e.preventDefault();
     if (!amount || !category || !date) return;
 
-    let finalCategory = category;
-
-    // Handle custom category creation
-    // Check if customCategory has value and matches selected category (which happens onBlur)
-    // OR if category is still 'custom' (if they didn't blur but hit enter)
-    if ((category === 'custom' || category === customCategory.trim()) && customCategory.trim()) {
-      if (onAddCategory) {
-        // Check if already exists to avoid unnecessary API calls
-        const exists = customCategories.some(c => c.name === customCategory.trim() && c.type === type);
-        if (!exists) {
-          await onAddCategory(customCategory.trim(), type);
-        }
-      }
-      finalCategory = customCategory.trim() as Category;
-    } else if (category === 'custom') {
-      // If custom selected but empty, fallback or return
-      return;
-    }
-
     const transactionData = {
       amount: parseFloat(amount),
-      category: finalCategory as Category,
+      category: category as Category,
       date,
       description: description || 'Untitled Transaction',
       type
@@ -209,16 +190,14 @@ const TransactionsView = ({
       onAdd(transactionData);
     }
 
-    // Reset form - keep date if retainDate is enabled
     setAmount('');
     setDescription('');
     setCategory('' as Category);
-    setCustomCategory('');
     if (!retainDate) {
       setDate(new Date().toISOString().split('T')[0]);
     }
     if (editingId) {
-      setType('expense'); // Reset type after edit
+      setType('expense');
     }
   };
 
@@ -326,43 +305,25 @@ const TransactionsView = ({
             <div>
               <label className="block text-forest-300 text-sm font-medium mb-2">Category</label>
               <select
-                value={category === 'custom' || (category && !CategoriesList.includes(category as Category)) ? 'custom' : category}
-                onChange={(e) => {
-                  if (e.target.value === 'custom') {
-                    setCategory('custom' as Category);
-                    setCustomCategory('');
-                  } else {
-                    setCategory(e.target.value as Category);
-                    setCustomCategory('');
-                  }
-                }}
+                value={category}
+                onChange={(e) => setCategory(e.target.value as Category)}
                 className="w-full bg-forest-950 border border-forest-700 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary cursor-pointer"
                 required
               >
                 <option value="" disabled>Select a category</option>
-                {(type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-                {customCategories.filter(c => c.type === type).map((cat, idx) => (
-                  <option key={`custom-${cat.name}-${idx}`} value={cat.name}>{cat.name}</option>
-                ))}
-                <option key="add-custom" value="custom">+ Add Custom Category</option>
+                {customCategories.filter(c => c.type === type).length === 0 ? (
+                  <option value="" disabled>No categories available. Add one in Category Manager.</option>
+                ) : (
+                  customCategories.filter(c => c.type === type).map((cat, idx) => (
+                    <option key={`cat-${cat.name}-${idx}`} value={cat.name}>{cat.name}</option>
+                  ))
+                )}
               </select>
-              {category === 'custom' && (
-                <input
-                  type="text"
-                  value={customCategory}
-                  placeholder="Enter custom category name"
-                  onChange={(e) => setCustomCategory(e.target.value)}
-                  onBlur={(e) => {
-                    if (e.target.value.trim()) {
-                      setCategory(e.target.value.trim() as Category);
-                    }
-                  }}
-                  className="w-full bg-forest-950 border border-forest-700 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary mt-2"
-                  autoFocus
-                  required
-                />
+              {customCategories.filter(c => c.type === type).length === 0 && (
+                <p className="mt-2 text-xs text-amber-500 flex items-center gap-1">
+                  <AlertTriangle size={12} />
+                  No {type} categories found. Click "Categories" to add some.
+                </p>
               )}
             </div>
 
@@ -2211,6 +2172,7 @@ export default function App() {
   const [editingAccountData, setEditingAccountData] = useState<Account | undefined>(undefined);
   const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
   const [customCategories, setCustomCategories] = useState<Array<{ name: string; type: 'income' | 'expense' }>>([]);
+  const [categoriesVersion, setCategoriesVersion] = useState(0);
 
   // Loading and Error States
   const [isLoading, setIsLoading] = useState(true);
@@ -2604,8 +2566,10 @@ export default function App() {
   const handleDeleteCategory = async (categoryName: string) => {
     if (!clerkUser) return;
     try {
-      const updated = await deleteCustomCategory(clerkUser.id, categoryName);
-      setCustomCategories([...updated]);
+      await deleteCustomCategory(clerkUser.id, categoryName);
+      const updated = await getCustomCategories(clerkUser.id);
+      setCustomCategories(updated);
+      setCategoriesVersion(v => v + 1);
       cache.set(`customCategories_${clerkUser.id}`, updated);
       success('Category deleted successfully!');
     } catch (err) {
@@ -2630,8 +2594,10 @@ export default function App() {
   const handleAddToDefault = async (categoryName: string) => {
     if (!clerkUser) return;
     try {
-      const updated = await promoteCustomCategory(clerkUser.id, categoryName);
-      setCustomCategories([...updated]);
+      await promoteCustomCategory(clerkUser.id, categoryName);
+      const updated = await getCustomCategories(clerkUser.id);
+      setCustomCategories(updated);
+      setCategoriesVersion(v => v + 1);
       cache.set(`customCategories_${clerkUser.id}`, updated);
       success(`"${categoryName}" added to default categories!`);
     } catch (err) {
@@ -2642,8 +2608,10 @@ export default function App() {
   const handleAddCategory = async (name: string, type: 'income' | 'expense') => {
     if (!clerkUser) return;
     try {
-      const updated = await addCustomCategory(clerkUser.id, name, type);
-      setCustomCategories([...updated]);
+      await addCustomCategory(clerkUser.id, name, type);
+      const updated = await getCustomCategories(clerkUser.id);
+      setCustomCategories(updated);
+      setCategoriesVersion(v => v + 1);
       cache.set(`customCategories_${clerkUser.id}`, updated);
       success(`Category "${name}" added successfully!`);
     } catch (err) {
@@ -3335,6 +3303,7 @@ export default function App() {
                   <DashboardContent />
                 ) : activeView === 'transactions' ? (
                   <TransactionsView
+                    key={`transactions-${categoriesVersion}`}
                     transactions={transactions}
                     onAdd={handleAddTransaction}
                     onUpdate={handleUpdateTransaction}
@@ -3354,7 +3323,7 @@ export default function App() {
                     customCategories={customCategories}
                   />
                 ) : activeView === 'budgets' ? (
-                  <BudgetsView budgets={budgets} onAdd={() => setIsBudgetModalOpen(true)} onUpdate={handleUpdateBudget} />
+                  <BudgetsView key={`budgets-${categoriesVersion}`} budgets={budgets} onAdd={() => setIsBudgetModalOpen(true)} onUpdate={handleUpdateBudget} />
                 ) : activeView === 'insights' ? (
                   <InsightsDashboard />
                 ) : activeView === 'investments' ? (
@@ -3423,7 +3392,7 @@ export default function App() {
               onClose={() => setIsBudgetModalOpen(false)}
               title="Create New Budget"
             >
-              {isBudgetModalOpen && <AddBudgetForm onAdd={handleAddBudget} onClose={() => setIsBudgetModalOpen(false)} customCategories={customCategories} onAddCategory={handleAddCategory} />}
+              {isBudgetModalOpen && <AddBudgetForm onAdd={handleAddBudget} onClose={() => setIsBudgetModalOpen(false)} customCategories={customCategories} />}
             </Modal>
 
             <Modal

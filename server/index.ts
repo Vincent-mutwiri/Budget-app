@@ -14,6 +14,7 @@ import aiRoutes from './routes/ai';
 import { validateImageType } from './services/imageService';
 import { User } from './models/User';
 import { Transaction } from './models/Transaction';
+import { Category } from './models/Category';
 import { Budget } from './models/Budget';
 import { SavingsGoal } from './models/SavingsGoal';
 import { Account } from './models/Account';
@@ -167,19 +168,8 @@ app.get('/api/categories/custom', async (req, res) => {
     if (!userId) return res.status(400).json({ error: 'UserId required' });
 
     try {
-        const user = await User.findOne({ clerkId: userId });
-
-        if (!user) {
-            // Return empty array if user not found (will be created on first login/transaction)
-            return res.json([]);
-        }
-
-        // Safety check for customCategories
-        if (!user.customCategories || !Array.isArray(user.customCategories)) {
-            return res.json([]);
-        }
-
-        res.json(user.customCategories);
+        const categories = await Category.find({ userId }).sort({ createdAt: 1 });
+        res.json(categories.map(c => ({ name: c.name, type: c.type, isDefault: c.isDefault })));
     } catch (error) {
         console.error('Error getting custom categories:', error);
         res.status(500).json({ error: 'Server error' });
@@ -192,39 +182,18 @@ app.post('/api/categories/custom', async (req, res) => {
     if (!userId || !category || !type) return res.status(400).json({ error: 'UserId, category, and type required' });
 
     try {
-        let user = await User.findOne({ clerkId: userId });
-
-        if (!user) {
-            return res.status(404).json({ error: 'User not found' });
+        const existing = await Category.findOne({ userId, name: category });
+        if (existing) {
+            const categories = await Category.find({ userId }).sort({ createdAt: 1 });
+            return res.json(categories.map(c => ({ name: c.name, type: c.type, isDefault: c.isDefault })));
         }
 
-        // Initialize if missing or invalid
-        if (!user.customCategories || !Array.isArray(user.customCategories)) {
-            user.customCategories = [] as any;
-        }
-
-        // Check if already exists
-        const exists = user.customCategories.find((c: any) => c.name === category);
-        if (!exists) {
-            user.customCategories.push({ name: category, type });
-            try {
-                await user.save();
-            } catch (saveError) {
-                console.error('Error saving user with new category:', saveError);
-                return res.status(500).json({
-                    error: 'Failed to save category',
-                    details: saveError instanceof Error ? saveError.message : 'Unknown validation error'
-                });
-            }
-        }
-
-        res.json(user.customCategories);
+        await Category.create({ userId, name: category, type });
+        const categories = await Category.find({ userId }).sort({ createdAt: 1 });
+        res.json(categories.map(c => ({ name: c.name, type: c.type, isDefault: c.isDefault })));
     } catch (error) {
         console.error('Error adding custom category:', error);
-        res.status(500).json({
-            error: 'Server error',
-            details: error instanceof Error ? error.message : 'Unknown error'
-        });
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
@@ -235,15 +204,9 @@ app.delete('/api/categories/custom/:category', async (req, res) => {
     if (!userId) return res.status(400).json({ error: 'UserId required' });
 
     try {
-        const user = await User.findOne({ clerkId: userId });
-        if (!user) return res.status(404).json({ error: 'User not found' });
-
-        if (user.customCategories && Array.isArray(user.customCategories)) {
-            user.customCategories = user.customCategories.filter((c: any) => c.name !== category) as any;
-            await user.save();
-        }
-
-        res.json(user.customCategories || []);
+        await Category.deleteOne({ userId, name: category });
+        const categories = await Category.find({ userId }).sort({ createdAt: 1 });
+        res.json(categories.map(c => ({ name: c.name, type: c.type, isDefault: c.isDefault })));
     } catch (error) {
         console.error('Error deleting custom category:', error);
         res.status(500).json({ error: 'Server error' });
@@ -252,34 +215,14 @@ app.delete('/api/categories/custom/:category', async (req, res) => {
 
 // Promote Custom Category to Default
 app.patch('/api/categories/custom/:category/promote', async (req, res) => {
-    console.log('=== Promote request received ===');
-    console.log('URL:', req.originalUrl);
-    console.log('Params:', req.params);
-    console.log('Query:', req.query);
-    console.log('Body:', req.body);
-    console.log('Headers:', req.headers);
     const { userId } = req.query;
     const { category } = req.params;
-    console.log('Extracted userId:', userId);
-    console.log('Extracted category:', category);
-    if (!userId) {
-        console.log('UserId missing in promote request - returning 400');
-        return res.status(400).json({ error: 'UserId required' });
-    }
+    if (!userId) return res.status(400).json({ error: 'UserId required' });
 
     try {
-        const user = await User.findOne({ clerkId: userId });
-        if (!user) return res.status(404).json({ error: 'User not found' });
-
-        if (user.customCategories && Array.isArray(user.customCategories)) {
-            const catIndex = user.customCategories.findIndex((c: any) => c.name === category);
-            if (catIndex > -1) {
-                user.customCategories[catIndex].isDefault = true;
-                await user.save();
-            }
-        }
-
-        res.json(user.customCategories || []);
+        await Category.updateOne({ userId, name: category }, { $set: { isDefault: true, updatedAt: new Date() } });
+        const categories = await Category.find({ userId }).sort({ createdAt: 1 });
+        res.json(categories.map(c => ({ name: c.name, type: c.type, isDefault: c.isDefault })));
     } catch (error) {
         console.error('Error promoting custom category:', error);
         res.status(500).json({ error: 'Server error' });
