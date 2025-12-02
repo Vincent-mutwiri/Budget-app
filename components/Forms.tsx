@@ -1,18 +1,21 @@
 import React, { useState } from 'react';
 import { Category, CategoriesList } from '../types';
+import { EXPENSE_CATEGORIES } from '../constants';
 import { uploadFile } from '../services/api';
 import { Loader2 } from 'lucide-react';
 import { CustomSelect } from './CustomSelect';
 
 // --- Add Budget Form ---
-export const AddBudgetForm = ({ onAdd, onClose, customCategories = [] }: { onAdd: (budget: any) => Promise<void>, onClose: () => void, customCategories?: Array<{ name: string; type: 'income' | 'expense' }> }) => {
+export const AddBudgetForm = ({ onAdd, onClose, customCategories = [], onAddCategory }: { onAdd: (budget: any) => Promise<void>, onClose: () => void, customCategories?: Array<{ name: string; type: 'income' | 'expense' }>, onAddCategory?: (name: string, type: 'income' | 'expense') => Promise<void> }) => {
     const [category, setCategory] = useState<Category | string | ''>('');
     const [limit, setLimit] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [customCategoryName, setCustomCategoryName] = useState('');
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!category || !limit) return;
+        if (category === 'custom' && !customCategoryName.trim()) return;
 
         const limitValue = parseFloat(limit);
 
@@ -30,8 +33,16 @@ export const AddBudgetForm = ({ onAdd, onClose, customCategories = [] }: { onAdd
 
         setIsSubmitting(true);
         try {
+            let finalCategory = category;
+
+            // Handle custom category creation
+            if (category === 'custom' && onAddCategory) {
+                await onAddCategory(customCategoryName, 'expense');
+                finalCategory = customCategoryName;
+            }
+
             await onAdd({
-                category,
+                category: finalCategory,
                 limit: limitValue,
                 icon: 'tag' // Default icon
             });
@@ -44,6 +55,8 @@ export const AddBudgetForm = ({ onAdd, onClose, customCategories = [] }: { onAdd
         }
     };
 
+    const expenseCustomCategories = customCategories.filter(c => c.type === 'expense');
+
     return (
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div>
@@ -52,13 +65,30 @@ export const AddBudgetForm = ({ onAdd, onClose, customCategories = [] }: { onAdd
                     value={category}
                     onChange={(val) => setCategory(val)}
                     options={[
-                        ...CategoriesList.map(cat => ({ value: cat, label: cat, key: cat })),
-                        ...customCategories.map((cat, idx) => ({ value: cat.name, label: cat.name, key: `custom-${cat.name}-${idx}` }))
+                        ...EXPENSE_CATEGORIES.map(cat => ({ value: cat, label: cat, key: cat })),
+                        ...expenseCustomCategories.map((cat, idx) => ({ value: cat.name, label: cat.name, key: `custom-${cat.name}-${idx}` })),
+                        { value: 'custom', label: '+ Add Custom Category', key: 'add-custom' }
                     ]}
                     placeholder="Select a category"
                     required
                 />
             </div>
+
+            {category === 'custom' && (
+                <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+                    <label className="block text-forest-300 text-sm font-medium mb-2">Custom Category Name</label>
+                    <input
+                        type="text"
+                        value={customCategoryName}
+                        onChange={(e) => setCustomCategoryName(e.target.value)}
+                        placeholder="e.g. Groceries"
+                        className="w-full bg-forest-950 border border-forest-700 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                        required
+                        autoFocus
+                    />
+                </div>
+            )}
+
             <div>
                 <label className="block text-forest-300 text-sm font-medium mb-2">Monthly Limit</label>
                 <div className="relative">

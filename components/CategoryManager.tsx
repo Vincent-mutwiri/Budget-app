@@ -4,7 +4,7 @@ import { CategoriesList } from '../types';
 
 interface CategoryManagerProps {
   onClose: () => void;
-  customCategories: Array<{ name: string; type: 'income' | 'expense' }>;
+  customCategories: Array<{ name: string; type: 'income' | 'expense'; isDefault?: boolean }>;
   onDeleteCategory: (category: string) => void;
   onAddToDefault: (category: string) => void;
   onAddCategory?: (name: string, type: 'income' | 'expense') => void;
@@ -30,6 +30,9 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
       setShowAddForm(false);
     }
   };
+
+  const promotedCategories = customCategories.filter(c => c.isDefault);
+  const trueCustomCategories = customCategories.filter(c => !c.isDefault);
 
   return (
     <div className="flex flex-col gap-4">
@@ -61,14 +64,30 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
                 </div>
               </div>
             ))}
+            {promotedCategories.map((cat, idx) => (
+              <div key={`promoted-${cat.name}-${idx}`} className="flex items-center justify-between p-3 bg-forest-900 rounded-lg group">
+                <span className="text-white">{cat.name}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-forest-500">Promoted</span>
+                  {/* Option to demote? For now just delete or maybe nothing since it's "default" */}
+                  <button
+                    onClick={() => onDeleteCategory(cat.name)}
+                    className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 transition-all p-1"
+                    title="Delete category"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
-        {customCategories.length > 0 && (
+        {trueCustomCategories.length > 0 && (
           <div>
             <h4 className="text-sm font-medium text-forest-300 mb-2">Custom Categories</h4>
             <div className="space-y-2">
-              {customCategories.map((cat, idx) => (
+              {trueCustomCategories.map((cat, idx) => (
                 <div key={`custom-${cat.name}-${idx}`} className="flex items-center justify-between p-3 bg-forest-800 border border-forest-700 rounded-lg group">
                   <div className="flex items-center gap-2 flex-1 min-w-0">
                     <span className="text-white truncate">{cat.name}</span>

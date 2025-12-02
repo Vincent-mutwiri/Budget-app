@@ -21,7 +21,7 @@ const UserSchema = new mongoose.Schema({
         expenses: { type: Number },
         balance: { type: Number }
     }],
-    customCategories: [{ name: String, type: { type: String, enum: ['income', 'expense'] } }],
+    customCategories: [{ name: String, type: { type: String, enum: ['income', 'expense'] }, isDefault: { type: Boolean, default: false } }],
     createdAt: { type: Date, default: Date.now },
     // Security fields
     mfaEnabled: { type: Boolean, default: false },

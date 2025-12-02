@@ -451,6 +451,11 @@ export const deleteCustomCategory = async (userId: string, category: string) => 
     return response.data;
 };
 
+export const promoteCustomCategory = async (userId: string, category: string) => {
+    const response = await api.patch(`/categories/custom/${encodeURIComponent(category)}/promote?userId=${encodeURIComponent(userId)}`);
+    return response.data;
+};
+
 // Financial Metrics
 export const getMetrics = async (userId: string, month?: string) => {
     const params: any = { userId };

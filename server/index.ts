@@ -250,6 +250,42 @@ app.delete('/api/categories/custom/:category', async (req, res) => {
     }
 });
 
+// Promote Custom Category to Default
+app.patch('/api/categories/custom/:category/promote', async (req, res) => {
+    console.log('=== Promote request received ===');
+    console.log('URL:', req.originalUrl);
+    console.log('Params:', req.params);
+    console.log('Query:', req.query);
+    console.log('Body:', req.body);
+    console.log('Headers:', req.headers);
+    const { userId } = req.query;
+    const { category } = req.params;
+    console.log('Extracted userId:', userId);
+    console.log('Extracted category:', category);
+    if (!userId) {
+        console.log('UserId missing in promote request - returning 400');
+        return res.status(400).json({ error: 'UserId required' });
+    }
+
+    try {
+        const user = await User.findOne({ clerkId: userId });
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        if (user.customCategories && Array.isArray(user.customCategories)) {
+            const catIndex = user.customCategories.findIndex((c: any) => c.name === category);
+            if (catIndex > -1) {
+                user.customCategories[catIndex].isDefault = true;
+                await user.save();
+            }
+        }
+
+        res.json(user.customCategories || []);
+    } catch (error) {
+        console.error('Error promoting custom category:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
 // Metrics cache management
 const metricsCache = new Map<string, { data: any; timestamp: number }>();
 const METRICS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes

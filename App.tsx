@@ -35,7 +35,7 @@ import { Modal } from './components/Modal';
 import { AddBudgetForm, AddGoalForm } from './components/Forms';
 import { AddAccountForm } from './components/AddAccountForm';
 import { CategoryManager } from './components/CategoryManager';
-import { createBudget, createGoal, getRecurringTransactions, createRecurringTransaction, updateRecurringTransaction, deleteRecurringTransaction, toggleRecurringTransaction, deleteTransaction, payRecurringTransaction } from './services/api';
+import { createBudget, createGoal, getRecurringTransactions, createRecurringTransaction, updateRecurringTransaction, deleteRecurringTransaction, toggleRecurringTransaction, deleteTransaction, payRecurringTransaction, promoteCustomCategory } from './services/api';
 import { RecurringTransactionsView } from './components/RecurringTransactionsView';
 import type { RecurringTransaction, RecurringTransactionInput } from './types';
 import { NotificationCenter } from './components/NotificationCenter';
@@ -119,14 +119,16 @@ const TransactionsView = ({
   onUpdate,
   onDelete,
   onOpenCategoryManager,
-  customCategories
+  customCategories,
+  onAddCategory
 }: {
   transactions: Transaction[],
   onAdd: (t: Omit<Transaction, 'id'>) => void,
   onUpdate: (id: string, t: Partial<Transaction>) => void,
   onDelete: (id: string) => void,
   onOpenCategoryManager: () => void,
-  customCategories: Array<{ name: string; type: 'income' | 'expense' }>
+  customCategories: Array<{ name: string; type: 'income' | 'expense' }>,
+  onAddCategory?: (name: string, type: 'income' | 'expense') => Promise<void>
 }) => {
   const [type, setType] = useState<TransactionType>('expense');
   const [amount, setAmount] = useState('');
@@ -135,16 +137,14 @@ const TransactionsView = ({
   const [description, setDescription] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState<Category | ''>('');
-  const [amountFilter, setAmountFilter] = useState({ min: '', max: '' });
+  const [categoryFilter, setCategoryFilter] = useState<string>('');
+  const [amountFilter, setAmountFilter] = useState<{ min: string, max: string }>({ min: '', max: '' });
   const [showSuggestion, setShowSuggestion] = useState(true);
   const [showReceiptScanner, setShowReceiptScanner] = useState(false);
   const [customCategory, setCustomCategory] = useState('');
   const [retainDate, setRetainDate] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState<{ isOpen: boolean; transaction: Transaction | null }>({ isOpen: false, transaction: null });
   const { user: clerkUser } = useUser();
-
-  console.log('Custom categories in TransactionsView:', customCategories);
 
   const handleEdit = (transaction: Transaction) => {
     setEditingId(transaction.id);
@@ -171,11 +171,29 @@ const TransactionsView = ({
     setType('expense');
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!amount || !category || !date) return;
 
-    const finalCategory = customCategory.trim() || category;
+    let finalCategory = category;
+
+    // Handle custom category creation
+    // Check if customCategory has value and matches selected category (which happens onBlur)
+    // OR if category is still 'custom' (if they didn't blur but hit enter)
+    if ((category === 'custom' || category === customCategory.trim()) && customCategory.trim()) {
+      if (onAddCategory) {
+        // Check if already exists to avoid unnecessary API calls
+        const exists = customCategories.some(c => c.name === customCategory.trim() && c.type === type);
+        if (!exists) {
+          await onAddCategory(customCategory.trim(), type);
+        }
+      }
+      finalCategory = customCategory.trim() as Category;
+    } else if (category === 'custom') {
+      // If custom selected but empty, fallback or return
+      return;
+    }
+
     const transactionData = {
       amount: parseFloat(amount),
       category: finalCategory as Category,
@@ -2612,12 +2630,8 @@ export default function App() {
   const handleAddToDefault = async (categoryName: string) => {
     if (!clerkUser) return;
     try {
-      // Add to CategoriesList by updating types
-      if (!CategoriesList.includes(categoryName as any)) {
-        CategoriesList.push(categoryName as any);
-      }
-      // Remove from custom categories
-      const updated = await deleteCustomCategory(clerkUser.id, categoryName);
+      // Promote custom category to default
+      const updated = await promoteCustomCategory(clerkUser.id, categoryName);
       setCustomCategories(updated);
       cache.set(`customCategories_${clerkUser.id}`, updated);
       success(`"${categoryName}" added to default categories!`);
@@ -3328,6 +3342,7 @@ export default function App() {
                     onDelete={handleDeleteTransaction}
                     onOpenCategoryManager={() => setIsCategoryManagerOpen(true)}
                     customCategories={customCategories}
+                    onAddCategory={handleAddCategory}
                   />
                 ) : activeView === 'recurring' ? (
                   <RecurringTransactionsView
@@ -3409,7 +3424,7 @@ export default function App() {
               onClose={() => setIsBudgetModalOpen(false)}
               title="Create New Budget"
             >
-              <AddBudgetForm onAdd={handleAddBudget} onClose={() => setIsBudgetModalOpen(false)} customCategories={customCategories} />
+              {isBudgetModalOpen && <AddBudgetForm onAdd={handleAddBudget} onClose={() => setIsBudgetModalOpen(false)} customCategories={customCategories} onAddCategory={handleAddCategory} />}
             </Modal>
 
             <Modal
