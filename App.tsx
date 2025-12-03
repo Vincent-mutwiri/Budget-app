@@ -304,20 +304,23 @@ const TransactionsView = ({
             {/* Category */}
             <div>
               <label className="block text-forest-300 text-sm font-medium mb-2">Category</label>
-              <input
-                type="text"
+              <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value as Category)}
-                list="category-suggestions"
-                placeholder="Enter or select category"
-                className="w-full bg-forest-950 border border-forest-700 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder-forest-500"
+                className="w-full bg-forest-950 border border-forest-700 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary cursor-pointer"
                 required
-              />
-              <datalist id="category-suggestions">
+              >
+                <option value="" disabled>Select a category</option>
                 {customCategories.filter(c => c.type === type).map((cat, idx) => (
-                  <option key={`cat-${cat.name}-${idx}`} value={cat.name} />
+                  <option key={`cat-${cat.name}-${idx}`} value={cat.name}>{cat.name}</option>
                 ))}
-              </datalist>
+              </select>
+              {customCategories.filter(c => c.type === type).length === 0 && (
+                <p className="mt-2 text-xs text-amber-500 flex items-center gap-1">
+                  <AlertTriangle size={12} />
+                  No {type} categories found. Click "Categories" to add some.
+                </p>
+              )}
             </div>
 
             {/* Date */}
@@ -2529,13 +2532,6 @@ export default function App() {
     setTransactions(prev => [optimisticTx as Transaction, ...prev]);
 
     try {
-      // Add category to database if it doesn't exist
-      if (!customCategories.find(c => c.name === newTx.category && c.type === newTx.type)) {
-        const updated = await addCustomCategory(clerkUser.id, newTx.category, newTx.type);
-        setCustomCategories(updated);
-        cache.set(`customCategories_${clerkUser.id}`, updated);
-      }
-
       const response = await createTransaction({
         ...newTx,
         userId: clerkUser.id
