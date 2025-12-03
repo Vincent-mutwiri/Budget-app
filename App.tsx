@@ -304,27 +304,20 @@ const TransactionsView = ({
             {/* Category */}
             <div>
               <label className="block text-forest-300 text-sm font-medium mb-2">Category</label>
-              <select
+              <input
+                type="text"
                 value={category}
                 onChange={(e) => setCategory(e.target.value as Category)}
-                className="w-full bg-forest-950 border border-forest-700 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary cursor-pointer"
+                list="category-suggestions"
+                placeholder="Enter or select category"
+                className="w-full bg-forest-950 border border-forest-700 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder-forest-500"
                 required
-              >
-                <option value="" disabled>Select a category</option>
-                {customCategories.filter(c => c.type === type).length === 0 ? (
-                  <option value="" disabled>No categories available. Add one in Category Manager.</option>
-                ) : (
-                  customCategories.filter(c => c.type === type).map((cat, idx) => (
-                    <option key={`cat-${cat.name}-${idx}`} value={cat.name}>{cat.name}</option>
-                  ))
-                )}
-              </select>
-              {customCategories.filter(c => c.type === type).length === 0 && (
-                <p className="mt-2 text-xs text-amber-500 flex items-center gap-1">
-                  <AlertTriangle size={12} />
-                  No {type} categories found. Click "Categories" to add some.
-                </p>
-              )}
+              />
+              <datalist id="category-suggestions">
+                {customCategories.filter(c => c.type === type).map((cat, idx) => (
+                  <option key={`cat-${cat.name}-${idx}`} value={cat.name} />
+                ))}
+              </datalist>
             </div>
 
             {/* Date */}
@@ -2536,6 +2529,13 @@ export default function App() {
     setTransactions(prev => [optimisticTx as Transaction, ...prev]);
 
     try {
+      // Add category to database if it doesn't exist
+      if (!customCategories.find(c => c.name === newTx.category && c.type === newTx.type)) {
+        const updated = await addCustomCategory(clerkUser.id, newTx.category, newTx.type);
+        setCustomCategories(updated);
+        cache.set(`customCategories_${clerkUser.id}`, updated);
+      }
+
       const response = await createTransaction({
         ...newTx,
         userId: clerkUser.id
@@ -2551,13 +2551,6 @@ export default function App() {
 
       setTransactions(prev => prev.map(t => t.id === tempId ? savedTx : t));
       cache.set(`transactions_${clerkUser.id}`, [savedTx, ...transactions.filter(t => t.id !== tempId)]);
-
-      // Track custom category
-      if (!CategoriesList.includes(newTx.category as any) && !customCategories.find(c => c.name === newTx.category)) {
-        const updated = await addCustomCategory(clerkUser.id, newTx.category, newTx.type);
-        setCustomCategories(updated);
-        cache.set(`customCategories_${clerkUser.id}`, updated);
-      }
 
       // Update budgets spent amount
       const categoryBudget = budgets.find(b => b.category === newTx.category);
