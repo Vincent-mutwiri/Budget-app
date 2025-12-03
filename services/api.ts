@@ -68,6 +68,11 @@ export const updateBudget = async (id: string, updates: any) => {
     return response.data;
 };
 
+export const deleteBudget = async (id: string, userId: string) => {
+    const response = await api.delete(`/budgets/${id}`, { params: { userId } });
+    return response.data;
+};
+
 // Savings Goals
 export const getGoals = async (userId: string) => {
     const response = await api.get('/goals', { params: { userId } });

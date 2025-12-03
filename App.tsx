@@ -10,7 +10,7 @@ import {
 import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from "@clerk/clerk-react";
 import {
   getTransactions, createTransaction, updateTransaction,
-  getBudgets, updateBudget,
+  getBudgets, updateBudget, deleteBudget,
   getGoals, updateGoal, deleteGoal, uploadGoalImage, removeGoalImage, contributeToGoal,
   getAccounts,
   getUser,
@@ -1921,11 +1921,12 @@ const AccountsView = ({ accounts, onAddAccount, onEditAccount, metrics }: { acco
 
 // --- Budgets View Component ---
 
-const BudgetsView = ({ budgets, onAdd, onUpdate }: { budgets: Budget[], onAdd: () => void, onUpdate: (id: string, updates: Partial<Budget>) => Promise<void> }) => {
+const BudgetsView = ({ budgets, onAdd, onUpdate, onDelete }: { budgets: Budget[], onAdd: () => void, onUpdate: (id: string, updates: Partial<Budget>) => Promise<void>, onDelete: (id: string) => Promise<void> }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showRecommendations, setShowRecommendations] = useState(true);
   const [editingBudgetId, setEditingBudgetId] = useState<string | null>(null);
   const [editedLimit, setEditedLimit] = useState<string>('');
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   // Calculate totals for summary cards
   const totalBudgeted = budgets.reduce((sum, b) => sum + b.limit, 0);
@@ -2082,13 +2083,22 @@ const BudgetsView = ({ budgets, onAdd, onUpdate }: { budgets: Budget[], onAdd: (
                   </div>
                   <div className="flex items-center gap-2">
                     {!isEditing && (
-                      <button
-                        onClick={() => handleEditClick(budget)}
-                        className="text-forest-400 hover:text-primary transition-colors p-1"
-                        title="Edit budget"
-                      >
-                        <Pencil size={16} />
-                      </button>
+                      <>
+                        <button
+                          onClick={() => handleEditClick(budget)}
+                          className="text-forest-400 hover:text-primary transition-colors p-1"
+                          title="Edit budget"
+                        >
+                          <Pencil size={16} />
+                        </button>
+                        <button
+                          onClick={() => setDeleteConfirmId(budget.id || (budget as any)._id)}
+                          className="text-forest-400 hover:text-rose-500 transition-colors p-1"
+                          title="Delete budget"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </>
                     )}
                     {isOver && <span className="text-xs font-bold text-rose-500 bg-rose-500/10 px-2 py-1 rounded-lg">error</span>}
                     {isWarning && <span className="text-xs font-bold text-amber-500 bg-amber-500/10 px-2 py-1 rounded-lg">warning</span>}
@@ -2153,6 +2163,35 @@ const BudgetsView = ({ budgets, onAdd, onUpdate }: { budgets: Budget[], onAdd: (
           </button>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-forest-800 rounded-2xl p-6 max-w-md w-full border border-forest-700">
+            <h3 className="text-xl font-bold text-white mb-4">Delete Budget?</h3>
+            <p className="text-forest-400 mb-6">
+              Are you sure you want to delete this budget? This action cannot be undone.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setDeleteConfirmId(null)}
+                className="px-4 py-2 rounded-xl bg-forest-700 hover:bg-forest-600 text-white transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  await onDelete(deleteConfirmId);
+                  setDeleteConfirmId(null);
+                }}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -2650,6 +2689,20 @@ export default function App() {
       success('Budget updated successfully!');
     } catch (err) {
       showError('Failed to update budget. Please try again.');
+    }
+  };
+
+  const handleDeleteBudget = async (id: string) => {
+    if (!clerkUser) return;
+    try {
+      await deleteBudget(id, clerkUser.id);
+      const updatedBudgets = budgets.filter(b => b.id !== id && (b as any)._id !== id);
+      setBudgets(updatedBudgets);
+      cache.set(`budgets_${clerkUser.id}`, updatedBudgets);
+      await fetchMetrics();
+      success('Budget deleted successfully!');
+    } catch (err) {
+      showError('Failed to delete budget. Please try again.');
     }
   };
 
@@ -3323,7 +3376,7 @@ export default function App() {
                     customCategories={customCategories}
                   />
                 ) : activeView === 'budgets' ? (
-                  <BudgetsView key={`budgets-${categoriesVersion}`} budgets={budgets} onAdd={() => setIsBudgetModalOpen(true)} onUpdate={handleUpdateBudget} />
+                  <BudgetsView key={`budgets-${categoriesVersion}`} budgets={budgets} onAdd={() => setIsBudgetModalOpen(true)} onUpdate={handleUpdateBudget} onDelete={handleDeleteBudget} />
                 ) : activeView === 'insights' ? (
                   <InsightsDashboard />
                 ) : activeView === 'investments' ? (

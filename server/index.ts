@@ -653,6 +653,37 @@ app.put('/api/budgets/:id', async (req, res) => {
     }
 });
 
+// Delete Budget
+app.delete('/api/budgets/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { userId } = req.query;
+
+        if (!userId) {
+            return res.status(400).json({ error: 'UserId required' });
+        }
+
+        const budget = await Budget.findById(id);
+        if (!budget) {
+            return res.status(404).json({ error: 'Budget not found' });
+        }
+
+        if (budget.userId !== userId) {
+            return res.status(403).json({ error: 'Unauthorized' });
+        }
+
+        await Budget.findByIdAndDelete(id);
+
+        // Invalidate metrics cache
+        invalidateMetricsCache(userId as string);
+
+        res.json({ message: 'Budget deleted successfully', id });
+    } catch (error) {
+        console.error('Error deleting budget:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
 // Get Total Planned Budget
 app.get('/api/budgets/total', async (req, res) => {
     const { userId } = req.query;
