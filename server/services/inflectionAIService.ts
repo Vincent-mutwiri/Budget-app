@@ -248,8 +248,9 @@ function buildRAGContext(context: FinancialRAGContext, query: string): string {
 
     // Daily Spending Patterns
     if (context.transactions.length > 0) {
+        const currentDate = new Date();
         const last7Days = context.transactions.filter(t => {
-            const daysDiff = (now.getTime() - new Date(t.date).getTime()) / (1000 * 60 * 60 * 24);
+            const daysDiff = (currentDate.getTime() - new Date(t.date).getTime()) / (1000 * 60 * 60 * 24);
             return daysDiff <= 7;
         });
         
