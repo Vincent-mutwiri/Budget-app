@@ -19,7 +19,9 @@ const INFLECTION_API_URL = process.env.INFLECTION_API_URL || "https://api.inflec
 const INFLECTION_API_KEY = process.env.INFLECTION_API_KEY;
 
 if (!INFLECTION_API_KEY) {
-    console.warn('WARNING: INFLECTION_API_KEY not set - AI features will fallback to Gemini if available');
+    console.warn('⚠️  WARNING: INFLECTION_API_KEY not set - AI features will fallback to Gemini if available');
+} else {
+    console.log('✅ Inflection AI configured successfully');
 }
 
 interface UserFinancialContext {
@@ -55,7 +57,7 @@ async function retrieveFinancialContext(userId: string): Promise<FinancialRAGCon
     // Parallel data retrieval for better performance
     const [user, transactions, budgets, investments, debts, goals] = await Promise.all([
         User.findOne({ clerkId: userId }),
-        Transaction.find({ userId }).sort({ date: -1 }).limit(100),
+        Transaction.find({ userId }).sort({ date: -1 }).limit(50),
         Budget.find({ userId }),
         Investment.find({ userId }),
         Debt.find({ userId }),
@@ -219,13 +221,48 @@ function buildRAGContext(context: FinancialRAGContext, query: string): string {
         ragContext += `- Active Goals: ${context.goals.filter(g => g.status === 'in-progress').length}\n\n`;
     }
 
-    // Recent Transactions
+    // Recent Transactions with Daily Breakdown
     if (context.transactions.length > 0) {
-        ragContext += `RECENT TRANSACTIONS (Last 10):\n`;
-        context.transactions.slice(0, 10).forEach(t => {
-            ragContext += `- ${new Date(t.date).toLocaleDateString()}: ${t.type === 'expense' ? '-' : '+'}$${t.amount.toFixed(2)} (${t.category}) - ${t.description}\n`;
+        ragContext += `RECENT TRANSACTIONS (Last 20):\n`;
+        
+        // Group transactions by date
+        const transactionsByDate: Record<string, any[]> = {};
+        context.transactions.slice(0, 20).forEach(t => {
+            const dateKey = new Date(t.date).toLocaleDateString();
+            if (!transactionsByDate[dateKey]) {
+                transactionsByDate[dateKey] = [];
+            }
+            transactionsByDate[dateKey].push(t);
+        });
+        
+        // Display grouped by date
+        Object.entries(transactionsByDate).forEach(([date, txs]) => {
+            const dailyTotal = txs.reduce((sum, t) => sum + (t.type === 'expense' ? -t.amount : t.amount), 0);
+            ragContext += `\n${date} (Daily Net: ${dailyTotal >= 0 ? '+' : ''}$${dailyTotal.toFixed(2)}):\n`;
+            txs.forEach(t => {
+                ragContext += `  • ${t.type === 'expense' ? '-' : '+'}$${t.amount.toFixed(2)} - ${t.category} - ${t.description}\n`;
+            });
         });
         ragContext += `\n`;
+    }
+
+    // Daily Spending Patterns
+    if (context.transactions.length > 0) {
+        const last7Days = context.transactions.filter(t => {
+            const daysDiff = (now.getTime() - new Date(t.date).getTime()) / (1000 * 60 * 60 * 24);
+            return daysDiff <= 7;
+        });
+        
+        if (last7Days.length > 0) {
+            const dailyAvg = last7Days
+                .filter(t => t.type === 'expense')
+                .reduce((sum, t) => sum + t.amount, 0) / 7;
+            
+            ragContext += `DAILY SPENDING PATTERNS (Last 7 Days):\n`;
+            ragContext += `- Average Daily Spending: $${dailyAvg.toFixed(2)}\n`;
+            ragContext += `- Transaction Frequency: ${last7Days.length} transactions in 7 days\n`;
+            ragContext += `- Most Active Day: ${getMostActiveDay(last7Days)}\n\n`;
+        }
     }
 
     // Trends
@@ -238,6 +275,22 @@ function buildRAGContext(context: FinancialRAGContext, query: string): string {
     ragContext += `USER QUERY: "${query}"\n\n`;
 
     return ragContext;
+}
+
+/**
+ * Helper function to find most active transaction day
+ */
+function getMostActiveDay(transactions: any[]): string {
+    const dayCount: Record<string, number> = {};
+    transactions.forEach(t => {
+        const day = new Date(t.date).toLocaleDateString('en-US', { weekday: 'long' });
+        dayCount[day] = (dayCount[day] || 0) + 1;
+    });
+    
+    const mostActive = Object.entries(dayCount)
+        .sort(([,a], [,b]) => b - a)[0];
+    
+    return mostActive ? `${mostActive[0]} (${mostActive[1]} transactions)` : 'N/A';
 }
 
 async function callInflectionAI(prompt: string): Promise<string> {

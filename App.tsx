@@ -63,6 +63,7 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { FinancialMetricsDashboard } from './components/FinancialMetricsDashboard';
+import { DashboardPasswordGate } from './components/DashboardPasswordGate';
 
 // --- Components ---
 
@@ -2260,6 +2261,9 @@ export default function App() {
   const [metricsLoading, setMetricsLoading] = useState(false);
   const [metricsError, setMetricsError] = useState<string | null>(null);
 
+  // Dashboard Password Protection
+  const [isDashboardAuthenticated, setIsDashboardAuthenticated] = useState(false);
+
   // Alerts
   const alerts: Alert[] = useMemo(() => {
     const newAlerts: Alert[] = [];
@@ -3171,8 +3175,16 @@ export default function App() {
           />
         )}
 
+        {/* Dashboard Password Gate */}
+        {!isLoading && !error && !isDashboardAuthenticated && clerkUser && (
+          <DashboardPasswordGate
+            onAuthenticated={() => setIsDashboardAuthenticated(true)}
+            userId={clerkUser.id}
+          />
+        )}
+
         {/* Main App */}
-        {!isLoading && !error && (
+        {!isLoading && !error && isDashboardAuthenticated && (
           <div className="flex h-screen bg-forest-950 text-forest-100 font-inter selection:bg-primary/30 overflow-hidden">
 
             {/* Mobile Sidebar Overlay */}
