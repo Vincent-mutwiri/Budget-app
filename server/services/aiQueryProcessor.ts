@@ -347,6 +347,7 @@ function formatResponse(query: string, intent: QueryIntent, data: any, aiAdvice?
 
     let answer = '';
 
+    // Always use AI advice if available
     if (aiAdvice) {
         answer = aiAdvice;
     } else {
@@ -429,17 +430,20 @@ export async function processAIQuery(userId: string, query: string): Promise<AIQ
     // Query relevant financial data
     const data = await queryFinancialData(userId, intent);
 
-    // For advice queries, use enhanced Inflection AI with RAG
+    // Always use enhanced Inflection AI with RAG for better responses
     let aiAdvice: string | undefined;
-    if (intent.type === 'advice' || query.toLowerCase().includes('should') || query.toLowerCase().includes('recommend')) {
+    try {
         const user = await User.findOne({ clerkId: userId });
-        if (user && data) {
+        if (user) {
             aiAdvice = await generateEnhancedFinancialAdvice(
                 { userId, ...user.toObject() }, 
                 data, 
                 query
             );
         }
+    } catch (error) {
+        console.error('Error generating AI advice:', error);
+        // Continue with basic response if AI fails
     }
 
     // Format and return response

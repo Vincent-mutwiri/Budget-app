@@ -65,10 +65,10 @@ async function retrieveFinancialContext(userId: string): Promise<FinancialRAGCon
     ]);
 
     // Calculate monthly metrics
-    const currentMonthTransactions = transactions.filter(t => 
+    const currentMonthTransactions = transactions.filter(t =>
         new Date(t.date) >= currentMonth
     );
-    const lastMonthTransactions = transactions.filter(t => 
+    const lastMonthTransactions = transactions.filter(t =>
         new Date(t.date) >= lastMonth && new Date(t.date) < currentMonth
     );
 
@@ -102,7 +102,7 @@ async function retrieveFinancialContext(userId: string): Promise<FinancialRAGCon
     const trends = {
         spendingTrend: monthlyMetrics.currentMonth.expenses > monthlyMetrics.lastMonth.expenses ? 'increasing' : 'decreasing',
         incomeTrend: monthlyMetrics.currentMonth.income > monthlyMetrics.lastMonth.income ? 'increasing' : 'decreasing',
-        savingsRate: monthlyMetrics.currentMonth.income > 0 ? 
+        savingsRate: monthlyMetrics.currentMonth.income > 0 ?
             ((monthlyMetrics.currentMonth.income - monthlyMetrics.currentMonth.expenses) / monthlyMetrics.currentMonth.income) * 100 : 0
     };
 
@@ -145,7 +145,7 @@ function buildRAGContext(context: FinancialRAGContext, query: string): string {
     if (Object.keys(context.monthlyMetrics.currentMonth.categoryBreakdown).length > 0) {
         ragContext += `SPENDING BY CATEGORY (This Month):\n`;
         Object.entries(context.monthlyMetrics.currentMonth.categoryBreakdown)
-            .sort(([,a], [,b]) => (b as number) - (a as number))
+            .sort(([, a], [, b]) => (b as number) - (a as number))
             .slice(0, 5)
             .forEach(([category, amount]) => {
                 ragContext += `- ${category}: $${(amount as number).toFixed(2)}\n`;
@@ -160,7 +160,7 @@ function buildRAGContext(context: FinancialRAGContext, query: string): string {
         ragContext += `- Total Budget: $${totalBudget.toFixed(2)}\n`;
         ragContext += `- Total Spent: $${context.monthlyMetrics.currentMonth.expenses.toFixed(2)}\n`;
         ragContext += `- Budget Utilization: ${totalBudget > 0 ? ((context.monthlyMetrics.currentMonth.expenses / totalBudget) * 100).toFixed(1) : 0}%\n`;
-        
+
         const overBudgetCategories = context.budgets.filter(b => {
             const spent = context.monthlyMetrics.currentMonth.categoryBreakdown[b.category] || 0;
             return spent > b.limit;
@@ -177,12 +177,12 @@ function buildRAGContext(context: FinancialRAGContext, query: string): string {
         const totalCost = context.investments.reduce((sum, i) => sum + i.initialAmount, 0);
         const totalReturn = totalValue - totalCost;
         const returnPercentage = totalCost > 0 ? (totalReturn / totalCost) * 100 : 0;
-        
+
         ragContext += `INVESTMENT PORTFOLIO:\n`;
         ragContext += `- Total Value: $${totalValue.toFixed(2)}\n`;
         ragContext += `- Total Return: $${totalReturn.toFixed(2)} (${returnPercentage.toFixed(2)}%)\n`;
         ragContext += `- Number of Investments: ${context.investments.length}\n`;
-        
+
         const bestPerformer = context.investments.reduce((best, inv) => {
             const invReturn = ((inv.currentValue - inv.initialAmount) / inv.initialAmount) * 100;
             const bestReturn = ((best.currentValue - best.initialAmount) / best.initialAmount) * 100;
@@ -200,7 +200,7 @@ function buildRAGContext(context: FinancialRAGContext, query: string): string {
         const totalDebt = context.debts.reduce((sum, d) => sum + d.currentBalance, 0);
         const totalMinPayment = context.debts.reduce((sum, d) => sum + d.minimumPayment, 0);
         const highestInterest = Math.max(...context.debts.map(d => d.interestRate));
-        
+
         ragContext += `DEBT OVERVIEW:\n`;
         ragContext += `- Total Debt: $${totalDebt.toFixed(2)}\n`;
         ragContext += `- Monthly Payments: $${totalMinPayment.toFixed(2)}\n`;
@@ -213,7 +213,7 @@ function buildRAGContext(context: FinancialRAGContext, query: string): string {
         const totalTarget = context.goals.reduce((sum, g) => sum + g.targetAmount, 0);
         const totalSaved = context.goals.reduce((sum, g) => sum + g.currentAmount, 0);
         const progress = totalTarget > 0 ? (totalSaved / totalTarget) * 100 : 0;
-        
+
         ragContext += `SAVINGS GOALS:\n`;
         ragContext += `- Total Target: $${totalTarget.toFixed(2)}\n`;
         ragContext += `- Total Saved: $${totalSaved.toFixed(2)}\n`;
@@ -224,7 +224,7 @@ function buildRAGContext(context: FinancialRAGContext, query: string): string {
     // Recent Transactions with Daily Breakdown
     if (context.transactions.length > 0) {
         ragContext += `RECENT TRANSACTIONS (Last 20):\n`;
-        
+
         // Group transactions by date
         const transactionsByDate: Record<string, any[]> = {};
         context.transactions.slice(0, 20).forEach(t => {
@@ -234,7 +234,7 @@ function buildRAGContext(context: FinancialRAGContext, query: string): string {
             }
             transactionsByDate[dateKey].push(t);
         });
-        
+
         // Display grouped by date
         Object.entries(transactionsByDate).forEach(([date, txs]) => {
             const dailyTotal = txs.reduce((sum, t) => sum + (t.type === 'expense' ? -t.amount : t.amount), 0);
@@ -253,12 +253,12 @@ function buildRAGContext(context: FinancialRAGContext, query: string): string {
             const daysDiff = (currentDate.getTime() - new Date(t.date).getTime()) / (1000 * 60 * 60 * 24);
             return daysDiff <= 7;
         });
-        
+
         if (last7Days.length > 0) {
             const dailyAvg = last7Days
                 .filter(t => t.type === 'expense')
                 .reduce((sum, t) => sum + t.amount, 0) / 7;
-            
+
             ragContext += `DAILY SPENDING PATTERNS (Last 7 Days):\n`;
             ragContext += `- Average Daily Spending: $${dailyAvg.toFixed(2)}\n`;
             ragContext += `- Transaction Frequency: ${last7Days.length} transactions in 7 days\n`;
@@ -287,14 +287,14 @@ function getMostActiveDay(transactions: any[]): string {
         const day = new Date(t.date).toLocaleDateString('en-US', { weekday: 'long' });
         dayCount[day] = (dayCount[day] || 0) + 1;
     });
-    
+
     const mostActive = Object.entries(dayCount)
-        .sort(([,a], [,b]) => b - a)[0];
-    
+        .sort(([, a], [, b]) => b - a)[0];
+
     return mostActive ? `${mostActive[0]} (${mostActive[1]} transactions)` : 'N/A';
 }
 
-async function callInflectionAI(prompt: string): Promise<string> {
+export async function callInflectionAI(context: Array<{ text: string; type: 'Human' | 'AI' }>): Promise<string> {
     if (!INFLECTION_API_KEY) {
         throw new Error("Inflection AI API key not configured");
     }
@@ -303,9 +303,7 @@ async function callInflectionAI(prompt: string): Promise<string> {
         const response = await axios.post(
             INFLECTION_API_URL,
             {
-                context: [
-                    { text: prompt, type: "Human" }
-                ],
+                context,
                 config: "Pi-3.1"
             },
             {
@@ -363,7 +361,7 @@ RESPONSE FORMAT:
 Generate your response:`;
 
     try {
-        return await callInflectionAI(prompt);
+        return await callInflectionAI([{ text: prompt, type: 'Human' }]);
     } catch (error) {
         console.log("Falling back to Gemini AI...");
         return await generateGeminiAdvice(user, financialData, query);
@@ -407,7 +405,7 @@ Guidelines:
 Generate your response:`;
 
     try {
-        return await callInflectionAI(prompt);
+        return await callInflectionAI([{ text: prompt, type: 'Human' }]);
     } catch (error) {
         console.log("Falling back to Gemini AI...");
         return await generateGeminiInvestment(user, portfolioData);
@@ -459,7 +457,7 @@ Guidelines:
 Generate your insights:`;
 
     try {
-        return await callInflectionAI(prompt);
+        return await callInflectionAI([{ text: prompt, type: 'Human' }]);
     } catch (error) {
         console.log("Falling back to Gemini AI...");
         return await generateGeminiSpending(spendingData, budgetData);
@@ -502,7 +500,7 @@ Guidelines:
 Generate your strategy:`;
 
     try {
-        return await callInflectionAI(prompt);
+        return await callInflectionAI([{ text: prompt, type: 'Human' }]);
     } catch (error) {
         console.log("Falling back to Gemini AI...");
         return await generateGeminiDebt(debtData);

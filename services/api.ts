@@ -358,6 +358,11 @@ export const calculateAcceleratedPayoff = async (id: string, extraPayment: numbe
 };
 
 // AI Assistant
+export const chatWithAI = async (message: string, context?: Array<{ text: string; type: string }>) => {
+    const response = await api.post('/ai/chat', { message, context });
+    return response.data;
+};
+
 export const queryAIAssistant = async (userId: string, query: string) => {
     const response = await api.post('/ai/query', { userId, query });
     return response.data;
