@@ -131,13 +131,13 @@ function buildRAGContext(context: FinancialRAGContext, query: string): string {
     ragContext += `- Level: ${context.user.level || 1}\n`;
     ragContext += `- XP: ${context.user.xp || 0}\n`;
     ragContext += `- Streak: ${context.user.streak || 0} days\n`;
-    ragContext += `- Total Balance: $${(context.user.totalBalance || 0).toFixed(2)}\n\n`;
+    ragContext += `- Total Balance: Ksh ${(context.user.totalBalance || 0).toFixed(2)}\n\n`;
 
     // Monthly Performance
     ragContext += `CURRENT MONTH PERFORMANCE:\n`;
-    ragContext += `- Income: $${context.monthlyMetrics.currentMonth.income.toFixed(2)}\n`;
-    ragContext += `- Expenses: $${context.monthlyMetrics.currentMonth.expenses.toFixed(2)}\n`;
-    ragContext += `- Net: $${(context.monthlyMetrics.currentMonth.income - context.monthlyMetrics.currentMonth.expenses).toFixed(2)}\n`;
+    ragContext += `- Income: Ksh ${context.monthlyMetrics.currentMonth.income.toFixed(2)}\n`;
+    ragContext += `- Expenses: Ksh ${context.monthlyMetrics.currentMonth.expenses.toFixed(2)}\n`;
+    ragContext += `- Net: Ksh ${(context.monthlyMetrics.currentMonth.income - context.monthlyMetrics.currentMonth.expenses).toFixed(2)}\n`;
     ragContext += `- Transactions: ${context.monthlyMetrics.currentMonth.transactionCount}\n`;
     ragContext += `- Savings Rate: ${context.trends.savingsRate.toFixed(1)}%\n\n`;
 
@@ -148,7 +148,7 @@ function buildRAGContext(context: FinancialRAGContext, query: string): string {
             .sort(([, a], [, b]) => (b as number) - (a as number))
             .slice(0, 5)
             .forEach(([category, amount]) => {
-                ragContext += `- ${category}: $${(amount as number).toFixed(2)}\n`;
+                ragContext += `- ${category}: Ksh ${(amount as number).toFixed(2)}\n`;
             });
         ragContext += `\n`;
     }
@@ -157,8 +157,8 @@ function buildRAGContext(context: FinancialRAGContext, query: string): string {
     if (context.budgets.length > 0) {
         ragContext += `BUDGET STATUS:\n`;
         const totalBudget = context.budgets.reduce((sum, b) => sum + b.limit, 0);
-        ragContext += `- Total Budget: $${totalBudget.toFixed(2)}\n`;
-        ragContext += `- Total Spent: $${context.monthlyMetrics.currentMonth.expenses.toFixed(2)}\n`;
+        ragContext += `- Total Budget: Ksh ${totalBudget.toFixed(2)}\n`;
+        ragContext += `- Total Spent: Ksh ${context.monthlyMetrics.currentMonth.expenses.toFixed(2)}\n`;
         ragContext += `- Budget Utilization: ${totalBudget > 0 ? ((context.monthlyMetrics.currentMonth.expenses / totalBudget) * 100).toFixed(1) : 0}%\n`;
 
         const overBudgetCategories = context.budgets.filter(b => {
@@ -179,8 +179,8 @@ function buildRAGContext(context: FinancialRAGContext, query: string): string {
         const returnPercentage = totalCost > 0 ? (totalReturn / totalCost) * 100 : 0;
 
         ragContext += `INVESTMENT PORTFOLIO:\n`;
-        ragContext += `- Total Value: $${totalValue.toFixed(2)}\n`;
-        ragContext += `- Total Return: $${totalReturn.toFixed(2)} (${returnPercentage.toFixed(2)}%)\n`;
+        ragContext += `- Total Value: Ksh ${totalValue.toFixed(2)}\n`;
+        ragContext += `- Total Return: Ksh ${totalReturn.toFixed(2)} (${returnPercentage.toFixed(2)}%)\n`;
         ragContext += `- Number of Investments: ${context.investments.length}\n`;
 
         const bestPerformer = context.investments.reduce((best, inv) => {
@@ -202,8 +202,8 @@ function buildRAGContext(context: FinancialRAGContext, query: string): string {
         const highestInterest = Math.max(...context.debts.map(d => d.interestRate));
 
         ragContext += `DEBT OVERVIEW:\n`;
-        ragContext += `- Total Debt: $${totalDebt.toFixed(2)}\n`;
-        ragContext += `- Monthly Payments: $${totalMinPayment.toFixed(2)}\n`;
+        ragContext += `- Total Debt: Ksh ${totalDebt.toFixed(2)}\n`;
+        ragContext += `- Monthly Payments: Ksh ${totalMinPayment.toFixed(2)}\n`;
         ragContext += `- Highest Interest Rate: ${highestInterest.toFixed(2)}%\n`;
         ragContext += `- Number of Debts: ${context.debts.length}\n\n`;
     }
@@ -215,8 +215,8 @@ function buildRAGContext(context: FinancialRAGContext, query: string): string {
         const progress = totalTarget > 0 ? (totalSaved / totalTarget) * 100 : 0;
 
         ragContext += `SAVINGS GOALS:\n`;
-        ragContext += `- Total Target: $${totalTarget.toFixed(2)}\n`;
-        ragContext += `- Total Saved: $${totalSaved.toFixed(2)}\n`;
+        ragContext += `- Total Target: Ksh ${totalTarget.toFixed(2)}\n`;
+        ragContext += `- Total Saved: Ksh ${totalSaved.toFixed(2)}\n`;
         ragContext += `- Overall Progress: ${progress.toFixed(1)}%\n`;
         ragContext += `- Active Goals: ${context.goals.filter(g => g.status === 'in-progress').length}\n\n`;
     }
@@ -238,9 +238,9 @@ function buildRAGContext(context: FinancialRAGContext, query: string): string {
         // Display grouped by date
         Object.entries(transactionsByDate).forEach(([date, txs]) => {
             const dailyTotal = txs.reduce((sum, t) => sum + (t.type === 'expense' ? -t.amount : t.amount), 0);
-            ragContext += `\n${date} (Daily Net: ${dailyTotal >= 0 ? '+' : ''}$${dailyTotal.toFixed(2)}):\n`;
+            ragContext += `\n${date} (Daily Net: ${dailyTotal >= 0 ? '+' : ''}Ksh ${dailyTotal.toFixed(2)}):\n`;
             txs.forEach(t => {
-                ragContext += `  • ${t.type === 'expense' ? '-' : '+'}$${t.amount.toFixed(2)} - ${t.category} - ${t.description}\n`;
+                ragContext += `  • ${t.type === 'expense' ? '-' : '+'}Ksh ${t.amount.toFixed(2)} - ${t.category} - ${t.description}\n`;
             });
         });
         ragContext += `\n`;
@@ -260,7 +260,7 @@ function buildRAGContext(context: FinancialRAGContext, query: string): string {
                 .reduce((sum, t) => sum + t.amount, 0) / 7;
 
             ragContext += `DAILY SPENDING PATTERNS (Last 7 Days):\n`;
-            ragContext += `- Average Daily Spending: $${dailyAvg.toFixed(2)}\n`;
+            ragContext += `- Average Daily Spending: Ksh ${dailyAvg.toFixed(2)}\n`;
             ragContext += `- Transaction Frequency: ${last7Days.length} transactions in 7 days\n`;
             ragContext += `- Most Active Day: ${getMostActiveDay(last7Days)}\n\n`;
         }
@@ -352,6 +352,8 @@ INSTRUCTIONS:
 6. Use a supportive, encouraging tone
 7. Keep responses focused and actionable (2-3 paragraphs)
 8. Use relevant emojis sparingly (💰, 📊, 🎯, ✅, ⚠️)
+9. CRITICAL: Always use "Ksh" for currency, NEVER use "$" symbol
+10. Use plain text apostrophes and quotes, not HTML entities
 
 RESPONSE FORMAT:
 - Direct answer based on their data
@@ -361,10 +363,12 @@ RESPONSE FORMAT:
 Generate your response:`;
 
     try {
-        return await callInflectionAI([{ text: prompt, type: 'Human' }]);
+        const response = await callInflectionAI([{ text: prompt, type: 'Human' }]);
+        return response.replace(/\$/g, 'Ksh ');
     } catch (error) {
         console.log("Falling back to Gemini AI...");
-        return await generateGeminiAdvice(user, financialData, query);
+        const fallbackResponse = await generateGeminiAdvice(user, financialData, query);
+        return fallbackResponse.replace(/\$/g, 'Ksh ');
     }
 }
 
@@ -376,11 +380,11 @@ export async function generateInvestmentRecommendations(
     portfolioData: any
 ): Promise<string> {
     const contextString = `User Profile:
-- Monthly Income: $${user.monthlyIncome || 0}
+- Monthly Income: Ksh ${user.monthlyIncome || 0}
 - Level: ${user.level || 1}
 
 Current Portfolio:
-- Total Value: $${portfolioData.portfolioMetrics?.totalValue?.toFixed(2) || 0}
+- Total Value: Ksh ${portfolioData.portfolioMetrics?.totalValue?.toFixed(2) || 0}
 - Total Return: ${portfolioData.portfolioMetrics?.totalReturnPercentage?.toFixed(2) || 0}%
 - Asset Allocation: ${portfolioData.portfolioMetrics?.assetAllocation ? JSON.stringify(portfolioData.portfolioMetrics.assetAllocation) : 'N/A'}
 `;
@@ -405,10 +409,12 @@ Guidelines:
 Generate your response:`;
 
     try {
-        return await callInflectionAI([{ text: prompt, type: 'Human' }]);
+        const response = await callInflectionAI([{ text: prompt, type: 'Human' }]);
+        return response.replace(/\$/g, 'Ksh ');
     } catch (error) {
         console.log("Falling back to Gemini AI...");
-        return await generateGeminiInvestment(user, portfolioData);
+        const fallbackResponse = await generateGeminiInvestment(user, portfolioData);
+        return fallbackResponse.replace(/\$/g, 'Ksh ');
     }
 }
 
@@ -420,7 +426,7 @@ export async function generateSpendingInsights(
     budgetData?: any
 ): Promise<string> {
     let contextString = `Spending Analysis:
-- Total Spent: $${spendingData.totalSpent?.toFixed(2) || 0}
+- Total Spent: Ksh ${spendingData.totalSpent?.toFixed(2) || 0}
 - Transaction Count: ${spendingData.transactionCount || 0}
 `;
 
@@ -429,14 +435,14 @@ export async function generateSpendingInsights(
         Object.entries(spendingData.byCategory)
             .sort(([, a]: any, [, b]: any) => b - a)
             .forEach(([category, amount]) => {
-                contextString += `  * ${category}: $${(amount as number).toFixed(2)}\n`;
+                contextString += `  * ${category}: Ksh ${(amount as number).toFixed(2)}\n`;
             });
     }
 
     if (budgetData?.budgets) {
         contextString += `\nBudget Comparison:\n`;
         budgetData.budgets.forEach((b: any) => {
-            contextString += `- ${b.category}: $${b.spent.toFixed(2)} / $${b.limit.toFixed(2)} (${b.percentageUsed.toFixed(1)}%)\n`;
+            contextString += `- ${b.category}: Ksh ${b.spent.toFixed(2)} / Ksh ${b.limit.toFixed(2)} (${b.percentageUsed.toFixed(1)}%)\n`;
         });
     }
 
@@ -457,10 +463,12 @@ Guidelines:
 Generate your insights:`;
 
     try {
-        return await callInflectionAI([{ text: prompt, type: 'Human' }]);
+        const response = await callInflectionAI([{ text: prompt, type: 'Human' }]);
+        return response.replace(/\$/g, 'Ksh ');
     } catch (error) {
         console.log("Falling back to Gemini AI...");
-        return await generateGeminiSpending(spendingData, budgetData);
+        const fallbackResponse = await generateGeminiSpending(spendingData, budgetData);
+        return fallbackResponse.replace(/\$/g, 'Ksh ');
     }
 }
 
@@ -471,15 +479,15 @@ export async function generateDebtPayoffStrategy(
     debtData: any
 ): Promise<string> {
     let contextString = `Debt Overview:
-- Total Debt: $${debtData.debtSummary?.totalDebt?.toFixed(2) || 0}
-- Monthly Payment: $${debtData.debtSummary?.totalMonthlyPayment?.toFixed(2) || 0}
+- Total Debt: Ksh ${debtData.debtSummary?.totalDebt?.toFixed(2) || 0}
+- Monthly Payment: Ksh ${debtData.debtSummary?.totalMonthlyPayment?.toFixed(2) || 0}
 
 Individual Debts:
 `;
 
     if (debtData.debts) {
         debtData.debts.forEach((debt: any) => {
-            contextString += `- ${debt.name}: $${debt.currentBalance?.toFixed(2)} at ${debt.interestRate}% APR (Min Payment: $${debt.minimumPayment?.toFixed(2)})\n`;
+            contextString += `- ${debt.name}: Ksh ${debt.currentBalance?.toFixed(2)} at ${debt.interestRate}% APR (Min Payment: Ksh ${debt.minimumPayment?.toFixed(2)})\n`;
         });
     }
 
@@ -500,9 +508,11 @@ Guidelines:
 Generate your strategy:`;
 
     try {
-        return await callInflectionAI([{ text: prompt, type: 'Human' }]);
+        const response = await callInflectionAI([{ text: prompt, type: 'Human' }]);
+        return response.replace(/\$/g, 'Ksh ');
     } catch (error) {
         console.log("Falling back to Gemini AI...");
-        return await generateGeminiDebt(debtData);
+        const fallbackResponse = await generateGeminiDebt(debtData);
+        return fallbackResponse.replace(/\$/g, 'Ksh ');
     }
 }
