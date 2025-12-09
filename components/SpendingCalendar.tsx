@@ -52,7 +52,7 @@ const SpendingCalendar: React.FC = () => {
     const lastDay = new Date(year, month + 1, 0);
     const daysInMonth = lastDay.getDate();
     const startingDayOfWeek = firstDay.getDay();
-    
+
     return { daysInMonth, startingDayOfWeek };
   };
 
@@ -91,7 +91,7 @@ const SpendingCalendar: React.FC = () => {
           <button onClick={previousMonth} className="p-2 hover:bg-gray-100 rounded">
             ←
           </button>
-          <span className="text-lg font-semibold">
+          <span className="text-lg font-semibold text-gray-900">
             {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
           </span>
           <button onClick={nextMonth} className="p-2 hover:bg-gray-100 rounded">
@@ -111,24 +111,24 @@ const SpendingCalendar: React.FC = () => {
               {day}
             </div>
           ))}
-          
+
           {Array.from({ length: startingDayOfWeek }).map((_, i) => (
             <div key={`empty-${i}`} className="aspect-square"></div>
           ))}
-          
+
           {Array.from({ length: daysInMonth }).map((_, i) => {
             const day = i + 1;
             const dateKey = formatDate(day);
             const dayData = spendingData[dateKey];
             const amount = dayData?.total || 0;
-            
+
             return (
               <button
                 key={day}
                 onClick={() => setSelectedDay(dayData || null)}
                 className={`aspect-square p-2 rounded-lg border ${getSpendingColor(amount)} hover:ring-2 hover:ring-blue-400 transition-all`}
               >
-                <div className="text-sm font-semibold">{day}</div>
+                <div className="text-sm font-semibold text-gray-900">{day}</div>
                 {amount > 0 && (
                   <div className="text-xs font-bold text-gray-700">${amount.toFixed(0)}</div>
                 )}
@@ -140,12 +140,12 @@ const SpendingCalendar: React.FC = () => {
 
       {selectedDay && (
         <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-          <h3 className="text-lg font-semibold mb-3">
-            {new Date(selectedDay.date).toLocaleDateString('en-US', { 
-              weekday: 'long', 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric' 
+          <h3 className="text-lg font-semibold mb-3 text-gray-900">
+            {new Date(selectedDay.date).toLocaleDateString('en-US', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
             })}
           </h3>
           <div className="text-2xl font-bold text-gray-900 mb-4">
@@ -155,7 +155,7 @@ const SpendingCalendar: React.FC = () => {
             {selectedDay.transactions.map(tx => (
               <div key={tx.id} className="flex justify-between items-center p-3 bg-white rounded">
                 <div>
-                  <div className="font-medium">{tx.description}</div>
+                  <div className="font-medium text-gray-900">{tx.description}</div>
                   <div className="text-sm text-gray-500">{tx.category}</div>
                 </div>
                 <div className="font-semibold text-red-600">-${tx.amount.toFixed(2)}</div>

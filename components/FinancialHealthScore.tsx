@@ -16,7 +16,7 @@ const FinancialHealthScore: React.FC<FinancialHealthScoreProps> = ({
 }) => {
     // Determine color based on score
     const getScoreColor = (score: number): string => {
-        if (score >= 75) return '#10b981'; // green
+        if (score >= 75) return '#16a34a'; // green-600
         if (score >= 50) return '#f59e0b'; // yellow
         return '#ef4444'; // red
     };
@@ -35,7 +35,7 @@ const FinancialHealthScore: React.FC<FinancialHealthScoreProps> = ({
 
     return (
         <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-xl font-semibold mb-6">Financial Health Score</h3>
+            <h3 className="text-xl font-semibold mb-6 text-gray-900">Financial Health Score</h3>
 
             {/* Gauge Visualization */}
             <div className="flex flex-col items-center mb-8">

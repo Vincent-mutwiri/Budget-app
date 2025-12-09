@@ -180,10 +180,10 @@ const ContextualInsightPanel: React.FC<ContextualInsightPanelProps> = ({ insight
                                     <div className="w-full bg-gray-700 rounded-full h-2">
                                         <div
                                             className={`h-2 rounded-full ${budget.percentageUsed > 100
-                                                    ? 'bg-red-500'
-                                                    : budget.percentageUsed > 80
-                                                        ? 'bg-yellow-500'
-                                                        : 'bg-green-500'
+                                                ? 'bg-red-500'
+                                                : budget.percentageUsed > 80
+                                                    ? 'bg-yellow-500'
+                                                    : 'bg-green-600'
                                                 }`}
                                             style={{
                                                 width: `${Math.min(budget.percentageUsed, 100)}%`
@@ -240,8 +240,8 @@ const ContextualInsightPanel: React.FC<ContextualInsightPanelProps> = ({ insight
                                             ${inv.currentValue?.toFixed(2)}
                                         </p>
                                         <p className={`text-xs ${(inv.calculatedMetrics?.totalReturnPercentage || 0) >= 0
-                                                ? 'text-green-400'
-                                                : 'text-red-400'
+                                            ? 'text-green-400'
+                                            : 'text-red-400'
                                             }`}>
                                             {inv.calculatedMetrics?.totalReturnPercentage?.toFixed(2)}%
                                         </p>

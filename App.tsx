@@ -1918,12 +1918,13 @@ const AccountsView = ({ accounts, onAddAccount, onEditAccount, metrics }: { acco
 
 // --- Budgets View Component ---
 
-const BudgetsView = ({ budgets, onAdd, onUpdate, onDelete }: { budgets: Budget[], onAdd: () => void, onUpdate: (id: string, updates: Partial<Budget>) => Promise<void>, onDelete: (id: string) => Promise<void> }) => {
+const BudgetsView = ({ budgets, onAdd, onUpdate, onDelete, transactions }: { budgets: Budget[], onAdd: () => void, onUpdate: (id: string, updates: Partial<Budget>) => Promise<void>, onDelete: (id: string) => Promise<void>, transactions: Transaction[] }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showRecommendations, setShowRecommendations] = useState(true);
   const [editingBudgetId, setEditingBudgetId] = useState<string | null>(null);
   const [editedLimit, setEditedLimit] = useState<string>('');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   // Calculate totals for summary cards
   const totalBudgeted = budgets.reduce((sum, b) => sum + b.limit, 0);
@@ -2070,7 +2071,11 @@ const BudgetsView = ({ budgets, onAdd, onUpdate, onDelete }: { budgets: Budget[]
             else if (isWarning) statusColor = 'bg-amber-500';
 
             return (
-              <div key={budget.id || `budget-${index}`} className="bg-forest-800 border border-forest-700 p-6 rounded-3xl hover:border-forest-600 transition-colors">
+              <div 
+                key={budget.id || `budget-${index}`} 
+                className="bg-forest-800 border border-forest-700 p-6 rounded-3xl hover:border-forest-600 transition-colors cursor-pointer"
+                onClick={() => !isEditing && setSelectedCategory(budget.category)}
+              >
                 <div className="flex justify-between items-start mb-6">
                   <div className="flex items-center gap-4">
                     <div className={`w-12 h-12 rounded-full flex items-center justify-center ${getIconColor(budget.icon)}`}>
@@ -2082,14 +2087,14 @@ const BudgetsView = ({ budgets, onAdd, onUpdate, onDelete }: { budgets: Budget[]
                     {!isEditing && (
                       <>
                         <button
-                          onClick={() => handleEditClick(budget)}
+                          onClick={(e) => { e.stopPropagation(); handleEditClick(budget); }}
                           className="text-forest-400 hover:text-primary transition-colors p-1"
                           title="Edit budget"
                         >
                           <Pencil size={16} />
                         </button>
                         <button
-                          onClick={() => setDeleteConfirmId(budget.id || (budget as any)._id)}
+                          onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(budget.id || (budget as any)._id); }}
                           className="text-forest-400 hover:text-rose-500 transition-colors p-1"
                           title="Delete budget"
                         >
@@ -2188,6 +2193,46 @@ const BudgetsView = ({ budgets, onAdd, onUpdate, onDelete }: { budgets: Budget[]
             </div>
           </div>
         </div>
+      )}
+
+      {/* Category Transactions Modal */}
+      {selectedCategory && (
+        <Modal
+          isOpen={true}
+          onClose={() => setSelectedCategory(null)}
+          title={`${selectedCategory} Transactions`}
+        >
+          <div className="space-y-4">
+            {transactions
+              .filter(t => t.category === selectedCategory && t.type === 'expense')
+              .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+              .map((transaction) => (
+                <div key={transaction.id} className="bg-forest-900 rounded-xl p-4 hover:bg-forest-700/50 transition-colors">
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex-1">
+                      <h4 className="text-white font-medium">{transaction.description}</h4>
+                      <p className="text-forest-400 text-sm mt-1">
+                        {new Date(transaction.date).toLocaleDateString('en-US', { 
+                          weekday: 'short',
+                          month: 'short', 
+                          day: 'numeric', 
+                          year: 'numeric' 
+                        })}
+                      </p>
+                    </div>
+                    <span className="text-rose-400 font-bold text-lg">
+                      -{formatCurrency(transaction.amount)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            {transactions.filter(t => t.category === selectedCategory && t.type === 'expense').length === 0 && (
+              <div className="text-center py-8 text-forest-400 italic">
+                No transactions found for this category.
+              </div>
+            )}
+          </div>
+        </Modal>
       )}
     </div>
   );
@@ -3377,7 +3422,7 @@ export default function App() {
                     customCategories={customCategories}
                   />
                 ) : activeView === 'budgets' ? (
-                  <BudgetsView key={`budgets-${categoriesVersion}`} budgets={budgets} onAdd={() => setIsBudgetModalOpen(true)} onUpdate={handleUpdateBudget} onDelete={handleDeleteBudget} />
+                  <BudgetsView key={`budgets-${categoriesVersion}`} budgets={budgets} transactions={transactions} onAdd={() => setIsBudgetModalOpen(true)} onUpdate={handleUpdateBudget} onDelete={handleDeleteBudget} />
                 ) : activeView === 'insights' ? (
                   <InsightsDashboard />
                 ) : activeView === 'investments' ? (

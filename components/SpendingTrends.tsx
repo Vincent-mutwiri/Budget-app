@@ -27,7 +27,7 @@ const SpendingTrends: React.FC<SpendingTrendsProps> = ({
             case 'up':
                 return <ArrowUpIcon className="w-4 h-4 text-red-500" />;
             case 'down':
-                return <ArrowDownIcon className="w-4 h-4 text-green-500" />;
+                return <ArrowDownIcon className="w-4 h-4 text-green-700" />;
             case 'stable':
                 return <MinusIcon className="w-4 h-4 text-gray-500" />;
         }
@@ -38,7 +38,7 @@ const SpendingTrends: React.FC<SpendingTrendsProps> = ({
             case 'up':
                 return 'text-red-600';
             case 'down':
-                return 'text-green-600';
+                return 'text-green-700';
             case 'stable':
                 return 'text-gray-600';
         }
@@ -47,15 +47,15 @@ const SpendingTrends: React.FC<SpendingTrendsProps> = ({
     return (
         <div className="bg-white rounded-lg shadow-md p-6">
             <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-semibold">Spending Trends</h3>
+                <h3 className="text-xl font-semibold text-gray-900">Spending Trends</h3>
 
                 {/* Time Range Selector */}
                 <div className="flex gap-2">
                     <button
                         onClick={() => onTimeRangeChange('3m')}
                         className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${timeRange === '3m'
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                             }`}
                     >
                         3M
@@ -63,8 +63,8 @@ const SpendingTrends: React.FC<SpendingTrendsProps> = ({
                     <button
                         onClick={() => onTimeRangeChange('6m')}
                         className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${timeRange === '6m'
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                             }`}
                     >
                         6M
@@ -72,8 +72,8 @@ const SpendingTrends: React.FC<SpendingTrendsProps> = ({
                     <button
                         onClick={() => onTimeRangeChange('12m')}
                         className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${timeRange === '12m'
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                             }`}
                     >
                         12M

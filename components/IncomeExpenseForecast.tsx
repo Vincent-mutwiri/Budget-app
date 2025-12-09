@@ -24,7 +24,7 @@ const IncomeExpenseForecast: React.FC<IncomeExpenseForecastProps> = ({ forecast 
         : 0;
 
     const getConfidenceColor = (confidence: number): string => {
-        if (confidence >= 80) return 'text-green-600';
+        if (confidence >= 80) return 'text-green-800';
         if (confidence >= 60) return 'text-yellow-600';
         return 'text-red-600';
     };
@@ -41,7 +41,7 @@ const IncomeExpenseForecast: React.FC<IncomeExpenseForecastProps> = ({ forecast 
         <div className="bg-white rounded-lg shadow-md p-6">
             <div className="flex justify-between items-start mb-6">
                 <div>
-                    <h3 className="text-xl font-semibold">Next Month Forecast</h3>
+                    <h3 className="text-xl font-semibold text-gray-900">Next Month Forecast</h3>
                     <p className="text-sm text-gray-500 mt-1">Based on historical patterns</p>
                 </div>
                 <div className="text-right">
@@ -58,13 +58,13 @@ const IncomeExpenseForecast: React.FC<IncomeExpenseForecastProps> = ({ forecast 
                 <div>
                     <div className="flex justify-between items-center mb-2">
                         <span className="text-sm font-medium text-gray-700">Projected Income</span>
-                        <span className="text-lg font-bold text-green-600">
+                        <span className="text-lg font-bold text-green-800">
                             {formatCurrency(forecast.projectedIncome)}
                         </span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-8 overflow-hidden">
                         <div
-                            className="h-8 bg-green-500 rounded-full transition-all duration-1000 flex items-center justify-end pr-3"
+                            className="h-8 bg-green-600 rounded-full transition-all duration-1000 flex items-center justify-end pr-3"
                             style={{
                                 width: `${(forecast.projectedIncome / maxAmount) * 100}%`
                             }}
