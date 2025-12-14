@@ -15,6 +15,7 @@ interface UserFinancialContext {
     level?: number;
     streak?: number;
     monthlyIncome?: number;
+    currency?: string;
 }
 
 /**
@@ -25,19 +26,20 @@ export async function generateEnhancedFinancialAdvice(
     financialData: any,
     query: string
 ): Promise<string> {
+    const currency = user.currency || 'USD';
     // Build comprehensive context
     let contextString = `User Profile:
 - Level: ${user.level || 1}
 - XP: ${user.xp || 0}
 - Streak: ${user.streak || 0} days
-- Monthly Income: $${user.monthlyIncome || 0}
+- Monthly Income: ${currency} ${user.monthlyIncome || 0}
 
 `;
 
     // Add spending context if available
     if (financialData?.totalSpent !== undefined) {
         contextString += `Spending Data:
-- Total Spent: $${financialData.totalSpent.toFixed(2)}
+- Total Spent: ${currency} ${financialData.totalSpent.toFixed(2)}
 - Transaction Count: ${financialData.transactionCount || 0}
 `;
         if (financialData.byCategory) {
@@ -46,7 +48,7 @@ export async function generateEnhancedFinancialAdvice(
                 .sort(([, a]: any, [, b]: any) => b - a)
                 .slice(0, 3)
                 .forEach(([category, amount]) => {
-                    contextString += `  * ${category}: $${(amount as number).toFixed(2)}\n`;
+                    contextString += `  * ${category}: ${currency} ${(amount as number).toFixed(2)}\n`;
                 });
         }
         contextString += '\n';
@@ -55,8 +57,8 @@ export async function generateEnhancedFinancialAdvice(
     // Add budget context if available
     if (financialData?.budgets) {
         contextString += `Budget Status:
-- Total Budget: $${financialData.totalBudget?.toFixed(2) || 0}
-- Total Spent: $${financialData.totalSpent?.toFixed(2) || 0}
+- Total Budget: ${currency} ${financialData.totalBudget?.toFixed(2) || 0}
+- Total Spent: ${currency} ${financialData.totalSpent?.toFixed(2) || 0}
 `;
         const overBudget = financialData.budgets.filter((b: any) => b.percentageUsed > 100);
         if (overBudget.length > 0) {
@@ -68,8 +70,8 @@ export async function generateEnhancedFinancialAdvice(
     // Add investment context if available
     if (financialData?.portfolioMetrics) {
         contextString += `Investment Portfolio:
-- Total Value: $${financialData.portfolioMetrics.totalValue?.toFixed(2) || 0}
-- Total Return: $${financialData.portfolioMetrics.totalReturn?.toFixed(2) || 0} (${financialData.portfolioMetrics.totalReturnPercentage?.toFixed(2) || 0}%)
+- Total Value: ${currency} ${financialData.portfolioMetrics.totalValue?.toFixed(2) || 0}
+- Total Return: ${currency} ${financialData.portfolioMetrics.totalReturn?.toFixed(2) || 0} (${financialData.portfolioMetrics.totalReturnPercentage?.toFixed(2) || 0}%)
 - Number of Investments: ${financialData.investments?.length || 0}
 `;
         contextString += '\n';
@@ -78,8 +80,8 @@ export async function generateEnhancedFinancialAdvice(
     // Add debt context if available
     if (financialData?.debtSummary) {
         contextString += `Debt Overview:
-- Total Debt: $${financialData.debtSummary.totalDebt?.toFixed(2) || 0}
-- Monthly Payment: $${financialData.debtSummary.totalMonthlyPayment?.toFixed(2) || 0}
+- Total Debt: ${currency} ${financialData.debtSummary.totalDebt?.toFixed(2) || 0}
+- Monthly Payment: ${currency} ${financialData.debtSummary.totalMonthlyPayment?.toFixed(2) || 0}
 - Number of Debts: ${financialData.debts?.length || 0}
 `;
         contextString += '\n';
@@ -88,8 +90,8 @@ export async function generateEnhancedFinancialAdvice(
     // Add savings goals context if available
     if (financialData?.goals) {
         contextString += `Savings Goals:
-- Total Target: $${financialData.totalTarget?.toFixed(2) || 0}
-- Total Saved: $${financialData.totalSaved?.toFixed(2) || 0}
+- Total Target: ${currency} ${financialData.totalTarget?.toFixed(2) || 0}
+- Total Saved: ${currency} ${financialData.totalSaved?.toFixed(2) || 0}
 - Progress: ${financialData.progress?.toFixed(1) || 0}%
 `;
         contextString += '\n';
@@ -109,6 +111,7 @@ Instructions:
 5. Use a friendly, conversational tone
 6. Keep responses concise (2-3 paragraphs max)
 7. Include emojis sparingly for emphasis (💰, 📊, 🎯, ✅, ⚠️)
+8. Use "${currency}" for any currency values.
 
 Response Format:
 - Start with a direct answer to their question
@@ -141,12 +144,13 @@ export async function generateInvestmentRecommendations(
     user: UserFinancialContext,
     portfolioData: any
 ): Promise<string> {
+    const currency = user.currency || 'USD';
     const contextString = `User Profile:
-- Monthly Income: $${user.monthlyIncome || 0}
+- Monthly Income: ${currency} ${user.monthlyIncome || 0}
 - Level: ${user.level || 1}
 
 Current Portfolio:
-- Total Value: $${portfolioData.portfolioMetrics?.totalValue?.toFixed(2) || 0}
+- Total Value: ${currency} ${portfolioData.portfolioMetrics?.totalValue?.toFixed(2) || 0}
 - Total Return: ${portfolioData.portfolioMetrics?.totalReturnPercentage?.toFixed(2) || 0}%
 - Asset Allocation: ${portfolioData.portfolioMetrics?.assetAllocation ? JSON.stringify(portfolioData.portfolioMetrics.assetAllocation) : 'N/A'}
 `;
@@ -167,6 +171,7 @@ Guidelines:
 4. Suggest areas for potential research (not specific stocks)
 5. Keep it educational and general
 6. Use 2-3 paragraphs maximum
+7. Use "${currency}" for any currency values.
 
 Generate your response:`;
 
@@ -187,8 +192,9 @@ export async function generateSpendingInsights(
     spendingData: any,
     budgetData?: any
 ): Promise<string> {
+    const currency = budgetData?.currency || 'USD';
     let contextString = `Spending Analysis:
-- Total Spent: $${spendingData.totalSpent?.toFixed(2) || 0}
+- Total Spent: ${currency} ${spendingData.totalSpent?.toFixed(2) || 0}
 - Transaction Count: ${spendingData.transactionCount || 0}
 `;
 
@@ -197,14 +203,14 @@ export async function generateSpendingInsights(
         Object.entries(spendingData.byCategory)
             .sort(([, a]: any, [, b]: any) => b - a)
             .forEach(([category, amount]) => {
-                contextString += `  * ${category}: $${(amount as number).toFixed(2)}\n`;
+                contextString += `  * ${category}: ${currency} ${(amount as number).toFixed(2)}\n`;
             });
     }
 
     if (budgetData?.budgets) {
         contextString += `\nBudget Comparison:\n`;
         budgetData.budgets.forEach((b: any) => {
-            contextString += `- ${b.category}: $${b.spent.toFixed(2)} / $${b.limit.toFixed(2)} (${b.percentageUsed.toFixed(1)}%)\n`;
+            contextString += `- ${b.category}: ${currency} ${b.spent.toFixed(2)} / ${currency} ${b.limit.toFixed(2)} (${b.percentageUsed.toFixed(1)}%)\n`;
         });
     }
 
@@ -221,6 +227,7 @@ Guidelines:
 4. Be encouraging and practical
 5. Use 2-3 paragraphs maximum
 6. Include relevant emojis (💰, 📊, 🎯)
+7. Use "${currency}" for any currency values.
 
 Generate your insights:`;
 
@@ -240,16 +247,17 @@ Generate your insights:`;
 export async function generateDebtPayoffStrategy(
     debtData: any
 ): Promise<string> {
+    const currency = debtData?.currency || 'USD';
     let contextString = `Debt Overview:
-- Total Debt: $${debtData.debtSummary?.totalDebt?.toFixed(2) || 0}
-- Monthly Payment: $${debtData.debtSummary?.totalMonthlyPayment?.toFixed(2) || 0}
+- Total Debt: ${currency} ${debtData.debtSummary?.totalDebt?.toFixed(2) || 0}
+- Monthly Payment: ${currency} ${debtData.debtSummary?.totalMonthlyPayment?.toFixed(2) || 0}
 
 Individual Debts:
 `;
 
     if (debtData.debts) {
         debtData.debts.forEach((debt: any) => {
-            contextString += `- ${debt.name}: $${debt.currentBalance?.toFixed(2)} at ${debt.interestRate}% APR (Min Payment: $${debt.minimumPayment?.toFixed(2)})\n`;
+            contextString += `- ${debt.name}: ${currency} ${debt.currentBalance?.toFixed(2)} at ${debt.interestRate}% APR (Min Payment: ${currency} ${debt.minimumPayment?.toFixed(2)})\n`;
         });
     }
 
@@ -266,6 +274,7 @@ Guidelines:
 4. Provide encouragement and realistic expectations
 5. Use 2-3 paragraphs maximum
 6. Include relevant emojis (💪, 🎯, ✅)
+7. Use "${currency}" for any currency values.
 
 Generate your strategy:`;
 

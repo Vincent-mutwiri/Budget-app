@@ -24,16 +24,15 @@ router.post('/chat', async (req, res) => {
         context.push({ text: message, type: 'Human' });
 
         let response = await callInflectionAI(context);
-        
+
         // Decode HTML entities and replace $ with Ksh
         response = response
             .replace(/&#39;/g, "'")
             .replace(/&quot;/g, '"')
             .replace(/&amp;/g, '&')
             .replace(/&lt;/g, '<')
-            .replace(/&gt;/g, '>')
-            .replace(/\$/g, 'Ksh ');
-            
+            .replace(/&gt;/g, '>');
+
         res.json({ response, conversationHistory: [...context, { text: response, type: 'AI' }] });
     } catch (error) {
         console.error('Error processing AI chat:', error);
@@ -58,8 +57,7 @@ router.post('/query', async (req, res) => {
                 .replace(/&quot;/g, '"')
                 .replace(/&amp;/g, '&')
                 .replace(/&lt;/g, '<')
-                .replace(/&gt;/g, '>')
-                .replace(/\$/g, 'Ksh ');
+                .replace(/&gt;/g, '>');
         }
         res.json(response);
     } catch (error) {

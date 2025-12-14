@@ -30,6 +30,7 @@ interface UserFinancialContext {
     streak?: number;
     monthlyIncome?: number;
     userId?: string;
+    currency?: string;
 }
 
 interface FinancialRAGContext {
@@ -54,10 +55,15 @@ async function retrieveFinancialContext(userId: string): Promise<FinancialRAGCon
     const currentYear = new Date(now.getFullYear(), 0, 1);
     const last3Months = new Date(now.getFullYear(), now.getMonth() - 3, 1);
 
+    const startOfPreviousYear = new Date(now.getFullYear() - 1, 0, 1);
+
     // Parallel data retrieval for better performance
     const [user, transactions, budgets, investments, debts, goals] = await Promise.all([
         User.findOne({ clerkId: userId }),
-        Transaction.find({ userId }).sort({ date: -1 }).limit(50),
+        Transaction.find({
+            userId,
+            date: { $gte: startOfPreviousYear }
+        }).sort({ date: -1 }),
         Budget.find({ userId }),
         Investment.find({ userId }),
         Debt.find({ userId }),
@@ -123,6 +129,7 @@ async function retrieveFinancialContext(userId: string): Promise<FinancialRAGCon
  * Build comprehensive RAG context string
  */
 function buildRAGContext(context: FinancialRAGContext, query: string): string {
+    const currency = context.user.currency || 'USD';
     let ragContext = `FINANCIAL DATA CONTEXT:\n\n`;
 
     // User Profile
@@ -131,13 +138,13 @@ function buildRAGContext(context: FinancialRAGContext, query: string): string {
     ragContext += `- Level: ${context.user.level || 1}\n`;
     ragContext += `- XP: ${context.user.xp || 0}\n`;
     ragContext += `- Streak: ${context.user.streak || 0} days\n`;
-    ragContext += `- Total Balance: Ksh ${(context.user.totalBalance || 0).toFixed(2)}\n\n`;
+    ragContext += `- Total Balance: ${currency} ${(context.user.totalBalance || 0).toFixed(2)}\n\n`;
 
     // Monthly Performance
     ragContext += `CURRENT MONTH PERFORMANCE:\n`;
-    ragContext += `- Income: Ksh ${context.monthlyMetrics.currentMonth.income.toFixed(2)}\n`;
-    ragContext += `- Expenses: Ksh ${context.monthlyMetrics.currentMonth.expenses.toFixed(2)}\n`;
-    ragContext += `- Net: Ksh ${(context.monthlyMetrics.currentMonth.income - context.monthlyMetrics.currentMonth.expenses).toFixed(2)}\n`;
+    ragContext += `- Income: ${currency} ${context.monthlyMetrics.currentMonth.income.toFixed(2)}\n`;
+    ragContext += `- Expenses: ${currency} ${context.monthlyMetrics.currentMonth.expenses.toFixed(2)}\n`;
+    ragContext += `- Net: ${currency} ${(context.monthlyMetrics.currentMonth.income - context.monthlyMetrics.currentMonth.expenses).toFixed(2)}\n`;
     ragContext += `- Transactions: ${context.monthlyMetrics.currentMonth.transactionCount}\n`;
     ragContext += `- Savings Rate: ${context.trends.savingsRate.toFixed(1)}%\n\n`;
 
@@ -148,7 +155,7 @@ function buildRAGContext(context: FinancialRAGContext, query: string): string {
             .sort(([, a], [, b]) => (b as number) - (a as number))
             .slice(0, 5)
             .forEach(([category, amount]) => {
-                ragContext += `- ${category}: Ksh ${(amount as number).toFixed(2)}\n`;
+                ragContext += `- ${category}: ${currency} ${(amount as number).toFixed(2)}\n`;
             });
         ragContext += `\n`;
     }
@@ -157,8 +164,8 @@ function buildRAGContext(context: FinancialRAGContext, query: string): string {
     if (context.budgets.length > 0) {
         ragContext += `BUDGET STATUS:\n`;
         const totalBudget = context.budgets.reduce((sum, b) => sum + b.limit, 0);
-        ragContext += `- Total Budget: Ksh ${totalBudget.toFixed(2)}\n`;
-        ragContext += `- Total Spent: Ksh ${context.monthlyMetrics.currentMonth.expenses.toFixed(2)}\n`;
+        ragContext += `- Total Budget: ${currency} ${totalBudget.toFixed(2)}\n`;
+        ragContext += `- Total Spent: ${currency} ${context.monthlyMetrics.currentMonth.expenses.toFixed(2)}\n`;
         ragContext += `- Budget Utilization: ${totalBudget > 0 ? ((context.monthlyMetrics.currentMonth.expenses / totalBudget) * 100).toFixed(1) : 0}%\n`;
 
         const overBudgetCategories = context.budgets.filter(b => {
@@ -179,8 +186,8 @@ function buildRAGContext(context: FinancialRAGContext, query: string): string {
         const returnPercentage = totalCost > 0 ? (totalReturn / totalCost) * 100 : 0;
 
         ragContext += `INVESTMENT PORTFOLIO:\n`;
-        ragContext += `- Total Value: Ksh ${totalValue.toFixed(2)}\n`;
-        ragContext += `- Total Return: Ksh ${totalReturn.toFixed(2)} (${returnPercentage.toFixed(2)}%)\n`;
+        ragContext += `- Total Value: ${currency} ${totalValue.toFixed(2)}\n`;
+        ragContext += `- Total Return: ${currency} ${totalReturn.toFixed(2)} (${returnPercentage.toFixed(2)}%)\n`;
         ragContext += `- Number of Investments: ${context.investments.length}\n`;
 
         const bestPerformer = context.investments.reduce((best, inv) => {
@@ -202,8 +209,8 @@ function buildRAGContext(context: FinancialRAGContext, query: string): string {
         const highestInterest = Math.max(...context.debts.map(d => d.interestRate));
 
         ragContext += `DEBT OVERVIEW:\n`;
-        ragContext += `- Total Debt: Ksh ${totalDebt.toFixed(2)}\n`;
-        ragContext += `- Monthly Payments: Ksh ${totalMinPayment.toFixed(2)}\n`;
+        ragContext += `- Total Debt: ${currency} ${totalDebt.toFixed(2)}\n`;
+        ragContext += `- Monthly Payments: ${currency} ${totalMinPayment.toFixed(2)}\n`;
         ragContext += `- Highest Interest Rate: ${highestInterest.toFixed(2)}%\n`;
         ragContext += `- Number of Debts: ${context.debts.length}\n\n`;
     }
@@ -215,8 +222,8 @@ function buildRAGContext(context: FinancialRAGContext, query: string): string {
         const progress = totalTarget > 0 ? (totalSaved / totalTarget) * 100 : 0;
 
         ragContext += `SAVINGS GOALS:\n`;
-        ragContext += `- Total Target: Ksh ${totalTarget.toFixed(2)}\n`;
-        ragContext += `- Total Saved: Ksh ${totalSaved.toFixed(2)}\n`;
+        ragContext += `- Total Target: ${currency} ${totalTarget.toFixed(2)}\n`;
+        ragContext += `- Total Saved: ${currency} ${totalSaved.toFixed(2)}\n`;
         ragContext += `- Overall Progress: ${progress.toFixed(1)}%\n`;
         ragContext += `- Active Goals: ${context.goals.filter(g => g.status === 'in-progress').length}\n\n`;
     }
@@ -238,9 +245,9 @@ function buildRAGContext(context: FinancialRAGContext, query: string): string {
         // Display grouped by date
         Object.entries(transactionsByDate).forEach(([date, txs]) => {
             const dailyTotal = txs.reduce((sum, t) => sum + (t.type === 'expense' ? -t.amount : t.amount), 0);
-            ragContext += `\n${date} (Daily Net: ${dailyTotal >= 0 ? '+' : ''}Ksh ${dailyTotal.toFixed(2)}):\n`;
+            ragContext += `\n${date} (Daily Net: ${dailyTotal >= 0 ? '+' : ''}${currency} ${dailyTotal.toFixed(2)}):\n`;
             txs.forEach(t => {
-                ragContext += `  • ${t.type === 'expense' ? '-' : '+'}Ksh ${t.amount.toFixed(2)} - ${t.category} - ${t.description}\n`;
+                ragContext += `  • ${t.type === 'expense' ? '-' : '+'}${currency} ${t.amount.toFixed(2)} - ${t.category} - ${t.description}\n`;
             });
         });
         ragContext += `\n`;
@@ -260,7 +267,7 @@ function buildRAGContext(context: FinancialRAGContext, query: string): string {
                 .reduce((sum, t) => sum + t.amount, 0) / 7;
 
             ragContext += `DAILY SPENDING PATTERNS (Last 7 Days):\n`;
-            ragContext += `- Average Daily Spending: Ksh ${dailyAvg.toFixed(2)}\n`;
+            ragContext += `- Average Daily Spending: ${currency} ${dailyAvg.toFixed(2)}\n`;
             ragContext += `- Transaction Frequency: ${last7Days.length} transactions in 7 days\n`;
             ragContext += `- Most Active Day: ${getMostActiveDay(last7Days)}\n\n`;
         }
@@ -339,6 +346,8 @@ export async function generateEnhancedFinancialAdvice(
     const contextString = buildRAGContext(ragContext, query);
     // Use RAG context instead of basic context
 
+    const currency = ragContext.user?.currency || 'USD';
+
     const prompt = `You are Pi, an expert financial advisor integrated into SmartWallet, a gamified personal finance app. You have access to comprehensive financial data through retrieval augmented generation.
 
 ${contextString}
@@ -352,7 +361,7 @@ INSTRUCTIONS:
 6. Use a supportive, encouraging tone
 7. Keep responses focused and actionable (2-3 paragraphs)
 8. Use relevant emojis sparingly (💰, 📊, 🎯, ✅, ⚠️)
-9. CRITICAL: Always use "Ksh" for currency, NEVER use "$" symbol
+9. CRITICAL: Always use "${currency}" for currency, NEVER use "$" symbol unless it is the user's currency.
 10. Use plain text apostrophes and quotes, not HTML entities
 
 RESPONSE FORMAT:
@@ -364,11 +373,11 @@ Generate your response:`;
 
     try {
         const response = await callInflectionAI([{ text: prompt, type: 'Human' }]);
-        return response.replace(/\$/g, 'Ksh ');
+        return response;
     } catch (error) {
         console.log("Falling back to Gemini AI...");
         const fallbackResponse = await generateGeminiAdvice(user, financialData, query);
-        return fallbackResponse.replace(/\$/g, 'Ksh ');
+        return fallbackResponse;
     }
 }
 
@@ -389,6 +398,7 @@ Current Portfolio:
 - Asset Allocation: ${portfolioData.portfolioMetrics?.assetAllocation ? JSON.stringify(portfolioData.portfolioMetrics.assetAllocation) : 'N/A'}
 `;
 
+    const currency = user.currency || 'USD';
     const prompt = `You are a financial advisor providing general investment guidance.
 
 ${contextString}
@@ -405,16 +415,17 @@ Guidelines:
 4. Suggest areas for potential research (not specific stocks)
 5. Keep it educational and general
 6. Use 2-3 paragraphs maximum
+7. Use "${currency}" for any currency values.
 
 Generate your response:`;
 
     try {
         const response = await callInflectionAI([{ text: prompt, type: 'Human' }]);
-        return response.replace(/\$/g, 'Ksh ');
+        return response;
     } catch (error) {
         console.log("Falling back to Gemini AI...");
         const fallbackResponse = await generateGeminiInvestment(user, portfolioData);
-        return fallbackResponse.replace(/\$/g, 'Ksh ');
+        return fallbackResponse;
     }
 }
 
@@ -446,6 +457,7 @@ export async function generateSpendingInsights(
         });
     }
 
+    const currency = budgetData?.currency || 'USD';
     const prompt = `You are a financial advisor analyzing spending patterns.
 
 ${contextString}
@@ -459,16 +471,17 @@ Guidelines:
 4. Be encouraging and practical
 5. Use 2-3 paragraphs maximum
 6. Include relevant emojis (💰, 📊, 🎯)
+7. Use "${currency}" for any currency values.
 
 Generate your insights:`;
 
     try {
         const response = await callInflectionAI([{ text: prompt, type: 'Human' }]);
-        return response.replace(/\$/g, 'Ksh ');
+        return response;
     } catch (error) {
         console.log("Falling back to Gemini AI...");
         const fallbackResponse = await generateGeminiSpending(spendingData, budgetData);
-        return fallbackResponse.replace(/\$/g, 'Ksh ');
+        return fallbackResponse;
     }
 }
 
@@ -491,6 +504,7 @@ Individual Debts:
         });
     }
 
+    const currency = debtData?.currency || 'USD';
     const prompt = `You are a financial advisor specializing in debt management.
 
 ${contextString}
@@ -504,15 +518,16 @@ Guidelines:
 4. Provide encouragement and realistic expectations
 5. Use 2-3 paragraphs maximum
 6. Include relevant emojis (💪, 🎯, ✅)
+7. Use "${currency}" for any currency values.
 
 Generate your strategy:`;
 
     try {
         const response = await callInflectionAI([{ text: prompt, type: 'Human' }]);
-        return response.replace(/\$/g, 'Ksh ');
+        return response;
     } catch (error) {
         console.log("Falling back to Gemini AI...");
         const fallbackResponse = await generateGeminiDebt(debtData);
-        return fallbackResponse.replace(/\$/g, 'Ksh ');
+        return fallbackResponse;
     }
 }
