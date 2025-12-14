@@ -112,6 +112,7 @@ Instructions:
 6. Keep responses concise (2-3 paragraphs max)
 7. Include emojis sparingly for emphasis (💰, 📊, 🎯, ✅, ⚠️)
 8. Use "${currency}" for any currency values.
+9. CRITICAL: Carefully distinguish between income and expenses. Do not count income as spending.
 
 Response Format:
 - Start with a direct answer to their question

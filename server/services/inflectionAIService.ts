@@ -80,17 +80,19 @@ async function retrieveFinancialContext(userId: string): Promise<FinancialRAGCon
 
     const monthlyMetrics = {
         currentMonth: {
-            income: currentMonthTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0),
-            expenses: currentMonthTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0),
+            income: currentMonthTransactions.filter(t => t.type === 'income' || t.category.toLowerCase() === 'salary').reduce((sum, t) => sum + t.amount, 0),
+            expenses: currentMonthTransactions.filter(t => t.type === 'expense' && t.category.toLowerCase() !== 'salary').reduce((sum, t) => sum + t.amount, 0),
             transactionCount: currentMonthTransactions.length,
             categoryBreakdown: currentMonthTransactions.reduce((acc, t) => {
-                acc[t.category] = (acc[t.category] || 0) + t.amount;
+                if (t.type === 'expense' && t.category.toLowerCase() !== 'salary') {
+                    acc[t.category] = (acc[t.category] || 0) + t.amount;
+                }
                 return acc;
             }, {} as Record<string, number>)
         },
         lastMonth: {
-            income: lastMonthTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0),
-            expenses: lastMonthTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0),
+            income: lastMonthTransactions.filter(t => t.type === 'income' || t.category.toLowerCase() === 'salary').reduce((sum, t) => sum + t.amount, 0),
+            expenses: lastMonthTransactions.filter(t => t.type === 'expense' && t.category.toLowerCase() !== 'salary').reduce((sum, t) => sum + t.amount, 0),
             transactionCount: lastMonthTransactions.length
         }
     };
@@ -98,10 +100,10 @@ async function retrieveFinancialContext(userId: string): Promise<FinancialRAGCon
     // Calculate yearly metrics
     const yearlyTransactions = transactions.filter(t => new Date(t.date) >= currentYear);
     const yearlyMetrics = {
-        totalIncome: yearlyTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0),
-        totalExpenses: yearlyTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0),
-        avgMonthlyIncome: yearlyTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0) / (now.getMonth() + 1),
-        avgMonthlyExpenses: yearlyTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0) / (now.getMonth() + 1)
+        totalIncome: yearlyTransactions.filter(t => t.type === 'income' || t.category.toLowerCase() === 'salary').reduce((sum, t) => sum + t.amount, 0),
+        totalExpenses: yearlyTransactions.filter(t => t.type === 'expense' && t.category.toLowerCase() !== 'salary').reduce((sum, t) => sum + t.amount, 0),
+        avgMonthlyIncome: yearlyTransactions.filter(t => t.type === 'income' || t.category.toLowerCase() === 'salary').reduce((sum, t) => sum + t.amount, 0) / (now.getMonth() + 1),
+        avgMonthlyExpenses: yearlyTransactions.filter(t => t.type === 'expense' && t.category.toLowerCase() !== 'salary').reduce((sum, t) => sum + t.amount, 0) / (now.getMonth() + 1)
     };
 
     // Calculate trends
@@ -129,7 +131,10 @@ async function retrieveFinancialContext(userId: string): Promise<FinancialRAGCon
  * Build comprehensive RAG context string
  */
 function buildRAGContext(context: FinancialRAGContext, query: string): string {
-    const currency = context.user.currency || 'USD';
+    let currency = context.user.currency || 'USD';
+    if (currency === 'Ksh' || currency === 'Kenyan Shilling') {
+        currency = 'KES';
+    }
     let ragContext = `FINANCIAL DATA CONTEXT:\n\n`;
 
     // User Profile
@@ -247,7 +252,8 @@ function buildRAGContext(context: FinancialRAGContext, query: string): string {
             const dailyTotal = txs.reduce((sum, t) => sum + (t.type === 'expense' ? -t.amount : t.amount), 0);
             ragContext += `\n${date} (Daily Net: ${dailyTotal >= 0 ? '+' : ''}${currency} ${dailyTotal.toFixed(2)}):\n`;
             txs.forEach(t => {
-                ragContext += `  • ${t.type === 'expense' ? '-' : '+'}${currency} ${t.amount.toFixed(2)} - ${t.category} - ${t.description}\n`;
+                const typeLabel = t.type === 'expense' ? '[EXPENSE]' : '[INCOME]';
+                ragContext += `  • ${typeLabel} ${currency} ${t.amount.toFixed(2)} - ${t.category} - ${t.description}\n`;
             });
         });
         ragContext += `\n`;
@@ -363,6 +369,7 @@ INSTRUCTIONS:
 8. Use relevant emojis sparingly (💰, 📊, 🎯, ✅, ⚠️)
 9. CRITICAL: Always use "${currency}" for currency, NEVER use "$" symbol unless it is the user's currency.
 10. Use plain text apostrophes and quotes, not HTML entities
+11. CRITICAL: Carefully distinguish between [INCOME] and [EXPENSE] transactions. Do not count income as spending.
 
 RESPONSE FORMAT:
 - Direct answer based on their data
