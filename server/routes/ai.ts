@@ -7,6 +7,7 @@ import {
     generateDebtPayoffStrategy,
     callInflectionAI
 } from '../services/inflectionAIService';
+import { ChatMessage } from '../models/ChatMessage';
 
 const router = Router();
 
@@ -17,13 +18,33 @@ router.post('/chat', async (req, res) => {
     if (!message) {
         return res.status(400).json({ error: 'Message is required' });
     }
+    if (!userId) {
+        return res.status(400).json({ error: 'UserId is required' });
+    }
 
     try {
-        // Build context from conversation history
-        const context = conversationHistory || [];
-        context.push({ text: message, type: 'Human' });
+        // 1. Fetch recent conversation history from DB
+        const recentMessages = await ChatMessage.find({ userId })
+            .sort({ timestamp: -1 })
+            .limit(10);
 
-        let response = await callInflectionAI(context);
+        // Convert to context format (reverse since we fetched latest first)
+        const dbContext = recentMessages.reverse().map(msg => ({
+            text: msg.message,
+            type: msg.sender === 'user' ? 'Human' : 'AI'
+        }));
+
+        // 2. Add current message to context
+        const context = [...dbContext, { text: message, type: 'Human' }];
+
+        // 3. Save User Message
+        await ChatMessage.create({
+            userId,
+            message,
+            sender: 'user'
+        });
+
+        let response = await callInflectionAI(context as any);
 
         // Decode HTML entities and replace $ with Ksh
         response = response
@@ -32,6 +53,13 @@ router.post('/chat', async (req, res) => {
             .replace(/&amp;/g, '&')
             .replace(/&lt;/g, '<')
             .replace(/&gt;/g, '>');
+
+        // 4. Save AI Response
+        await ChatMessage.create({
+            userId,
+            message: response,
+            sender: 'ai'
+        });
 
         res.json({ response, conversationHistory: [...context, { text: response, type: 'AI' }] });
     } catch (error) {
