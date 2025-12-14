@@ -48,7 +48,10 @@ interface FinancialRAGContext {
 /**
  * Retrieve comprehensive financial data for RAG context
  */
-async function retrieveFinancialContext(userId: string): Promise<FinancialRAGContext> {
+/**
+ * Retrieve comprehensive financial data for RAG context
+ */
+export async function retrieveFinancialContext(userId: string): Promise<FinancialRAGContext> {
     const now = new Date();
     const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -130,7 +133,10 @@ async function retrieveFinancialContext(userId: string): Promise<FinancialRAGCon
 /**
  * Build comprehensive RAG context string
  */
-function buildRAGContext(context: FinancialRAGContext, query: string): string {
+/**
+ * Build comprehensive RAG context string
+ */
+export function buildRAGContext(context: FinancialRAGContext, query?: string): string {
     let currency = context.user.currency || 'USD';
     if (currency === 'Ksh' || currency === 'Kenyan Shilling') {
         currency = 'KES';
@@ -286,7 +292,9 @@ function buildRAGContext(context: FinancialRAGContext, query: string): string {
     ragContext += `- Current Savings Rate: ${context.trends.savingsRate.toFixed(1)}%\n\n`;
 
     // Query Context
-    ragContext += `USER QUERY: "${query}"\n\n`;
+    if (query) {
+        ragContext += `USER QUERY: "${query}"\n\n`;
+    }
 
     return ragContext;
 }

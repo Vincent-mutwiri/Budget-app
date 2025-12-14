@@ -5,7 +5,9 @@ import {
     generateInvestmentRecommendations,
     generateSpendingInsights,
     generateDebtPayoffStrategy,
-    callInflectionAI
+    callInflectionAI,
+    retrieveFinancialContext,
+    buildRAGContext
 } from '../services/inflectionAIService';
 import { ChatMessage } from '../models/ChatMessage';
 
@@ -44,7 +46,46 @@ router.post('/chat', async (req, res) => {
             sender: 'user'
         });
 
-        let response = await callInflectionAI(context as any);
+        // 4. Inject Financial Context if needed
+        // We inject it into the prompt sent to AI, but don't save the massive context to DB
+        let promptContext = context;
+        try {
+            console.log(`Retrieving financial context for user ${userId}...`);
+            const financialData = await retrieveFinancialContext(userId);
+            console.log('Financial Data Retrieved:', {
+                user: !!financialData.user,
+                txCount: financialData.transactions.length,
+                monthlyMetrics: !!financialData.monthlyMetrics
+            });
+
+            const ragString = buildRAGContext(financialData);
+            console.log('RAG String Length:', ragString.length);
+
+            // Create a system-like instruction prepended to the user's message
+            const systemInstruction = `
+You are Pi, an expert financial advisor. Here is the user's real-time financial data:
+${ragString}
+
+INSTRUCTIONS:
+- Use this data to answer the user's questions accurately.
+- If they ask about spending, income, or budgets, use the numbers provided above.
+- Distinguish between [INCOME] and [EXPENSE].
+- Use the currency symbol provided in the data (e.g. KES, Ksh, $).
+`;
+
+            // Replace the last message (current user message) with the context-enhanced version
+            const lastMsg = promptContext[promptContext.length - 1];
+            promptContext = [
+                ...promptContext.slice(0, -1),
+                { text: `${systemInstruction}\n\nUser Message: ${lastMsg.text}`, type: 'Human' }
+            ];
+            console.log('Context injected successfully');
+        } catch (err) {
+            console.error('Error retrieving financial context for chat:', err);
+            // Continue without context if it fails
+        }
+
+        let response = await callInflectionAI(promptContext as any);
 
         // Decode HTML entities and replace $ with Ksh
         response = response
@@ -54,7 +95,7 @@ router.post('/chat', async (req, res) => {
             .replace(/&lt;/g, '<')
             .replace(/&gt;/g, '>');
 
-        // 4. Save AI Response
+        // 5. Save AI Response
         await ChatMessage.create({
             userId,
             message: response,
@@ -65,6 +106,26 @@ router.post('/chat', async (req, res) => {
     } catch (error) {
         console.error('Error processing AI chat:', error);
         res.status(500).json({ error: 'Failed to process chat request' });
+    }
+});
+
+// Get chat history
+router.get('/chat/history', async (req, res) => {
+    const { userId } = req.query;
+
+    if (!userId) {
+        return res.status(400).json({ error: 'UserId is required' });
+    }
+
+    try {
+        const history = await ChatMessage.find({ userId })
+            .sort({ timestamp: 1 }) // Oldest first for display
+            .limit(50); // Limit to last 50 messages
+
+        res.json(history);
+    } catch (error) {
+        console.error('Error fetching chat history:', error);
+        res.status(500).json({ error: 'Failed to fetch chat history' });
     }
 });
 

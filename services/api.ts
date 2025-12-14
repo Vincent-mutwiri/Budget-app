@@ -2,7 +2,7 @@ import axios from 'axios';
 import { handleApiError } from '../utils/errorHandler';
 
 const api = axios.create({
-    baseURL: (import.meta.env.VITE_API_URL || process.env.API_URL || '') + '/api',
+    baseURL: '/api',
     headers: {
         'Content-Type': 'application/json',
     },
@@ -358,8 +358,13 @@ export const calculateAcceleratedPayoff = async (id: string, extraPayment: numbe
 };
 
 // AI Assistant
-export const chatWithAI = async (message: string, context?: Array<{ text: string; type: string }>) => {
-    const response = await api.post('/ai/chat', { message, context });
+export const chatWithAI = async (userId: string, message: string, context?: Array<{ text: string; type: string }>) => {
+    const response = await api.post('/ai/chat', { userId, message, context });
+    return response.data;
+};
+
+export const getChatHistory = async (userId: string) => {
+    const response = await api.get('/ai/chat/history', { params: { userId } });
     return response.data;
 };
 

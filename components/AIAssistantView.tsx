@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Loader, Sparkles, TrendingUp, Wallet, Target, CreditCard } from 'lucide-react';
-import { queryAIAssistant } from '../services/api';
+import { chatWithAI, getChatHistory } from '../services/api';
 import { ChatMessage, ContextualInsight } from '../types';
 import ContextualInsightPanel from './ContextualInsightPanel';
 
@@ -31,6 +31,29 @@ const AIAssistantView: React.FC<AIAssistantViewProps> = ({ userId }) => {
         scrollToBottom();
     }, [messages]);
 
+    // Fetch chat history on mount
+    useEffect(() => {
+        const fetchHistory = async () => {
+            if (!userId) return;
+            try {
+                const history = await getChatHistory(userId);
+                if (history && history.length > 0) {
+                    const formattedMessages: ChatMessage[] = history.map((msg: any) => ({
+                        id: msg._id,
+                        role: msg.sender === 'user' ? 'user' : 'assistant',
+                        content: msg.message,
+                        timestamp: msg.timestamp
+                    }));
+                    setMessages(formattedMessages);
+                }
+            } catch (error) {
+                console.error('Error fetching chat history:', error);
+            }
+        };
+
+        fetchHistory();
+    }, [userId]);
+
     const quickQuestions = [
         { icon: TrendingUp, text: "How much did I spend this month?", query: "How much did I spend this month?" },
         { icon: Wallet, text: "What's my budget status?", query: "What's my budget status?" },
@@ -56,13 +79,13 @@ const AIAssistantView: React.FC<AIAssistantViewProps> = ({ userId }) => {
 
         try {
             // Query AI assistant
-            const response = await queryAIAssistant(userId, queryText);
+            const response = await chatWithAI(userId, queryText, []);
 
             // Add assistant response
             const assistantMessage: ChatMessage = {
                 id: (Date.now() + 1).toString(),
                 role: 'assistant',
-                content: response.answer,
+                content: response.response,
                 timestamp: new Date().toISOString()
             };
 
@@ -155,8 +178,8 @@ const AIAssistantView: React.FC<AIAssistantViewProps> = ({ userId }) => {
                         >
                             <div
                                 className={`max-w-[80%] rounded-2xl p-4 ${message.role === 'user'
-                                        ? 'bg-primary text-forest-950'
-                                        : 'bg-forest-900 text-white border border-forest-700'
+                                    ? 'bg-primary text-forest-950'
+                                    : 'bg-forest-900 text-white border border-forest-700'
                                     }`}
                             >
                                 {message.role === 'assistant' && (
