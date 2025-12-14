@@ -1,5 +1,6 @@
 
 export type TransactionType = 'income' | 'expense';
+export type RecurringFrequency = 'daily' | 'weekly' | 'bi-weekly' | 'monthly' | 'quarterly' | 'yearly';
 
 export enum Category {
   Housing = 'Rent/Kodi',

@@ -217,7 +217,7 @@ export class UnifiedIntegrationService extends EventEmitter {
             insights,
             gamification,
             notifications,
-            preferences: user?.preferences || {},
+            preferences: (user as any)?.preferences || {},
             lastUpdated: new Date()
         };
     }
@@ -581,6 +581,30 @@ export class UnifiedIntegrationService extends EventEmitter {
 
     private async notifyRecommendation(userId: string, recommendation: CrossFeatureRecommendation): Promise<void> {
         // Implementation would notify user about recommendation
+    }
+
+    private async handleBudgetCreated(eventData: FinancialEventData): Promise<void> {
+        // Implementation would handle budget creation
+    }
+
+    private async handleGoalCompleted(eventData: FinancialEventData): Promise<void> {
+        // Implementation would handle goal completion
+    }
+
+    private async handleInvestmentAdded(eventData: FinancialEventData): Promise<void> {
+        // Implementation would handle investment addition
+    }
+
+    private async handleDebtPayment(eventData: FinancialEventData): Promise<void> {
+        // Implementation would handle debt payment
+    }
+
+    private async handleBadgeEarned(eventData: FinancialEventData): Promise<void> {
+        // Implementation would handle badge earning
+    }
+
+    private async handleHealthScoreChanged(eventData: FinancialEventData): Promise<void> {
+        // Implementation would handle health score changes
     }
 }
 

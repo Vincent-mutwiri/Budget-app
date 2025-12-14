@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { RecurringTransactionInput, RecurringFrequency, Category, CategoriesList, RecurringTransaction } from '../types';
+import { RecurringTransactionInput, RecurringFrequency, Category, CategoriesList, RecurringTransaction, TransactionType } from '../types';
 import { CustomSelect } from './CustomSelect';
 import { Loader2 } from 'lucide-react';
 
