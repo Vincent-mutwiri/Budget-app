@@ -12,6 +12,7 @@ export const AddAccountForm: React.FC<AddAccountFormProps> = ({ onAdd, onClose, 
   const [type, setType] = useState<'asset' | 'liability'>(initialData?.type || 'asset');
   const [balance, setBalance] = useState(initialData?.balance?.toString() || '');
   const [institution, setInstitution] = useState(initialData?.institution || '');
+  const [isMain, setIsMain] = useState(initialData?.isMain || false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -26,6 +27,7 @@ export const AddAccountForm: React.FC<AddAccountFormProps> = ({ onAdd, onClose, 
         type,
         balance: parseFloat(balance),
         institution,
+        isMain,
         logoUrl: initialData?.logoUrl || 'https://via.placeholder.com/48',
         lastSynced: initialData?.lastSynced || new Date().toISOString(),
         syncStatus: initialData?.syncStatus || 'success'
@@ -89,6 +91,19 @@ export const AddAccountForm: React.FC<AddAccountFormProps> = ({ onAdd, onClose, 
             required
           />
         </div>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <input
+          type="checkbox"
+          id="isMain"
+          checked={isMain}
+          onChange={(e) => setIsMain(e.target.checked)}
+          className="w-4 h-4 text-primary bg-forest-950 border-forest-700 rounded focus:ring-primary focus:ring-2"
+        />
+        <label htmlFor="isMain" className="text-forest-300 text-sm">
+          Set as main account (all income and expenses will be centralized here)
+        </label>
       </div>
 
       <button

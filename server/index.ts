@@ -27,6 +27,7 @@ import { Receipt } from './models/Receipt';
 import { UserPreferences } from './models/UserPreferences';
 import { startRecurringTransactionScheduler } from './services/recurringTransactionScheduler';
 import { startNotificationEngine } from './services/notificationEngine';
+import { ensureMainAccount, getMainAccount } from './services/accountService';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -135,6 +136,12 @@ app.get('/api/user/:clerkId', async (req, res) => {
                 customCategories: []
             });
             await newUser.save();
+            
+            // Create default main account
+            const mainAccountId = await ensureMainAccount(req.params.clerkId);
+            newUser.mainAccountId = mainAccountId;
+            await newUser.save();
+            
             return res.json(newUser);
         }
 
@@ -273,6 +280,17 @@ app.post('/api/transactions', validateTransaction, async (req, res) => {
         const newTransaction = new Transaction(req.body);
         await newTransaction.save();
         console.log('Transaction saved:', newTransaction._id);
+        
+        // Update main account balance
+        const mainAccount = await getMainAccount(userId);
+        if (mainAccount) {
+            if (newTransaction.type === 'income') {
+                mainAccount.balance += newTransaction.amount;
+            } else if (newTransaction.type === 'expense') {
+                mainAccount.balance -= newTransaction.amount;
+            }
+            await mainAccount.save();
+        }
 
         // Calculate same-day XP bonus and update user
         // We wrap this in a try-catch so that if XP calculation fails (e.g. due to user data corruption),
@@ -370,6 +388,10 @@ app.put('/api/transactions/:id', async (req, res) => {
             );
         }
 
+        // Store original values for balance calculation
+        const originalAmount = transaction.amount;
+        const originalType = transaction.type;
+        
         // Update fields if provided
         if (amount !== undefined) transaction.amount = amount;
         if (category !== undefined) transaction.category = category;
@@ -381,6 +403,26 @@ app.put('/api/transactions/:id', async (req, res) => {
         transaction.updatedAt = new Date();
 
         await transaction.save();
+        
+        // Update main account balance
+        const mainAccount = await getMainAccount(userId);
+        if (mainAccount) {
+            // Reverse original transaction effect
+            if (originalType === 'income') {
+                mainAccount.balance -= originalAmount;
+            } else if (originalType === 'expense') {
+                mainAccount.balance += originalAmount;
+            }
+            
+            // Apply new transaction effect
+            if (transaction.type === 'income') {
+                mainAccount.balance += transaction.amount;
+            } else if (transaction.type === 'expense') {
+                mainAccount.balance -= transaction.amount;
+            }
+            
+            await mainAccount.save();
+        }
 
         // Update related budgets if it's an expense
         // Note: This is a simplified update. Ideally, we should handle the difference if amount changed.
@@ -459,6 +501,17 @@ app.delete('/api/transactions/:id', async (req, res) => {
             }
         }
 
+        // Update main account balance before deletion
+        const mainAccount = await getMainAccount(userId as string);
+        if (mainAccount) {
+            if (transaction.type === 'income') {
+                mainAccount.balance -= transaction.amount;
+            } else if (transaction.type === 'expense') {
+                mainAccount.balance += transaction.amount;
+            }
+            await mainAccount.save();
+        }
+        
         // Delete the transaction
         await Transaction.findByIdAndDelete(id);
 
@@ -995,11 +1048,9 @@ app.post('/api/goals/:id/contribute', async (req, res) => {
             );
         }
 
-        // Calculate actual balance from accounts
-        const accounts = await Account.find({ userId });
-        const totalAssets = accounts.filter(a => a.type === 'asset').reduce((sum, a) => sum + a.balance, 0);
-        const totalLiabilities = accounts.filter(a => a.type === 'liability').reduce((sum, a) => sum + a.balance, 0);
-        const actualBalance = totalAssets - totalLiabilities;
+        // Get main account balance
+        const mainAccount = await getMainAccount(userId);
+        const actualBalance = mainAccount ? mainAccount.balance : 0;
 
         // Check if user has sufficient balance
         if (actualBalance < amount) {
@@ -1039,6 +1090,12 @@ app.post('/api/goals/:id/contribute', async (req, res) => {
         const newLevel = Math.floor(user.xp / 100) + 1;
         user.level = newLevel;
 
+        // Deduct from main account
+        if (mainAccount) {
+            mainAccount.balance -= amount;
+            await mainAccount.save();
+        }
+        
         // Save both user and goal
         await user.save();
         await goal.save();
@@ -1106,8 +1163,40 @@ app.get('/api/accounts', async (req, res) => {
 // Add Account
 app.post('/api/accounts', async (req, res) => {
     try {
-        const newAccount = new Account(req.body);
+        const { userId, isMain, balance } = req.body;
+        
+        // If this is marked as main account or no main account exists, set as main
+        const user = await User.findOne({ clerkId: userId });
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        const existingMainAccount = await getMainAccount(userId);
+        const shouldBeMain = isMain || !existingMainAccount;
+        
+        // If setting as main, unset previous main account
+        if (shouldBeMain && existingMainAccount) {
+            existingMainAccount.isMain = false;
+            await existingMainAccount.save();
+        }
+        
+        const newAccount = new Account({ ...req.body, isMain: shouldBeMain });
         await newAccount.save();
+        
+        // Update user's main account reference
+        if (shouldBeMain) {
+            user.mainAccountId = newAccount._id.toString();
+            await user.save();
+        }
+        
+        // If adding money to non-main account, transfer to main account
+        if (!shouldBeMain && balance > 0 && existingMainAccount) {
+            existingMainAccount.balance += balance;
+            await existingMainAccount.save();
+            newAccount.balance = 0;
+            await newAccount.save();
+        }
+        
         res.status(201).json(newAccount);
     } catch (error) {
         res.status(500).json({ error: 'Server error' });
@@ -1118,11 +1207,84 @@ app.post('/api/accounts', async (req, res) => {
 app.put('/api/accounts/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const account = await Account.findByIdAndUpdate(id, req.body, { new: true });
+        const { isMain, balance } = req.body;
+        
+        const account = await Account.findById(id);
         if (!account) {
             return res.status(404).json({ error: 'Account not found' });
         }
+        
+        const oldBalance = account.balance;
+        
+        // Handle main account designation
+        if (isMain && !account.isMain) {
+            // Unset previous main account
+            await Account.updateMany(
+                { userId: account.userId, isMain: true },
+                { $set: { isMain: false } }
+            );
+            
+            // Update user's main account reference
+            await User.updateOne(
+                { clerkId: account.userId },
+                { $set: { mainAccountId: id } }
+            );
+        }
+        
+        // Update account
+        Object.assign(account, req.body);
+        await account.save();
+        
+        // Handle balance changes for non-main accounts
+        if (!account.isMain && balance !== undefined && balance !== oldBalance) {
+            const mainAccount = await getMainAccount(account.userId);
+            if (mainAccount) {
+                const balanceDiff = balance - oldBalance;
+                mainAccount.balance += balanceDiff;
+                await mainAccount.save();
+                account.balance = 0;
+                await account.save();
+            }
+        }
+        
         res.json(account);
+    } catch (error) {
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Set Main Account
+app.patch('/api/accounts/:id/set-main', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { userId } = req.body;
+        
+        if (!userId) {
+            return res.status(400).json({ error: 'UserId required' });
+        }
+        
+        const account = await Account.findById(id);
+        if (!account || account.userId !== userId) {
+            return res.status(404).json({ error: 'Account not found' });
+        }
+        
+        // Unset previous main account
+        await Account.updateMany(
+            { userId, isMain: true },
+            { $set: { isMain: false } }
+        );
+        
+        // Set new main account
+        account.isMain = true;
+        await account.save();
+        
+        // Update user reference
+        await User.updateOne(
+            { clerkId: userId },
+            { $set: { mainAccountId: id } }
+        );
+        
+        res.json({ success: true, message: 'Main account updated' });
     } catch (error) {
         res.status(500).json({ error: 'Server error' });
     }

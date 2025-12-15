@@ -1,8 +1,11 @@
 import axios from 'axios';
 import { handleApiError } from '../utils/errorHandler';
 
+const baseURL = import.meta.env.VITE_API_URL?.trim() || '/api';
+console.log('API baseURL:', baseURL, 'VITE_API_URL:', import.meta.env.VITE_API_URL);
+
 const api = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || '/api',
+    baseURL,
     headers: {
         'Content-Type': 'application/json',
     },
@@ -127,6 +130,11 @@ export const createAccount = async (account: any) => {
 
 export const updateAccount = async (id: string, account: any) => {
     const response = await api.put(`/accounts/${id}`, account);
+    return response.data;
+};
+
+export const setMainAccount = async (id: string, userId: string) => {
+    const response = await api.patch(`/accounts/${id}/set-main`, { userId });
     return response.data;
 };
 

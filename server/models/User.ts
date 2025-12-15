@@ -13,6 +13,7 @@ const UserSchema = new mongoose.Schema({
     badges: { type: Number, default: 0 },
     monthlyIncome: { type: Number, default: 0 },
     totalBalance: { type: Number, default: 0 },
+    mainAccountId: { type: String },
     lastTransactionDate: { type: Date },
     previousMonthsBalance: { type: Number, default: 0 },
     monthlyBalanceHistory: [{

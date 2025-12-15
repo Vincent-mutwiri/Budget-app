@@ -5,6 +5,7 @@ const AccountSchema = new mongoose.Schema({
     name: { type: String, required: true },
     type: { type: String, enum: ['asset', 'liability'], required: true },
     balance: { type: Number, default: 0 },
+    isMain: { type: Boolean, default: false },
     institution: { type: String },
     logoUrl: { type: String },
     lastSynced: { type: Date, default: Date.now },
