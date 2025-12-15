@@ -27,7 +27,7 @@ import { Receipt } from './models/Receipt';
 import { UserPreferences } from './models/UserPreferences';
 import { startRecurringTransactionScheduler } from './services/recurringTransactionScheduler';
 import { startNotificationEngine } from './services/notificationEngine';
-import { ensureMainAccount, getMainAccount } from './services/accountService';
+import { ensureMainAccount, getMainAccount, syncMainAccountBalance } from './services/accountService';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -281,16 +281,8 @@ app.post('/api/transactions', validateTransaction, async (req, res) => {
         await newTransaction.save();
         console.log('Transaction saved:', newTransaction._id);
         
-        // Update main account balance
-        const mainAccount = await getMainAccount(userId);
-        if (mainAccount) {
-            if (newTransaction.type === 'income') {
-                mainAccount.balance += newTransaction.amount;
-            } else if (newTransaction.type === 'expense') {
-                mainAccount.balance -= newTransaction.amount;
-            }
-            await mainAccount.save();
-        }
+        // Sync main account balance
+        await syncMainAccountBalance(userId);
 
         // Calculate same-day XP bonus and update user
         // We wrap this in a try-catch so that if XP calculation fails (e.g. due to user data corruption),
@@ -404,25 +396,8 @@ app.put('/api/transactions/:id', async (req, res) => {
 
         await transaction.save();
         
-        // Update main account balance
-        const mainAccount = await getMainAccount(userId);
-        if (mainAccount) {
-            // Reverse original transaction effect
-            if (originalType === 'income') {
-                mainAccount.balance -= originalAmount;
-            } else if (originalType === 'expense') {
-                mainAccount.balance += originalAmount;
-            }
-            
-            // Apply new transaction effect
-            if (transaction.type === 'income') {
-                mainAccount.balance += transaction.amount;
-            } else if (transaction.type === 'expense') {
-                mainAccount.balance -= transaction.amount;
-            }
-            
-            await mainAccount.save();
-        }
+        // Sync main account balance
+        await syncMainAccountBalance(userId);
 
         // Update related budgets if it's an expense
         // Note: This is a simplified update. Ideally, we should handle the difference if amount changed.
@@ -501,19 +476,11 @@ app.delete('/api/transactions/:id', async (req, res) => {
             }
         }
 
-        // Update main account balance before deletion
-        const mainAccount = await getMainAccount(userId as string);
-        if (mainAccount) {
-            if (transaction.type === 'income') {
-                mainAccount.balance -= transaction.amount;
-            } else if (transaction.type === 'expense') {
-                mainAccount.balance += transaction.amount;
-            }
-            await mainAccount.save();
-        }
-        
         // Delete the transaction
         await Transaction.findByIdAndDelete(id);
+        
+        // Sync main account balance
+        await syncMainAccountBalance(userId as string);
 
         // Update related budgets if it's an expense
         if (transaction.type === 'expense') {
@@ -1048,7 +1015,8 @@ app.post('/api/goals/:id/contribute', async (req, res) => {
             );
         }
 
-        // Get main account balance
+        // Get main account balance (ensure it exists)
+        await ensureMainAccount(userId);
         const mainAccount = await getMainAccount(userId);
         const actualBalance = mainAccount ? mainAccount.balance : 0;
 
@@ -1153,6 +1121,8 @@ app.get('/api/accounts', async (req, res) => {
     if (!userId) return res.status(400).json({ error: 'UserId required' });
 
     try {
+        await ensureMainAccount(userId as string);
+        await syncMainAccountBalance(userId as string);
         const accounts = await Account.find({ userId });
         res.json(accounts);
     } catch (error) {
@@ -1959,6 +1929,9 @@ app.post('/api/investments', async (req, res) => {
         });
 
         await newInvestment.save();
+        
+        // Sync main account balance
+        await syncMainAccountBalance(userId);
 
         // Calculate metrics for the new investment
         const obj = newInvestment.toObject();
@@ -2232,6 +2205,9 @@ app.post('/api/debts/:id/payment', async (req, res) => {
         debt.updatedAt = new Date();
 
         await debt.save();
+        
+        // Sync main account balance
+        await syncMainAccountBalance(debt.userId);
 
         // Calculate metrics for the updated debt
         const obj = debt.toObject();

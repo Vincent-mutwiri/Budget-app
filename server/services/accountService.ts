@@ -9,7 +9,7 @@ export async function ensureMainAccount(userId: string): Promise<string> {
     let mainAccount = await Account.findOne({ userId, isMain: true });
     
     if (!mainAccount) {
-        // Create default main account
+        // Always create a new separate main account
         mainAccount = new Account({
             userId,
             name: 'Main Account',
@@ -47,4 +47,44 @@ export async function transferToMainAccount(userId: string, amount: number): Pro
  */
 export async function getMainAccount(userId: string) {
     return await Account.findOne({ userId, isMain: true });
+}
+
+/**
+ * Syncs main account balance from all transactions, investments, and debt payments
+ */
+export async function syncMainAccountBalance(userId: string): Promise<void> {
+    const { Transaction } = await import('../models/Transaction');
+    const { Investment } = await import('../models/Investment');
+    const { Debt } = await import('../models/Debt');
+    const { SavingsGoal } = await import('../models/SavingsGoal');
+    const mainAccount = await getMainAccount(userId);
+    
+    if (!mainAccount) return;
+    
+    // Calculate balance from transactions
+    const transactions = await Transaction.find({ userId });
+    let balance = transactions.reduce((sum, tx) => {
+        return sum + (tx.type === 'income' ? tx.amount : -tx.amount);
+    }, 0);
+    
+    // Deduct investments
+    const investments = await Investment.find({ userId });
+    const totalInvested = investments.reduce((sum, inv) => sum + inv.initialAmount, 0);
+    balance -= totalInvested;
+    
+    // Deduct debt payments
+    const debts = await Debt.find({ userId });
+    const totalPaid = debts.reduce((sum, debt) => {
+        const paidAmount = debt.paymentHistory?.reduce((s: number, p: any) => s + p.amount, 0) || 0;
+        return sum + paidAmount;
+    }, 0);
+    balance -= totalPaid;
+    
+    // Deduct goal contributions
+    const goals = await SavingsGoal.find({ userId });
+    const totalContributed = goals.reduce((sum, goal) => sum + goal.currentAmount, 0);
+    balance -= totalContributed;
+    
+    mainAccount.balance = balance;
+    await mainAccount.save();
 }

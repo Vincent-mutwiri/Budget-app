@@ -1753,8 +1753,8 @@ const AccountsView = ({ accounts, onAddAccount, onEditAccount, metrics }: { acco
   const [liabilitiesExpanded, setLiabilitiesExpanded] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
-  const assets = accounts.filter(a => a.type === 'asset');
-  const liabilities = accounts.filter(a => a.type === 'liability');
+  const assets = accounts.filter(a => a.type === 'asset').sort((a, b) => ((b as any).isMain ? 1 : 0) - ((a as any).isMain ? 1 : 0));
+  const liabilities = accounts.filter(a => a.type === 'liability').sort((a, b) => ((b as any).isMain ? 1 : 0) - ((a as any).isMain ? 1 : 0));
 
   const totalAssets = assets.reduce((sum, a) => sum + a.balance, 0);
   const totalLiabilities = liabilities.reduce((sum, a) => sum + a.balance, 0);
@@ -1774,6 +1774,7 @@ const AccountsView = ({ accounts, onAddAccount, onEditAccount, metrics }: { acco
   };
 
   const AccountItem = ({ account }: { account: Account }) => {
+    const isMain = (account as any).isMain;
     return (
       <div className="group flex items-center justify-between gap-4 py-4 hover:bg-forest-700/30 -mx-4 px-4 transition-colors rounded-xl">
         <div className="flex items-center gap-4 flex-1">
@@ -1782,7 +1783,10 @@ const AccountsView = ({ accounts, onAddAccount, onEditAccount, metrics }: { acco
             style={{ backgroundImage: `url("${account.logoUrl}")` }}
           ></div>
           <div className="flex flex-col justify-center min-w-0 flex-1">
-            <p className="text-base font-medium text-white truncate">{account.name}</p>
+            <div className="flex items-center gap-2">
+              <p className="text-base font-medium text-white truncate">{account.name}</p>
+              {isMain && <span className="text-xs px-2 py-0.5 rounded-full bg-primary/20 text-primary font-semibold">Main</span>}
+            </div>
             <p className="text-sm text-forest-300 truncate">{account.institution}</p>
             <p className={`text-sm font-normal ${account.syncStatus === 'error' ? 'text-rose-500' : 'text-forest-400'}`}>
               {account.syncStatus === 'error' ? 'Sync error' : formatSyncTime(account.lastSynced)}
@@ -1790,9 +1794,8 @@ const AccountsView = ({ accounts, onAddAccount, onEditAccount, metrics }: { acco
           </div>
         </div>
         <div className="flex items-center gap-3">
-
-          <>
-            <p className="text-base font-semibold text-white">{formatCurrency(account.balance)}</p>
+          <p className="text-base font-semibold text-white">{formatCurrency(account.balance)}</p>
+          {!isMain && (
             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <button
                 onClick={() => onEditAccount(account)}
@@ -1809,8 +1812,7 @@ const AccountsView = ({ accounts, onAddAccount, onEditAccount, metrics }: { acco
                 <Trash2 size={16} />
               </button>
             </div>
-          </>
-
+          )}
         </div>
       </div>
     );
