@@ -986,7 +986,7 @@ app.post('/api/goals/:id/contribute', async (req, res) => {
             );
         }
 
-        // Get user and validate balance
+        // Get user
         const user = await User.findOne({ clerkId: userId });
         if (!user) {
             console.error(`User not found: ${userId}`);
@@ -995,20 +995,23 @@ app.post('/api/goals/:id/contribute', async (req, res) => {
             );
         }
 
+        // Calculate actual balance from accounts
+        const accounts = await Account.find({ userId });
+        const totalAssets = accounts.filter(a => a.type === 'asset').reduce((sum, a) => sum + a.balance, 0);
+        const totalLiabilities = accounts.filter(a => a.type === 'liability').reduce((sum, a) => sum + a.balance, 0);
+        const actualBalance = totalAssets - totalLiabilities;
+
         // Check if user has sufficient balance
-        if (user.totalBalance < amount) {
-            console.error(`Insufficient balance: user has ${user.totalBalance}, requested ${amount}`);
+        if (actualBalance < amount) {
+            console.error(`Insufficient balance: user has ${actualBalance}, requested ${amount}`);
             return res.status(400).json(
                 createErrorResponse('Insufficient balance for this contribution', ERROR_CODES.INSUFFICIENT_BALANCE, {
-                    availableBalance: user.totalBalance,
+                    availableBalance: actualBalance,
                     requestedAmount: amount,
-                    shortfall: amount - user.totalBalance
+                    shortfall: amount - actualBalance
                 })
             );
         }
-
-        // Deduct from user's total balance
-        user.totalBalance -= amount;
 
         // Add to goal's current amount
         goal.currentAmount += amount;
@@ -1065,7 +1068,7 @@ app.post('/api/goals/:id/contribute', async (req, res) => {
             success: true,
             message: 'Contribution successful',
             goal: { ...goalObj, id: goalObj._id.toString() },
-            newBalance: user.totalBalance,
+            newBalance: actualBalance - amount,
             contribution: {
                 amount,
                 date: new Date(),
