@@ -50,7 +50,7 @@ export async function getMainAccount(userId: string) {
 }
 
 /**
- * Syncs main account balance from all transactions, investments, and debt payments
+ * Syncs main account balance using aggregation for performance
  */
 export async function syncMainAccountBalance(userId: string): Promise<void> {
     const { Transaction } = await import('../models/Transaction');
@@ -61,29 +61,37 @@ export async function syncMainAccountBalance(userId: string): Promise<void> {
     
     if (!mainAccount) return;
     
-    // Calculate balance from transactions
-    const transactions = await Transaction.find({ userId });
-    let balance = transactions.reduce((sum, tx) => {
-        return sum + (tx.type === 'income' ? tx.amount : -tx.amount);
-    }, 0);
+    // Aggregate transactions by type
+    const txAgg = await Transaction.aggregate([
+        { $match: { userId } },
+        { $group: { _id: '$type', total: { $sum: '$amount' } } }
+    ]);
     
-    // Deduct investments
-    const investments = await Investment.find({ userId });
-    const totalInvested = investments.reduce((sum, inv) => sum + inv.initialAmount, 0);
-    balance -= totalInvested;
+    const income = txAgg.find(t => t._id === 'income')?.total || 0;
+    const expenses = txAgg.find(t => t._id === 'expense')?.total || 0;
+    let balance = income - expenses;
     
-    // Deduct debt payments
-    const debts = await Debt.find({ userId });
-    const totalPaid = debts.reduce((sum, debt) => {
-        const paidAmount = debt.paymentHistory?.reduce((s: number, p: any) => s + p.amount, 0) || 0;
-        return sum + paidAmount;
-    }, 0);
-    balance -= totalPaid;
+    // Aggregate investments
+    const invAgg = await Investment.aggregate([
+        { $match: { userId } },
+        { $group: { _id: null, total: { $sum: '$initialAmount' } } }
+    ]);
+    balance -= invAgg[0]?.total || 0;
     
-    // Deduct goal contributions
-    const goals = await SavingsGoal.find({ userId });
-    const totalContributed = goals.reduce((sum, goal) => sum + goal.currentAmount, 0);
-    balance -= totalContributed;
+    // Aggregate debt payments
+    const debtAgg = await Debt.aggregate([
+        { $match: { userId } },
+        { $unwind: { path: '$paymentHistory', preserveNullAndEmptyArrays: true } },
+        { $group: { _id: null, total: { $sum: '$paymentHistory.amount' } } }
+    ]);
+    balance -= debtAgg[0]?.total || 0;
+    
+    // Aggregate goal contributions
+    const goalAgg = await SavingsGoal.aggregate([
+        { $match: { userId } },
+        { $group: { _id: null, total: { $sum: '$currentAmount' } } }
+    ]);
+    balance -= goalAgg[0]?.total || 0;
     
     mainAccount.balance = balance;
     await mainAccount.save();
