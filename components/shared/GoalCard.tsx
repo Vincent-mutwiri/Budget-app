@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { formatCurrency } from '../../constants';
 
 interface GoalCardProps {
@@ -8,7 +8,7 @@ interface GoalCardProps {
   colorClass: string;
 }
 
-export const GoalCard: React.FC<GoalCardProps> = ({ title, current, target, colorClass }) => {
+export const GoalCard: React.FC<GoalCardProps> = memo(({ title, current, target, colorClass }) => {
   const percent = Math.min(100, Math.round((current / target) * 100));
   return (
     <div className="bg-forest-800 border border-forest-700 p-6 rounded-3xl">
@@ -24,4 +24,4 @@ export const GoalCard: React.FC<GoalCardProps> = ({ title, current, target, colo
       </div>
     </div>
   );
-};
+});
