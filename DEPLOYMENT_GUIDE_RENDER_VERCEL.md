@@ -127,6 +127,8 @@ This guide outlines the steps to deploy the SmartWallet application using **Rend
 ### Build Fails on Render
 *   **Symptom**: "Command not found" or missing dependencies.
 *   **Fix**: Ensure "Root Directory" is set to `server`. Check that `server/package.json` has all dependencies listed.
+*   **Symptom**: TypeScript errors about vitest modules.
+*   **Fix**: Already fixed - `tsconfig.build.json` excludes test files from production build.
 
 ### Build Fails on Vercel
 *   **Symptom**: Missing modules.
