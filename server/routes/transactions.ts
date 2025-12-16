@@ -72,14 +72,17 @@ router.get('/', async (req, res) => {
 // Add Transaction
 router.post('/', validateTransaction, async (req, res) => {
     try {
-        const { userId, date } = req.body;
+        const { userId, date, specialCategory } = req.body;
 
         if (!userId) {
             return res.status(400).json({ error: 'UserId is required' });
         }
 
         // Create and save the transaction
-        const newTransaction = new Transaction(req.body);
+        const newTransaction = new Transaction({
+            ...req.body,
+            accountType: req.body.specialCategory ? 'main' : 'current'
+        });
         await newTransaction.save();
 
         // Sync balances

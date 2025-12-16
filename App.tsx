@@ -571,30 +571,36 @@ const TransactionsView = ({
             <div className="flex bg-forest-950/50 p-1 rounded-lg border border-forest-700/50">
               <button
                 onClick={() => setViewFilter('day-to-day')}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${viewFilter === 'day-to-day'
-                  ? 'bg-forest-700 text-white shadow-sm'
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${viewFilter === 'day-to-day'
+                  ? 'bg-emerald-500/20 text-emerald-300 shadow-sm border border-emerald-500/30'
                   : 'text-forest-400 hover:text-white'
                   }`}
               >
+                <Calendar size={12} />
                 Day-to-Day
+                {viewFilter === 'day-to-day' && <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full"></div>}
               </button>
               <button
                 onClick={() => setViewFilter('special')}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${viewFilter === 'special'
-                  ? 'bg-indigo-900/50 text-indigo-200 shadow-sm border border-indigo-500/30'
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${viewFilter === 'special'
+                  ? 'bg-purple-500/20 text-purple-300 shadow-sm border border-purple-500/30'
                   : 'text-forest-400 hover:text-white'
                   }`}
               >
+                <Target size={12} />
                 Special
+                {viewFilter === 'special' && <div className="w-1.5 h-1.5 bg-purple-400 rounded-full"></div>}
               </button>
               <button
                 onClick={() => setViewFilter('all')}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${viewFilter === 'all'
-                  ? 'bg-forest-700 text-white shadow-sm'
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${viewFilter === 'all'
+                  ? 'bg-blue-500/20 text-blue-300 shadow-sm border border-blue-500/30'
                   : 'text-forest-400 hover:text-white'
                   }`}
               >
+                <LayoutGrid size={12} />
                 All
+                {viewFilter === 'all' && <div className="w-1.5 h-1.5 bg-blue-400 rounded-full"></div>}
               </button>
             </div>
           </div>

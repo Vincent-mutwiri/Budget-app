@@ -23,6 +23,9 @@ const AccountSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now }
 });
 
+// Indexes for performance
+AccountSchema.index({ userId: 1, accountCategory: 1 });
+
 AccountSchema.set('toJSON', {
     virtuals: true,
     versionKey: false,

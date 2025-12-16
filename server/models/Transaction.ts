@@ -10,10 +10,13 @@ const TransactionSchema = new mongoose.Schema({
     xpAwarded: { type: Number, default: 0 },
 
     // Account Separation Fields
+    // 'current' = Normal daily transactions (groceries, bills, etc.)
+    // 'main' = Big expenses (debt payments, investments, savings goals)
+    // 'special' = Special category transactions (hidden from day-to-day view)
     accountType: {
         type: String,
         enum: ['main', 'current', 'special'],
-        default: 'current'
+        default: 'current' // Default to current account for normal transactions
     },
     specialCategory: {
         type: String,
@@ -32,7 +35,10 @@ const TransactionSchema = new mongoose.Schema({
     updatedAt: { type: Date, default: Date.now }
 });
 
-// Compound index for performance optimization
+// Compound indexes for performance optimization
 TransactionSchema.index({ userId: 1, date: -1 });
+TransactionSchema.index({ userId: 1, accountType: 1, date: -1 });
+TransactionSchema.index({ userId: 1, isVisible: 1, date: -1 });
+TransactionSchema.index({ userId: 1, specialCategory: 1, date: -1 });
 
 export const Transaction = mongoose.model('Transaction', TransactionSchema);

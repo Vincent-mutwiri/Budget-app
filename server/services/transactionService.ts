@@ -2,7 +2,8 @@ import { Transaction } from '../models/Transaction';
 import { Account } from '../models/Account';
 
 /**
- * Creates a special transaction (Debt, Investment, Goal) that is hidden from day-to-day view
+ * Creates a special transaction (Debt, Investment, Goal) that is tagged with 'main' account
+ * These are big expenses that should be tracked separately from daily transactions
  */
 export async function createSpecialTransaction(
     userId: string,
@@ -20,10 +21,10 @@ export async function createSpecialTransaction(
         category: specialCategory === 'debt' ? 'Debt Repayment' :
             specialCategory === 'investment' ? 'Investment' : 'Savings Goal',
         date: new Date(),
-        accountType: 'special',
+        accountType: 'main', // Big expenses go to main account
         specialCategory,
         linkedEntityId,
-        isVisible: false // Hidden from day-to-day
+        isVisible: false // Hidden from day-to-day view
     });
 
     await transaction.save();

@@ -4,20 +4,80 @@ Welcome to SmartWallet! This comprehensive guide will help you make the most of 
 
 ## Table of Contents
 
-1. [Getting Started](#getting-started)
-2. [Budget Management](#budget-management)
-3. [Transaction Management](#transaction-management)
-4. [Savings Goals](#savings-goals)
-5. [Financial Metrics Dashboard](#financial-metrics-dashboard)
-6. [Recurring Transactions](#recurring-transactions)
-7. [Bill Reminders & Notifications](#bill-reminders--notifications)
-8. [Smart Budget Recommendations](#smart-budget-recommendations)
-9. [Financial Insights Dashboard](#financial-insights-dashboard)
-10. [Receipt Scanning](#receipt-scanning)
-11. [Investment Tracking](#investment-tracking)
-12. [Debt Management](#debt-management)
-13. [Gamification & Achievements](#gamification--achievements)
-14. [AI Assistant](#ai-assistant)
+1. [Account Separation System](#account-separation-system)
+2. [Getting Started](#getting-started)
+3. [Budget Management](#budget-management)
+4. [Transaction Management](#transaction-management)
+5. [Savings Goals](#savings-goals)
+6. [Financial Metrics Dashboard](#financial-metrics-dashboard)
+7. [Recurring Transactions](#recurring-transactions)
+8. [Bill Reminders & Notifications](#bill-reminders--notifications)
+9. [Smart Budget Recommendations](#smart-budget-recommendations)
+10. [Financial Insights Dashboard](#financial-insights-dashboard)
+11. [Receipt Scanning](#receipt-scanning)
+12. [Investment Tracking](#investment-tracking)
+13. [Debt Management](#debt-management)
+14. [Gamification & Achievements](#gamification--achievements)
+15. [AI Assistant](#ai-assistant)
+
+## Account Separation System
+
+SmartWallet uses a dual-account system to help you better organize your finances:
+
+### 🏦 Main Account (Long-term Savings & Reserves)
+- **Purpose**: Stores your accumulated savings and reserves from previous months
+- **Contains**: Historical balance, investment returns, debt payments received
+- **Use Cases**: Emergency fund, long-term savings, investment capital
+- **Visual**: Blue theme in the interface
+
+### 💳 Current Account (Monthly Operations)  
+- **Purpose**: Manages your current month's budget and day-to-day transactions
+- **Contains**: This month's income, expenses, and daily transactions
+- **Use Cases**: Monthly budget, regular expenses, income tracking
+- **Visual**: Green theme in the interface
+
+### 🔄 How Transfers Work
+
+**Borrowing from Main Account:**
+1. Click "Transfer to Current" on the Main Account card
+2. Enter the amount you need
+3. Add a description (optional)
+4. Confirm the transfer
+5. Money moves from Main → Current Account
+
+**Repaying to Main Account:**
+1. Click "Repay to Main" on the Current Account card
+2. Enter the repayment amount
+3. Add a description (optional)
+4. Confirm the repayment
+5. Money moves from Current → Main Account
+
+**Month-End Rollover:**
+1. Click "Rollover" on the Current Account card
+2. If you have surplus: Automatically transfers to Main Account
+3. If you have deficit: Borrows from Main Account to reset Current to $0
+4. Prepares Current Account for the new month
+
+### 📊 Transaction Categories
+
+**Day-to-Day Transactions (Visible):**
+- Regular income and expenses
+- Transfers between Main and Current accounts
+- Shows in your main transaction list
+
+**Special Transactions (Hidden from daily view):**
+- Debt payments
+- Investment contributions  
+- Savings goal contributions
+- View these in the "Special Transactions" section
+
+### 💡 Best Practices
+
+1. **Keep Current Account for Monthly Budget**: Use Current Account for your monthly income and expenses
+2. **Use Main Account for Savings**: Let surplus accumulate in Main Account for long-term goals
+3. **Regular Rollovers**: Perform month-end rollovers to maintain clean separation
+4. **Emergency Access**: Borrow from Main Account when Current Account runs low
+5. **Track Special Transactions**: Monitor debt payments and investments separately
 15. [Security & Privacy](#security--privacy)
 16. [Export & Reports](#export--reports)
 17. [Tips & Best Practices](#tips--best-practices)
