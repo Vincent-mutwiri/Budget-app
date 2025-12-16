@@ -191,7 +191,7 @@ const TransactionsView = ({
         await repayToMain(clerkUser.id, amount, description);
       }
 
-      success('Transfer completed successfully!');
+      showSuccess('Transfer completed successfully!');
       setIsTransferModalOpen(false);
 
       // Refresh all data in background
