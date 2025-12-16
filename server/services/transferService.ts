@@ -144,8 +144,9 @@ export async function withdrawFromSpecial(
         }
     }
 
-    // 4. Create Transaction Record - hidden from day-to-day view
-    await createTransferTransaction(userId, 'special', 'current', amount, 'withdraw', description, false);
+    // 4. Create Transaction Record - visible for debt withdrawals, hidden for others
+    const isVisible = entityType === 'debt'; // Make debt withdrawals visible
+    await createTransferTransaction(userId, 'special', 'current', amount, 'withdraw', description, isVisible);
 
     return transfer;
 }
@@ -171,9 +172,15 @@ export async function processSpecialContribution(
     mainAccount.balance -= amount;
     await mainAccount.save();
 
-    // 2. Create Special Transaction (Hidden from daily view)
+    // 2. Create Special Transaction (Visible for debt payments, hidden for others)
     // We use 'expense' because money leaves the Main Account context
-    await createSpecialTransaction(userId, 'expense', amount, type, entityId, description);
+    const transaction = await createSpecialTransaction(userId, 'expense', amount, type, entityId, description);
+    
+    // Make debt payments visible in transaction history
+    if (type === 'debt') {
+        transaction.isVisible = true;
+        await transaction.save();
+    }
 
     // 3. Update the specific entity
     if (type === 'debt') {

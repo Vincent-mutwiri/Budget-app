@@ -117,6 +117,11 @@ export const contributeToGoal = async (id: string, amount: number, userId: strin
     return response.data;
 };
 
+export const withdrawFromGoal = async (id: string, amount: number, userId: string, note?: string) => {
+    const response = await api.post(`/goals/${id}/withdraw`, { amount, userId, note });
+    return response.data;
+};
+
 // Accounts
 export const getAccounts = async (userId: string) => {
     const response = await api.get('/accounts', { params: { userId } });
@@ -378,6 +383,11 @@ export const updateInvestment = async (id: string, investment: any) => {
 
 export const updateInvestmentValue = async (id: string, currentValue: number) => {
     const response = await api.patch(`/investments/${id}/value`, { currentValue });
+    return response.data;
+};
+
+export const withdrawFromInvestment = async (id: string, amount: number, note?: string) => {
+    const response = await api.post(`/investments/${id}/withdraw`, { amount, note });
     return response.data;
 };
 

@@ -749,6 +749,137 @@ app.delete('/api/goals/:id/image', async (req, res) => {
     }
 });
 
+// Withdraw from Goal
+app.post('/api/goals/:id/withdraw', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { userId, amount, note } = req.body;
+
+        if (!userId || amount === undefined) {
+            console.error('Missing userId or amount in withdrawal request');
+            return res.status(400).json(
+                createErrorResponse('User ID and amount are required', ERROR_CODES.MISSING_REQUIRED_FIELD)
+            );
+        }
+
+        // Validate amount is positive
+        if (typeof amount !== 'number' || amount <= 0) {
+            console.error(`Invalid withdrawal amount: ${amount}`);
+            return res.status(400).json(
+                createErrorResponse('Withdrawal amount must be a positive number', ERROR_CODES.INVALID_AMOUNT, { amount })
+            );
+        }
+
+        // Find the goal
+        const goal = await SavingsGoal.findById(id);
+        if (!goal) {
+            console.error(`Goal not found: ${id}`);
+            return res.status(404).json(
+                createErrorResponse('Goal not found', ERROR_CODES.GOAL_NOT_FOUND, { goalId: id })
+            );
+        }
+
+        // Validate user ownership
+        if (goal.userId !== userId) {
+            console.error(`Unauthorized withdrawal attempt: user ${userId} tried to withdraw from goal ${id} owned by ${goal.userId}`);
+            return res.status(403).json(
+                createErrorResponse('You do not have permission to withdraw from this goal', ERROR_CODES.UNAUTHORIZED)
+            );
+        }
+
+        // Check if goal has sufficient funds
+        if (goal.currentAmount < amount) {
+            console.error(`Insufficient funds in goal: has ${goal.currentAmount}, requested ${amount}`);
+            return res.status(400).json(
+                createErrorResponse('Insufficient funds in goal', ERROR_CODES.INSUFFICIENT_BALANCE, {
+                    availableAmount: goal.currentAmount,
+                    requestedAmount: amount,
+                    shortfall: amount - goal.currentAmount
+                })
+            );
+        }
+
+        // Get main account
+        await ensureMainAccount(userId);
+        const mainAccount = await getMainAccount(userId);
+
+        // Deduct from goal's current amount
+        goal.currentAmount -= amount;
+
+        // If goal was completed, change status back to in-progress
+        if (goal.status === 'completed' && goal.currentAmount < goal.targetAmount) {
+            goal.status = 'in-progress';
+        }
+
+        // Update timestamp
+        goal.updatedAt = new Date();
+
+        // Add to main account
+        if (mainAccount) {
+            mainAccount.balance += amount;
+            await mainAccount.save();
+        }
+
+        // Create transaction record for withdrawal
+        const transaction = new Transaction({
+            userId,
+            amount,
+            description: `Withdrawal from ${goal.title}${note ? `: ${note}` : ''}`,
+            category: 'Savings Goal',
+            date: new Date(),
+            type: 'income',
+            accountType: 'main',
+            specialCategory: 'goal',
+            linkedEntityId: id,
+            isVisible: true
+        });
+        await transaction.save();
+
+        // Save goal
+        await goal.save();
+
+        // Invalidate metrics cache
+        invalidateMetricsCache(userId);
+
+        // Create notification for withdrawal
+        try {
+            const notification = new Notification({
+                userId,
+                type: 'info',
+                title: 'Goal Withdrawal',
+                message: `You withdrew ${formatCurrency(amount)} from "${goal.title}"`,
+                priority: 'medium',
+                isRead: false,
+                createdAt: new Date()
+            });
+            await notification.save();
+        } catch (notifError) {
+            console.error('Error creating notification:', notifError);
+            // Continue even if notification fails
+        }
+
+        const goalObj = goal.toObject();
+        res.json({
+            success: true,
+            message: 'Withdrawal successful',
+            goal: { ...goalObj, id: goalObj._id.toString() },
+            newBalance: mainAccount ? mainAccount.balance : 0,
+            withdrawal: {
+                amount,
+                date: new Date(),
+                note: note || ''
+            }
+        });
+
+        console.log(`Withdrawal successful: ${amount} from goal ${id} by user ${userId}`);
+    } catch (error) {
+        console.error('Error withdrawing from goal:', error);
+        res.status(500).json(
+            createErrorResponse('Failed to process withdrawal', ERROR_CODES.SERVER_ERROR)
+        );
+    }
+});
+
 // Contribute to Goal
 app.post('/api/goals/:id/contribute', async (req, res) => {
     try {
@@ -852,6 +983,21 @@ app.post('/api/goals/:id/contribute', async (req, res) => {
             mainAccount.balance -= amount;
             await mainAccount.save();
         }
+
+        // Create transaction record for goal contribution
+        const transaction = new Transaction({
+            userId,
+            amount,
+            description: `Contribution to ${goal.title}`,
+            category: 'Savings Goal',
+            date: new Date(),
+            type: 'expense',
+            accountType: 'main',
+            specialCategory: 'goal',
+            linkedEntityId: id,
+            isVisible: true
+        });
+        await transaction.save();
 
         // Save both user and goal
         await user.save();
@@ -1812,6 +1958,79 @@ app.patch('/api/investments/:id/value', async (req, res) => {
     }
 });
 
+// Withdraw from investment (sell/liquidate)
+app.post('/api/investments/:id/withdraw', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { amount, note } = req.body;
+
+        if (amount === undefined || amount <= 0) {
+            return res.status(400).json({ error: 'Valid withdrawal amount required' });
+        }
+
+        const investment = await Investment.findById(id);
+        if (!investment) {
+            return res.status(404).json({ error: 'Investment not found' });
+        }
+
+        // Check if withdrawal amount is valid
+        if (amount > investment.currentValue) {
+            return res.status(400).json({ 
+                error: 'Withdrawal amount exceeds investment value',
+                availableAmount: investment.currentValue
+            });
+        }
+
+        // Get main account
+        await ensureMainAccount(investment.userId);
+        const mainAccount = await getMainAccount(investment.userId);
+
+        // Update investment value
+        investment.currentValue -= amount;
+        investment.updatedAt = new Date();
+        await investment.save();
+
+        // Add to main account
+        if (mainAccount) {
+            mainAccount.balance += amount;
+            await mainAccount.save();
+        }
+
+        // Create transaction record
+        const transaction = new Transaction({
+            userId: investment.userId,
+            amount,
+            description: `Withdrawal from ${investment.name}${note ? `: ${note}` : ''}`,
+            category: 'Investment',
+            date: new Date(),
+            type: 'income',
+            accountType: 'main',
+            specialCategory: 'investment',
+            linkedEntityId: id,
+            isVisible: true
+        });
+        await transaction.save();
+
+        // Calculate metrics
+        const obj = investment.toObject();
+        const metrics = calculateInvestmentMetrics(obj);
+
+        res.json({
+            success: true,
+            message: 'Withdrawal successful',
+            investment: {
+                ...obj,
+                id: obj._id.toString(),
+                calculatedMetrics: metrics
+            },
+            newBalance: mainAccount ? mainAccount.balance : 0
+        });
+    } catch (error) {
+        console.error('Error withdrawing from investment:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
 // Delete an investment
 app.delete('/api/investments/:id', async (req, res) => {
     console.log('DELETE /api/investments/:id called with id:', req.params.id);
@@ -1994,6 +2213,21 @@ app.post('/api/debts/:id/payment', async (req, res) => {
         debt.updatedAt = new Date();
 
         await debt.save();
+
+        // Create transaction record for debt payment
+        const transaction = new Transaction({
+            userId: debt.userId,
+            amount,
+            description: `Payment to ${debt.name}`,
+            category: 'Debt Payment',
+            date: paymentDate,
+            type: 'expense',
+            accountType: 'main',
+            specialCategory: 'debt',
+            linkedEntityId: id,
+            isVisible: true
+        });
+        await transaction.save();
 
         // Sync main account balance
         await syncMainAccountBalance(debt.userId);

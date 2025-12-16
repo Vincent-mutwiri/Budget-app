@@ -11,7 +11,7 @@ import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from "@clerk/c
 import {
   getTransactions, createTransaction, updateTransaction,
   getBudgets, updateBudget, deleteBudget,
-  getGoals, updateGoal, deleteGoal, uploadGoalImage, removeGoalImage, contributeToGoal,
+  getGoals, updateGoal, deleteGoal, uploadGoalImage, removeGoalImage, contributeToGoal, withdrawFromGoal,
   getAccounts,
   getUser,
   createAccount,
@@ -1625,11 +1625,7 @@ const GoalsView = ({
                 Cancel
               </button>
               <button
-                onClick={() => {
-                  alert('Withdraw functionality will be implemented');
-                  setShowWithdrawModal(null);
-                  setWithdrawAmount('');
-                }}
+                onClick={() => handleWithdraw(showWithdrawModal)}
                 disabled={isProcessing || !withdrawAmount || parseFloat(withdrawAmount) <= 0}
                 className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition-colors disabled:opacity-50"
               >
@@ -3284,7 +3280,8 @@ export default function App() {
 
     // Store original state for rollback
     const originalGoal = savingsGoals.find(g => g.id === goalId);
-    const originalUser = { ...user };
+    const originalAccounts = [...accounts];
+    const originalTransactions = [...transactions];
     if (!originalGoal) return;
 
     // Optimistic update
@@ -3294,22 +3291,28 @@ export default function App() {
     setSavingsGoals(optimisticGoals);
 
     try {
-      const { withdrawFromSpecial } = await import('./services/api');
-      await withdrawFromSpecial(clerkUser.id, 'goal', goalId, amount, 'Withdrawal from goal');
+      const result = await withdrawFromGoal(goalId, amount, clerkUser.id);
+      
+      // Update goal with server response
+      const updatedGoals = savingsGoals.map(g =>
+        g.id === goalId ? result.goal : g
+      );
+      setSavingsGoals(updatedGoals);
+      cache.set(`goals_${clerkUser.id}`, updatedGoals);
 
-      // Refresh data to ensure sync
-      const [updatedGoals, updatedAccounts] = await Promise.all([
-        getGoals(clerkUser.id),
-        getAccounts(clerkUser.id)
+      // Refresh accounts and transactions to show the withdrawal
+      const [updatedAccounts, updatedTransactions] = await Promise.all([
+        getAccounts(clerkUser.id),
+        getTransactions(clerkUser.id)
       ]);
 
-      // Ensure goals have id
-      const goalsWithId = updatedGoals.map((g: any) => ({ ...g, id: g.id || g._id }));
-      setSavingsGoals(goalsWithId);
       setAccounts(updatedAccounts);
-
-      cache.set(`goals_${clerkUser.id}`, updatedGoals);
+      setTransactions(updatedTransactions);
       cache.set(`accounts_${clerkUser.id}`, updatedAccounts);
+      cache.set(`transactions_${clerkUser.id}`, updatedTransactions);
+
+      // Refresh metrics
+      await fetchMetrics();
 
       success(`Withdrew ${formatCurrency(amount)} from goal!`);
     } catch (err: any) {
@@ -3317,7 +3320,8 @@ export default function App() {
       setSavingsGoals(prev => prev.map(g =>
         g.id === goalId ? originalGoal : g
       ));
-      setUser(originalUser);
+      setAccounts(originalAccounts);
+      setTransactions(originalTransactions);
 
       const errorMessage = err?.response?.data?.error || 'Failed to withdraw. Please try again.';
       showError(errorMessage);
