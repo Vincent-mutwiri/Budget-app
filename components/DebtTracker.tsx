@@ -30,18 +30,29 @@ export const DebtTracker: React.FC<DebtTrackerProps> = ({ userId }) => {
     const [isLoading, setIsLoading] = useState(true);
     const [showAddModal, setShowAddModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
-    const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [selectedDebt, setSelectedDebt] = useState<DebtWithMetrics | null>(null);
-    const [paymentAmount, setPaymentAmount] = useState<string>('');
-    const [paymentDate, setPaymentDate] = useState<string>(new Date().toISOString().split('T')[0]);
     const [activeTab, setActiveTab] = useState<'list' | 'charts'>('list');
     const [showWithdrawModal, setShowWithdrawModal] = useState<string | null>(null);
     const [withdrawAmount, setWithdrawAmount] = useState<string>('');
+    const [showContributeModal, setShowContributeModal] = useState<string | null>(null);
+    const [contributeAmount, setContributeAmount] = useState<string>('');
+    const [mainAccountBalance, setMainAccountBalance] = useState<number>(0);
 
     useEffect(() => {
         loadDebts();
         loadSummary();
+        loadMainAccountBalance();
     }, [userId]);
+
+    const loadMainAccountBalance = async () => {
+        try {
+            const { getAccountSummary } = await import('../services/api');
+            const accountSummary = await getAccountSummary(userId);
+            setMainAccountBalance(accountSummary.mainAccount.balance);
+        } catch (error) {
+            console.error('Error loading main account balance:', error);
+        }
+    };
 
     const loadDebts = async () => {
         try {
@@ -103,35 +114,14 @@ export const DebtTracker: React.FC<DebtTrackerProps> = ({ userId }) => {
         }
     };
 
-    const handleRecordPayment = async () => {
-        if (!selectedDebt || !paymentAmount) return;
 
-        try {
-            await recordDebtPayment(selectedDebt.id, parseFloat(paymentAmount), paymentDate);
-            await loadDebts();
-            await loadSummary();
-            setShowPaymentModal(false);
-            setSelectedDebt(null);
-            setPaymentAmount('');
-            setPaymentDate(new Date().toISOString().split('T')[0]);
-        } catch (error) {
-            console.error('Error recording payment:', error);
-        }
-    };
 
     const openEditModal = (debt: DebtWithMetrics) => {
         setSelectedDebt(debt);
         setShowEditModal(true);
     };
 
-    const openPaymentModal = (debtId: string) => {
-        const debt = debts.find(d => d.id === debtId);
-        if (debt) {
-            setSelectedDebt(debt);
-            setPaymentAmount(debt.minimumPayment.toString());
-            setShowPaymentModal(true);
-        }
-    };
+
 
     const handleCalculateAccelerated = async (debtId: string, extraPayment: number) => {
         return await calculateAcceleratedPayoff(debtId, extraPayment);
@@ -222,8 +212,8 @@ export const DebtTracker: React.FC<DebtTrackerProps> = ({ userId }) => {
                     debts={debts}
                     onEdit={openEditModal}
                     onDelete={handleDeleteDebt}
-                    onRecordPayment={openPaymentModal}
                     onWithdraw={(id) => setShowWithdrawModal(id)}
+                    onContribute={(id) => setShowContributeModal(id)}
                 />
             )}
 
@@ -269,6 +259,71 @@ export const DebtTracker: React.FC<DebtTrackerProps> = ({ userId }) => {
                     />
                 )}
             </Modal>
+
+            {/* Contribute Modal */}
+            {showContributeModal && (
+                <Modal
+                    isOpen={!!showContributeModal}
+                    onClose={() => {
+                        setShowContributeModal(null);
+                        setContributeAmount('');
+                    }}
+                    title={`Contribute to ${debts.find(d => d.id === showContributeModal)?.name}`}
+                >
+                    <div className="flex flex-col gap-5">
+                        <div className="bg-emerald-900/20 border border-emerald-700/30 rounded-xl p-4">
+                            <p className="text-emerald-300 text-sm mb-2">
+                                Money will be taken from your Main Account.
+                            </p>
+                            <p className="text-emerald-200 text-sm font-semibold">
+                                Main Account Balance: {formatCurrency(mainAccountBalance)}
+                            </p>
+                        </div>
+
+                        <div>
+                            <label className="block text-forest-300 text-sm font-medium mb-2">
+                                Contribution Amount <span className="text-rose-500">*</span>
+                            </label>
+                            <div className="relative">
+                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-forest-400">$</span>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    value={contributeAmount}
+                                    onChange={(e) => setContributeAmount(e.target.value)}
+                                    placeholder="0.00"
+                                    className="w-full bg-forest-950 border border-forest-700 rounded-xl py-3 pl-8 pr-4 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder-forest-500"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 mt-2">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowContributeModal(null);
+                                    setContributeAmount('');
+                                }}
+                                className="flex-1 bg-forest-800 border border-forest-700 hover:border-forest-600 text-white font-medium py-3 rounded-xl transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    alert('Contribute functionality will be implemented');
+                                    setShowContributeModal(null);
+                                    setContributeAmount('');
+                                }}
+                                disabled={!contributeAmount || parseFloat(contributeAmount) <= 0}
+                                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Contribute
+                            </button>
+                        </div>
+                    </div>
+                </Modal>
+            )}
 
             {/* Withdraw Modal */}
             {showWithdrawModal && (
@@ -332,82 +387,6 @@ export const DebtTracker: React.FC<DebtTrackerProps> = ({ userId }) => {
                 </Modal>
             )}
 
-            {/* Record Payment Modal */}
-            <Modal
-                isOpen={showPaymentModal}
-                onClose={() => {
-                    setShowPaymentModal(false);
-                    setSelectedDebt(null);
-                    setPaymentAmount('');
-                }}
-                title="Record Debt Payment"
-            >
-                {selectedDebt && (
-                    <div className="flex flex-col gap-5">
-                        <div className="bg-forest-900 rounded-xl p-4">
-                            <div className="text-forest-400 text-sm mb-1">Debt</div>
-                            <div className="text-xl font-bold text-white">{selectedDebt.name}</div>
-                            <div className="text-forest-400 text-sm mt-2">
-                                Current Balance: {formatCurrency(selectedDebt.currentBalance)}
-                            </div>
-                        </div>
-
-                        <div>
-                            <label className="block text-forest-300 text-sm font-medium mb-2">
-                                Payment Amount <span className="text-rose-500">*</span>
-                            </label>
-                            <div className="relative">
-                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-forest-400">$</span>
-                                <input
-                                    type="number"
-                                    step="0.01"
-                                    value={paymentAmount}
-                                    onChange={(e) => setPaymentAmount(e.target.value)}
-                                    placeholder="0.00"
-                                    className="w-full bg-forest-950 border border-forest-700 rounded-xl py-3 pl-8 pr-4 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder-forest-500"
-                                />
-                            </div>
-                            <div className="text-xs text-forest-400 mt-1">
-                                Minimum payment: {formatCurrency(selectedDebt.minimumPayment)}
-                            </div>
-                        </div>
-
-                        <div>
-                            <label className="block text-forest-300 text-sm font-medium mb-2">
-                                Payment Date <span className="text-rose-500">*</span>
-                            </label>
-                            <input
-                                type="date"
-                                value={paymentDate}
-                                onChange={(e) => setPaymentDate(e.target.value)}
-                                className="w-full bg-forest-950 border border-forest-700 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary [color-scheme:dark]"
-                            />
-                        </div>
-
-                        <div className="flex gap-3 mt-2">
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setShowPaymentModal(false);
-                                    setSelectedDebt(null);
-                                    setPaymentAmount('');
-                                }}
-                                className="flex-1 bg-forest-800 border border-forest-700 hover:border-forest-600 text-white font-medium py-3 rounded-xl transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleRecordPayment}
-                                disabled={!paymentAmount || parseFloat(paymentAmount) <= 0}
-                                className="flex-1 bg-primary hover:bg-primary/90 text-forest-950 font-bold py-3 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                Record Payment
-                            </button>
-                        </div>
-                    </div>
-                )}
-            </Modal>
         </div>
     );
 };

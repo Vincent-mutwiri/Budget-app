@@ -13,6 +13,7 @@ interface InvestmentListProps {
     onDelete: (id: string) => void;
     onUpdateValue: (id: string, currentValue: number) => void;
     onWithdraw?: (id: string) => void;
+    onContribute?: (id: string) => void;
 }
 
 export const InvestmentList: React.FC<InvestmentListProps> = ({
@@ -20,7 +21,8 @@ export const InvestmentList: React.FC<InvestmentListProps> = ({
     onEdit,
     onDelete,
     onUpdateValue,
-    onWithdraw
+    onWithdraw,
+    onContribute
 }) => {
     const [editingValueId, setEditingValueId] = useState<string | null>(null);
     const [newValue, setNewValue] = useState('');
@@ -204,14 +206,24 @@ export const InvestmentList: React.FC<InvestmentListProps> = ({
                             </div>
 
                             {/* Actions */}
-                            {onWithdraw && (
-                                <div className="mt-4">
-                                    <button
-                                        onClick={() => onWithdraw(investment.id)}
-                                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-xl transition-colors"
-                                    >
-                                        Withdraw
-                                    </button>
+                            {(onContribute || onWithdraw) && (
+                                <div className="mt-4 flex gap-3">
+                                    {onContribute && (
+                                        <button
+                                            onClick={() => onContribute(investment.id)}
+                                            className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2.5 rounded-xl transition-colors"
+                                        >
+                                            Contribute
+                                        </button>
+                                    )}
+                                    {onWithdraw && (
+                                        <button
+                                            onClick={() => onWithdraw(investment.id)}
+                                            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-xl transition-colors"
+                                        >
+                                            Withdraw
+                                        </button>
+                                    )}
                                 </div>
                             )}
 

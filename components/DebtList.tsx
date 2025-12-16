@@ -11,8 +11,8 @@ interface DebtListProps {
     debts: DebtWithMetrics[];
     onEdit: (debt: DebtWithMetrics) => void;
     onDelete: (id: string) => void;
-    onRecordPayment: (id: string) => void;
     onWithdraw?: (id: string) => void;
+    onContribute?: (id: string) => void;
 }
 
 const DEBT_TYPE_LABELS: Record<string, string> = {
@@ -24,7 +24,7 @@ const DEBT_TYPE_LABELS: Record<string, string> = {
     other: 'Other'
 };
 
-export const DebtList: React.FC<DebtListProps> = ({ debts, onEdit, onDelete, onRecordPayment, onWithdraw }) => {
+export const DebtList: React.FC<DebtListProps> = ({ debts, onEdit, onDelete, onWithdraw, onContribute }) => {
     const [expandedDebtId, setExpandedDebtId] = useState<string | null>(null);
 
     const toggleExpand = (debtId: string) => {
@@ -142,17 +142,18 @@ export const DebtList: React.FC<DebtListProps> = ({ debts, onEdit, onDelete, onR
 
                         {/* Action Button */}
                         <div className="flex gap-3">
-                            <button
-                                onClick={() => onRecordPayment(debt.id)}
-                                className="flex-1 flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-forest-950 font-bold py-3 rounded-xl transition-colors"
-                            >
-                                <DollarSign size={18} />
-                                Record Payment
-                            </button>
+                            {onContribute && (
+                                <button
+                                    onClick={() => onContribute(debt.id)}
+                                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-3 rounded-xl transition-colors"
+                                >
+                                    Contribute
+                                </button>
+                            )}
                             {onWithdraw && (
                                 <button
                                     onClick={() => onWithdraw(debt.id)}
-                                    className="px-6 bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-xl transition-colors"
+                                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-xl transition-colors"
                                 >
                                     Withdraw
                                 </button>

@@ -3803,7 +3803,7 @@ export default function App() {
                       onContribute={handleContributeToGoal}
                       onDelete={handleDeleteGoal}
                       onEdit={handleEditGoal}
-                      userBalance={snapshot.balance}
+                      userBalance={accountSummary?.mainAccount?.balance || 0}
                     />
                   </>
                 ) : activeView === 'accounts' ? (

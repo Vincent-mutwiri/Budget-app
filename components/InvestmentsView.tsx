@@ -23,11 +23,25 @@ export const InvestmentsView: React.FC<InvestmentsViewProps> = ({ userId }) => {
     const [editingInvestment, setEditingInvestment] = useState<InvestmentWithMetrics | null>(null);
     const [showWithdrawModal, setShowWithdrawModal] = useState<string | null>(null);
     const [withdrawAmount, setWithdrawAmount] = useState<string>('');
+    const [showContributeModal, setShowContributeModal] = useState<string | null>(null);
+    const [contributeAmount, setContributeAmount] = useState<string>('');
+    const [mainAccountBalance, setMainAccountBalance] = useState<number>(0);
 
     // Load investments
     useEffect(() => {
         loadInvestments();
+        loadMainAccountBalance();
     }, [userId]);
+
+    const loadMainAccountBalance = async () => {
+        try {
+            const { getAccountSummary } = await import('../services/api');
+            const accountSummary = await getAccountSummary(userId);
+            setMainAccountBalance(accountSummary.mainAccount.balance);
+        } catch (error) {
+            console.error('Error loading main account balance:', error);
+        }
+    };
 
     const loadInvestments = async () => {
         try {
@@ -174,7 +188,73 @@ export const InvestmentsView: React.FC<InvestmentsViewProps> = ({ userId }) => {
                 onDelete={handleDeleteInvestment}
                 onUpdateValue={handleUpdateValue}
                 onWithdraw={(id) => setShowWithdrawModal(id)}
+                onContribute={(id) => setShowContributeModal(id)}
             />
+
+            {/* Contribute Modal */}
+            {showContributeModal && (
+                <Modal
+                    isOpen={!!showContributeModal}
+                    onClose={() => {
+                        setShowContributeModal(null);
+                        setContributeAmount('');
+                    }}
+                    title={`Contribute to ${investments.find(i => i.id === showContributeModal)?.name}`}
+                >
+                    <div className="flex flex-col gap-5">
+                        <div className="bg-emerald-900/20 border border-emerald-700/30 rounded-xl p-4">
+                            <p className="text-emerald-300 text-sm mb-2">
+                                Money will be taken from your Main Account.
+                            </p>
+                            <p className="text-emerald-200 text-sm font-semibold">
+                                Main Account Balance: {formatCurrency(mainAccountBalance)}
+                            </p>
+                        </div>
+
+                        <div>
+                            <label className="block text-forest-300 text-sm font-medium mb-2">
+                                Contribution Amount <span className="text-rose-500">*</span>
+                            </label>
+                            <div className="relative">
+                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-forest-400">$</span>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    value={contributeAmount}
+                                    onChange={(e) => setContributeAmount(e.target.value)}
+                                    placeholder="0.00"
+                                    className="w-full bg-forest-950 border border-forest-700 rounded-xl py-3 pl-8 pr-4 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder-forest-500"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 mt-2">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowContributeModal(null);
+                                    setContributeAmount('');
+                                }}
+                                className="flex-1 bg-forest-800 border border-forest-700 hover:border-forest-600 text-white font-medium py-3 rounded-xl transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    alert('Contribute functionality will be implemented');
+                                    setShowContributeModal(null);
+                                    setContributeAmount('');
+                                }}
+                                disabled={!contributeAmount || parseFloat(contributeAmount) <= 0}
+                                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Contribute
+                            </button>
+                        </div>
+                    </div>
+                </Modal>
+            )}
 
             {/* Withdraw Modal */}
             {showWithdrawModal && (
