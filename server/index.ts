@@ -1788,15 +1788,14 @@ app.get('/api/metrics/:userId', async (req, res) => {
         const cacheKey = `${userId}:${targetMonth.getFullYear()}-${targetMonth.getMonth()}`;
 
         // Check cache
-        // const cached = metricsCache.get(cacheKey);
-        // if (cached && Date.now() - cached.timestamp < METRICS_CACHE_TTL) {
-        //     return res.json({
-        //         metrics: cached.data,
-        //         calculatedAt: new Date(cached.timestamp).toISOString(),
-        //         cached: true
-        //     });
-        // }
-        console.log(`Calculating metrics for ${userId} (Cache Disabled)`);
+        const cached = metricsCache.get(cacheKey);
+        if (cached && Date.now() - cached.timestamp < METRICS_CACHE_TTL) {
+            return res.json({
+                metrics: cached.data,
+                calculatedAt: new Date(cached.timestamp).toISOString(),
+                cached: true
+            });
+        }
 
         // Calculate metrics
         const metrics = await calculateFinancialMetrics(userId, targetMonth);

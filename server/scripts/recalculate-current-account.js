@@ -7,7 +7,7 @@ async function recalculateCurrentAccount() {
         console.log('Connected to MongoDB');
 
         const Account = mongoose.model('Account', new mongoose.Schema({}, { strict: false }));
-        const Transaction = mongoose.model('Transaction', new mongoose.Schema({}, { strict: false }));
+        const CurrentTransaction = mongoose.model('CurrentTransaction', new mongoose.Schema({}, { strict: false }));
         const Transfer = mongoose.model('Transfer', new mongoose.Schema({}, { strict: false }));
 
         // Get all users with current accounts (isMain: false)
@@ -18,15 +18,9 @@ async function recalculateCurrentAccount() {
             const userId = account.userId;
             console.log(`Processing user: ${userId}`);
 
-            // 1. Sum current account transactions (excluding transfers)
-            const txAgg = await Transaction.aggregate([
-                {
-                    $match: {
-                        userId,
-                        accountType: 'current',
-                        specialCategory: { $ne: 'transfer' }
-                    }
-                },
+            // 1. Sum current account transactions
+            const txAgg = await CurrentTransaction.aggregate([
+                { $match: { userId } },
                 { $group: { _id: '$type', total: { $sum: '$amount' } } }
             ]);
 
@@ -38,24 +32,8 @@ async function recalculateCurrentAccount() {
             console.log(`  - Expenses: ${expenses}`);
             console.log(`  - Net from transactions: ${balance}`);
 
-            // 2. Add borrows from Main
-            const borrowsIn = await Transfer.aggregate([
-                {
-                    $match: {
-                        userId,
-                        fromAccount: 'main',
-                        toAccount: 'current',
-                        status: 'completed'
-                    }
-                },
-                { $group: { _id: null, total: { $sum: '$amount' } } }
-            ]);
-            const borrowAmount = borrowsIn[0]?.total || 0;
-            balance += borrowAmount;
-            console.log(`  - Borrows from Main: +${borrowAmount}`);
-
-            // 3. Subtract repayments to Main
-            const repaymentsOut = await Transfer.aggregate([
+            // 2. Subtract transfers TO Main (savings)
+            const transfersToMain = await Transfer.aggregate([
                 {
                     $match: {
                         userId,
@@ -66,9 +44,25 @@ async function recalculateCurrentAccount() {
                 },
                 { $group: { _id: null, total: { $sum: '$amount' } } }
             ]);
-            const repayAmount = repaymentsOut[0]?.total || 0;
-            balance -= repayAmount;
-            console.log(`  - Repayments to Main: -${repayAmount}`);
+            const toMainAmount = transfersToMain[0]?.total || 0;
+            balance -= toMainAmount;
+            console.log(`  - Transfers to Main: -${toMainAmount}`);
+
+            // 3. Add transfers FROM Main (when needed)
+            const transfersFromMain = await Transfer.aggregate([
+                {
+                    $match: {
+                        userId,
+                        fromAccount: 'main',
+                        toAccount: 'current',
+                        status: 'completed'
+                    }
+                },
+                { $group: { _id: null, total: { $sum: '$amount' } } }
+            ]);
+            const fromMainAmount = transfersFromMain[0]?.total || 0;
+            balance += fromMainAmount;
+            console.log(`  - Transfers from Main: +${fromMainAmount}`);
 
             // Update account
             const oldBalance = account.balance;

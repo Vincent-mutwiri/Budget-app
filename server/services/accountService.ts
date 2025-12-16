@@ -91,19 +91,33 @@ export async function getMainAccount(userId: string) {
  */
 export async function syncMainAccountBalance(userId: string): Promise<void> {
     const { MainTransaction } = await import('../models/MainTransaction');
+    const { Transfer } = await import('../models/Transfer');
     const mainAccount = await getMainAccount(userId);
 
     if (!mainAccount) return;
 
-    // Sum MainTransactions (Income - Expense)
-    const txAgg = await MainTransaction.aggregate([
-        { $match: { userId } },
-        { $group: { _id: '$type', total: { $sum: '$amount' } } }
+    // Main Account = Savings from Current - Special expenses + Special withdrawals
+    
+    // 1. Transfers FROM Current (savings)
+    const transfersFromCurrent = await Transfer.aggregate([
+        { $match: { userId, fromAccount: 'current', toAccount: 'main', status: 'completed' } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
     ]);
+    let balance = transfersFromCurrent[0]?.total || 0;
 
-    const income = txAgg.find(t => t._id === 'income')?.total || 0;
-    const expenses = txAgg.find(t => t._id === 'expense')?.total || 0;
-    const balance = income - expenses;
+    // 2. Subtract Special expenses
+    const expenses = await MainTransaction.aggregate([
+        { $match: { userId, type: 'expense' } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+    ]);
+    balance -= expenses[0]?.total || 0;
+
+    // 3. Add Special withdrawals
+    const withdrawals = await Transfer.aggregate([
+        { $match: { userId, toAccount: 'main', fromAccount: { $in: ['debt', 'investment', 'goal'] }, status: 'completed' } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+    ]);
+    balance += withdrawals[0]?.total || 0;
 
     mainAccount.balance = balance;
     await mainAccount.save();
@@ -118,7 +132,8 @@ export async function syncCurrentAccountBalance(userId: string): Promise<void> {
 
     if (!currentAccount) return;
 
-    // Sum CurrentTransactions (Income - Expense)
+    // Current Account = Income - Expenses
+    // Transfers are already recorded as income/expenses in CurrentTransaction
     const txAgg = await CurrentTransaction.aggregate([
         { $match: { userId } },
         { $group: { _id: '$type', total: { $sum: '$amount' } } }
