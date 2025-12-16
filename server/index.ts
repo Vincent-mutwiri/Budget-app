@@ -33,6 +33,15 @@ import { startRecurringTransactionScheduler } from './services/recurringTransact
 import { startNotificationEngine } from './services/notificationEngine';
 import { ensureMainAccount, getMainAccount, syncMainAccountBalance } from './services/accountService';
 
+// Currency formatting utility
+const formatCurrency = (amount: number): string => {
+    return new Intl.NumberFormat('en-KE', {
+        style: 'currency',
+        currency: 'KES',
+        minimumFractionDigits: 2
+    }).format(amount);
+};
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
