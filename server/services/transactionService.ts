@@ -40,7 +40,8 @@ export async function createTransferTransaction(
     toAccountType: 'main' | 'current' | 'special',
     amount: number,
     transferType: 'borrow' | 'repay' | 'withdraw' | 'deposit',
-    description: string
+    description: string,
+    isVisible: boolean = true
 ) {
     // Create two transactions: one for outflow, one for inflow? 
     // Or just one representing the movement?
@@ -60,7 +61,7 @@ export async function createTransferTransaction(
             accountType: 'current',
             specialCategory: 'transfer',
             transferType: 'borrow',
-            isVisible: true // Visible in Current Account so user sees money coming in
+            isVisible // Controlled by parameter
         });
         await incomeTx.save();
         return incomeTx;
@@ -79,7 +80,7 @@ export async function createTransferTransaction(
             accountType: 'current',
             specialCategory: 'transfer',
             transferType: 'repay',
-            isVisible: true // Visible in Current Account
+            isVisible // Controlled by parameter
         });
         await expenseTx.save();
         return expenseTx;
@@ -97,7 +98,7 @@ export async function createTransferTransaction(
             accountType: 'current',
             specialCategory: 'transfer',
             transferType: 'withdraw',
-            isVisible: true
+            isVisible // Controlled by parameter
         });
         await incomeTx.save();
         return incomeTx;
@@ -116,7 +117,7 @@ export async function createTransferTransaction(
             accountType: 'current',
             specialCategory: 'transfer',
             transferType: 'deposit', // We might need to add this to enum if not present
-            isVisible: true
+            isVisible // Controlled by parameter
         });
         await expenseTx.save();
         return expenseTx;

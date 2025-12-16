@@ -36,8 +36,8 @@ export async function borrowFromMain(userId: string, amount: number, description
     await mainAccount.save();
     await currentAccount.save();
 
-    // 3. Create Transaction Record (for Current Account history)
-    await createTransferTransaction(userId, 'main', 'current', amount, 'borrow', description);
+    // 3. Create Transaction Record (for Current Account history) - hidden from day-to-day view
+    await createTransferTransaction(userId, 'main', 'current', amount, 'borrow', description, false);
 
     return transfer;
 }
@@ -75,8 +75,8 @@ export async function repayToMain(userId: string, amount: number, description: s
     await currentAccount.save();
     await mainAccount.save();
 
-    // 3. Create Transaction Record
-    await createTransferTransaction(userId, 'current', 'main', amount, 'repay', description);
+    // 3. Create Transaction Record - hidden from day-to-day view
+    await createTransferTransaction(userId, 'current', 'main', amount, 'repay', description, false);
 
     return transfer;
 }
@@ -144,8 +144,8 @@ export async function withdrawFromSpecial(
         }
     }
 
-    // 4. Create Transaction Record
-    await createTransferTransaction(userId, 'special', 'current', amount, 'withdraw', description);
+    // 4. Create Transaction Record - hidden from day-to-day view
+    await createTransferTransaction(userId, 'special', 'current', amount, 'withdraw', description, false);
 
     return transfer;
 }

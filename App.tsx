@@ -132,7 +132,9 @@ const TransactionsView = ({
   onDelete,
   onOpenCategoryManager,
   customCategories,
-  onAddCategory
+  onAddCategory,
+  showSuccess,
+  showError
 }: {
   transactions: Transaction[],
   onAdd: (t: Omit<Transaction, 'id'>) => void,
@@ -140,7 +142,9 @@ const TransactionsView = ({
   onDelete: (id: string) => void,
   onOpenCategoryManager: () => void,
   customCategories: Array<{ name: string; type: 'income' | 'expense' }>,
-  onAddCategory?: (name: string, type: 'income' | 'expense') => Promise<void>
+  onAddCategory?: (name: string, type: 'income' | 'expense') => Promise<void>,
+  showSuccess: (msg: string) => void,
+  showError: (msg: string) => void
 }) => {
   const [type, setType] = useState<TransactionType>('expense');
   const [amount, setAmount] = useState('');
@@ -180,16 +184,28 @@ const TransactionsView = ({
   const handleTransfer = async (amount: number, description: string) => {
     if (!clerkUser) return;
 
-    if (transferType === 'borrow') {
-      await borrowFromMain(clerkUser.id, amount, description);
-    } else {
-      await repayToMain(clerkUser.id, amount, description);
-    }
+    try {
+      if (transferType === 'borrow') {
+        await borrowFromMain(clerkUser.id, amount, description);
+      } else {
+        await repayToMain(clerkUser.id, amount, description);
+      }
 
-    // Refresh data
-    const summary = await getAccountSummary(clerkUser.id);
-    setAccountSummary(summary);
-    // You might want to refresh transactions here too if you pass a refresh function
+      showSuccess('Transfer completed successfully!');
+      setIsTransferModalOpen(false);
+
+      // Refresh all data in background
+      getAccountSummary(clerkUser.id)
+        .then(setAccountSummary)
+        .catch(err => console.error('Failed to refresh account summary:', err));
+      
+      getTransactions(clerkUser.id)
+        .then(txs => setTransactions(txs.map((t: any) => ({ ...t, id: t.id || t._id }))))
+        .catch(err => console.error('Failed to refresh transactions:', err));
+    } catch (error) {
+      console.error('Transfer error:', error);
+      showError('Transfer failed. Please try again.');
+    }
   };
 
   const openTransferModal = (type: 'borrow' | 'repay') => {
@@ -3980,6 +3996,8 @@ export default function App() {
                     onOpenCategoryManager={() => setIsCategoryManagerOpen(true)}
                     customCategories={customCategories}
                     onAddCategory={handleAddCategory}
+                    showSuccess={success}
+                    showError={showError}
                   />
                 ) : activeView === 'recurring' ? (
                   <RecurringTransactionsView
