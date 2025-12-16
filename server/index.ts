@@ -121,9 +121,9 @@ app.get('/health', (req, res) => {
 app.use('/api/upload', uploadRoutes);
 app.use('/api/receipts', receiptRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/transactions', transactionRoutes);
 app.use('/api/accounts', accountRoutes);
 app.use('/api/transfers', transferRoutes);
-app.use('/api/transactions', transactionRoutes);
 
 // Basic CRUD Routes (Examples)
 

@@ -61,6 +61,7 @@ router.get('/summary/:userId', async (req, res) => {
 // Trigger month-end rollover
 router.post('/rollover', async (req, res) => {
     try {
+        const { userId } = req.body;
         if (!userId) return res.status(400).json({ error: 'User ID is required' });
 
         const { performMonthEndRollover } = await import('../services/rolloverService');
