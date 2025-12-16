@@ -65,6 +65,13 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { FinancialMetricsDashboard } from './components/FinancialMetricsDashboard';
 import { DashboardPasswordGate } from './components/DashboardPasswordGate';
 
+import { AccountSummary } from './components/AccountSummary';
+import { TransferModal } from './components/TransferModal';
+import { SpecialTransactionsView } from './components/SpecialTransactionsView';
+import {
+  getAccountSummary, borrowFromMain, repayToMain, getVisibleTransactions, triggerRollover
+} from './services/api';
+
 // --- Components ---
 
 const SidebarItem = ({
@@ -141,11 +148,49 @@ const TransactionsView = ({
   const [categoryFilter, setCategoryFilter] = useState<string>('');
   const [amountFilter, setAmountFilter] = useState<{ min: string, max: string }>({ min: '', max: '' });
   const [showSuggestion, setShowSuggestion] = useState(true);
+  const [viewFilter, setViewFilter] = useState<'day-to-day' | 'special' | 'all'>('day-to-day');
+
+  // ... existing imports ...
+
   const [showReceiptScanner, setShowReceiptScanner] = useState(false);
   const [customCategory, setCustomCategory] = useState('');
   const [retainDate, setRetainDate] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState<{ isOpen: boolean; transaction: Transaction | null }>({ isOpen: false, transaction: null });
+
+  // Account Separation State
+  const [accountSummary, setAccountSummary] = useState<{ mainAccount: any, currentAccount: any } | null>(null);
+  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
+  const [transferType, setTransferType] = useState<'borrow' | 'repay'>('borrow');
+  const [showSpecialTransactions, setShowSpecialTransactions] = useState(false);
+
   const { user: clerkUser } = useUser();
+
+  // Fetch Account Summary
+  useEffect(() => {
+    if (clerkUser) {
+      getAccountSummary(clerkUser.id).then(setAccountSummary).catch(console.error);
+    }
+  }, [clerkUser]);
+
+  const handleTransfer = async (amount: number, description: string) => {
+    if (!clerkUser) return;
+
+    if (transferType === 'borrow') {
+      await borrowFromMain(clerkUser.id, amount, description);
+    } else {
+      await repayToMain(clerkUser.id, amount, description);
+    }
+
+    // Refresh data
+    const summary = await getAccountSummary(clerkUser.id);
+    setAccountSummary(summary);
+    // You might want to refresh transactions here too if you pass a refresh function
+  };
+
+  const openTransferModal = (type: 'borrow' | 'repay') => {
+    setTransferType(type);
+    setIsTransferModalOpen(true);
+  };
 
   const handleEdit = (transaction: Transaction) => {
     setEditingId(transaction.id);
@@ -218,11 +263,87 @@ const TransactionsView = ({
     const matchesCategory = !categoryFilter || t.category === categoryFilter;
     const matchesAmount = (!amountFilter.min || t.amount >= parseFloat(amountFilter.min)) &&
       (!amountFilter.max || t.amount <= parseFloat(amountFilter.max));
-    return matchesSearch && matchesCategory && matchesAmount;
+
+    let matchesView = true;
+    if (viewFilter === 'day-to-day') {
+      matchesView = t.isVisible !== false; // Default to true if undefined
+    } else if (viewFilter === 'special') {
+      matchesView = t.isVisible === false;
+    }
+    // 'all' matches everything
+
+    return matchesSearch && matchesCategory && matchesAmount && matchesView;
   }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  const handleRollover = async () => {
+    if (!clerkUser) return;
+    if (!window.confirm('Are you sure you want to perform the month-end rollover? This will transfer the current balance to the Main Account.')) return;
+
+    try {
+      // Dynamic import to avoid circular dependencies if any, though api is safe
+      const { performRollover } = await import('./services/api'); // We need to add this to api.ts first? 
+      // Wait, api.ts doesn't have performRollover, it has a POST request.
+      // Let's check api.ts again. It has `createAccount` etc.
+      // We need to add `performRollover` to api.ts or use axios directly.
+      // Actually, I should add it to api.ts if it's not there.
+      // Checking api.ts... I added `performMonthEndRollover` to `rolloverService.ts` but need to expose it via api.ts for frontend?
+      // No, frontend calls API. Backend calls service.
+      // I need to add `triggerRollover` to `services/api.ts`.
+
+      // Let's assume I'll add it.
+      await triggerRollover(clerkUser.id);
+
+      // Refresh data
+      const summary = await getAccountSummary(clerkUser.id);
+      setAccountSummary(summary);
+      alert('Rollover complete!');
+    } catch (error) {
+      console.error('Rollover failed:', error);
+      alert('Rollover failed. See console for details.');
+    }
+  };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Account Summary Section */}
+      <div className="lg:col-span-3">
+        {accountSummary && (
+          <AccountSummary
+            mainBalance={accountSummary.mainAccount.balance}
+            currentBalance={accountSummary.currentAccount.balance}
+            onBorrow={() => openTransferModal('borrow')}
+            onRepay={() => openTransferModal('repay')}
+            onRollover={handleRollover}
+          />
+        )}
+
+        <div className="flex justify-end mb-4">
+          <button
+            onClick={() => setShowSpecialTransactions(!showSpecialTransactions)}
+            className="text-sm text-forest-300 hover:text-white underline"
+          >
+            {showSpecialTransactions ? 'Hide Special Transactions' : 'View Special Transactions & History'}
+          </button>
+        </div>
+
+        {showSpecialTransactions && clerkUser && (
+          <div className="mb-6">
+            <SpecialTransactionsView userId={clerkUser.id} />
+          </div>
+        )}
+      </div>
+
+      {/* Transfer Modal */}
+      {accountSummary && (
+        <TransferModal
+          isOpen={isTransferModalOpen}
+          onClose={() => setIsTransferModalOpen(false)}
+          type={transferType}
+          maxAmount={transferType === 'borrow' ? accountSummary.mainAccount.balance : accountSummary.currentAccount.balance}
+          onConfirm={handleTransfer}
+        />
+      )}
+
       {/* Left Column: Add Transaction */}
       <div className="lg:col-span-1 flex flex-col gap-6">
         <div className="bg-forest-800 border border-forest-700 rounded-3xl p-6">
@@ -445,7 +566,38 @@ const TransactionsView = ({
       {/* Right Column: Transaction History */}
       <div className="lg:col-span-2 bg-forest-800 border border-forest-700 rounded-3xl p-6 flex flex-col max-h-[800px]">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 shrink-0">
-          <h2 className="text-xl font-bold text-white">Transaction History</h2>
+          <div className="flex items-center gap-4">
+            <h2 className="text-xl font-bold text-white">Transaction History</h2>
+            <div className="flex bg-forest-950/50 p-1 rounded-lg border border-forest-700/50">
+              <button
+                onClick={() => setViewFilter('day-to-day')}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${viewFilter === 'day-to-day'
+                  ? 'bg-forest-700 text-white shadow-sm'
+                  : 'text-forest-400 hover:text-white'
+                  }`}
+              >
+                Day-to-Day
+              </button>
+              <button
+                onClick={() => setViewFilter('special')}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${viewFilter === 'special'
+                  ? 'bg-indigo-900/50 text-indigo-200 shadow-sm border border-indigo-500/30'
+                  : 'text-forest-400 hover:text-white'
+                  }`}
+              >
+                Special
+              </button>
+              <button
+                onClick={() => setViewFilter('all')}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${viewFilter === 'all'
+                  ? 'bg-forest-700 text-white shadow-sm'
+                  : 'text-forest-400 hover:text-white'
+                  }`}
+              >
+                All
+              </button>
+            </div>
+          </div>
 
           <div className="flex gap-3">
             <div className="relative">
@@ -487,6 +639,16 @@ const TransactionsView = ({
                     <span className="px-2.5 py-1 rounded-full bg-forest-900 border border-forest-700 text-forest-300 text-xs font-medium">
                       {t.category}
                     </span>
+                    {t.accountType === 'main' && (
+                      <span className="ml-2 px-2 py-0.5 rounded-full bg-blue-900/50 border border-blue-700/50 text-blue-300 text-[10px] font-medium uppercase tracking-wide">
+                        Main
+                      </span>
+                    )}
+                    {t.accountType === 'special' && (
+                      <span className="ml-2 px-2 py-0.5 rounded-full bg-purple-900/50 border border-purple-700/50 text-purple-300 text-[10px] font-medium uppercase tracking-wide">
+                        {t.specialCategory || 'Special'}
+                      </span>
+                    )}
                   </td>
                   <td className={`py-4 text-right font-medium text-sm ${t.type === 'income' ? 'text-primary' : 'text-rose-400'}`}>
                     {t.type === 'expense' ? '-' : '+'}{formatCurrency(t.amount)}

@@ -10,6 +10,16 @@ const AccountSchema = new mongoose.Schema({
     logoUrl: { type: String },
     lastSynced: { type: Date, default: Date.now },
     syncStatus: { type: String, enum: ['success', 'error'], default: 'success' },
+
+    // Account Separation Fields
+    accountCategory: {
+        type: String,
+        enum: ['main', 'current'],
+        default: 'main' // Default existing accounts to main, migration script will handle splitting
+    },
+    monthlyBudget: { type: Number, default: 0 }, // For current account
+    lastRolloverDate: { type: Date },
+
     createdAt: { type: Date, default: Date.now }
 });
 

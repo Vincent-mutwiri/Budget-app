@@ -7,7 +7,7 @@ import { User } from '../models/User';
 export async function ensureMainAccount(userId: string): Promise<string> {
     // Check if user has a main account
     let mainAccount = await Account.findOne({ userId, isMain: true });
-    
+
     if (!mainAccount) {
         // Always create a new separate main account
         mainAccount = new Account({
@@ -16,19 +16,56 @@ export async function ensureMainAccount(userId: string): Promise<string> {
             type: 'asset',
             balance: 0,
             isMain: true,
+            accountCategory: 'main', // Explicitly set category
             institution: 'SmartWallet',
             logoUrl: 'https://via.placeholder.com/48'
         });
         await mainAccount.save();
-        
+
         // Update user reference
         await User.updateOne(
             { clerkId: userId },
             { $set: { mainAccountId: mainAccount._id.toString() } }
         );
+    } else if (!mainAccount.accountCategory) {
+        // Migration: Ensure existing main account has category
+        mainAccount.accountCategory = 'main';
+        await mainAccount.save();
     }
-    
+
     return mainAccount._id.toString();
+}
+
+/**
+ * Ensures a user has a current account, creates one if none exists
+ */
+export async function ensureCurrentAccount(userId: string): Promise<string> {
+    // Check if user has a current account
+    let currentAccount = await Account.findOne({ userId, accountCategory: 'current' });
+
+    if (!currentAccount) {
+        currentAccount = new Account({
+            userId,
+            name: 'Current Account',
+            type: 'asset',
+            balance: 0,
+            isMain: false,
+            accountCategory: 'current',
+            institution: 'SmartWallet',
+            logoUrl: 'https://via.placeholder.com/48',
+            monthlyBudget: 0
+        });
+        await currentAccount.save();
+    }
+
+    return currentAccount._id.toString();
+}
+
+/**
+ * Gets the current account for a user
+ */
+export async function getCurrentAccount(userId: string) {
+    return await Account.findOne({ userId, accountCategory: 'current' });
 }
 
 /**
@@ -50,49 +87,64 @@ export async function getMainAccount(userId: string) {
 }
 
 /**
- * Syncs main account balance using aggregation for performance
+ * Syncs main account balance by aggregating 'main' transactions and transfers
  */
 export async function syncMainAccountBalance(userId: string): Promise<void> {
     const { Transaction } = await import('../models/Transaction');
-    const { Investment } = await import('../models/Investment');
-    const { Debt } = await import('../models/Debt');
-    const { SavingsGoal } = await import('../models/SavingsGoal');
+    const { Transfer } = await import('../models/Transfer');
     const mainAccount = await getMainAccount(userId);
-    
+
     if (!mainAccount) return;
-    
-    // Aggregate transactions by type
+
+    // 1. Sum 'main' transactions (Income - Expense)
     const txAgg = await Transaction.aggregate([
-        { $match: { userId } },
+        { $match: { userId, accountType: 'main' } },
         { $group: { _id: '$type', total: { $sum: '$amount' } } }
     ]);
-    
+
     const income = txAgg.find(t => t._id === 'income')?.total || 0;
     const expenses = txAgg.find(t => t._id === 'expense')?.total || 0;
     let balance = income - expenses;
-    
-    // Aggregate investments
-    const invAgg = await Investment.aggregate([
-        { $match: { userId } },
-        { $group: { _id: null, total: { $sum: '$initialAmount' } } }
+
+    // 2. Add Transfers TO Main (Repayments, Surplus Rollovers)
+    const transfersIn = await Transfer.aggregate([
+        { $match: { userId, toAccount: 'main', status: 'completed' } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
     ]);
-    balance -= invAgg[0]?.total || 0;
-    
-    // Aggregate debt payments
-    const debtAgg = await Debt.aggregate([
-        { $match: { userId } },
-        { $unwind: { path: '$paymentHistory', preserveNullAndEmptyArrays: true } },
-        { $group: { _id: null, total: { $sum: '$paymentHistory.amount' } } }
+    balance += transfersIn[0]?.total || 0;
+
+    // 3. Subtract Transfers FROM Main (Loans to Current)
+    const transfersOut = await Transfer.aggregate([
+        { $match: { userId, fromAccount: 'main', status: 'completed' } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
     ]);
-    balance -= debtAgg[0]?.total || 0;
-    
-    // Aggregate goal contributions
-    const goalAgg = await SavingsGoal.aggregate([
-        { $match: { userId } },
-        { $group: { _id: null, total: { $sum: '$currentAmount' } } }
-    ]);
-    balance -= goalAgg[0]?.total || 0;
-    
+    balance -= transfersOut[0]?.total || 0;
+
     mainAccount.balance = balance;
     await mainAccount.save();
+}
+
+/**
+ * Syncs current account balance by aggregating 'current' transactions
+ * (Transfers to/from Current are already recorded as 'current' transactions)
+ */
+export async function syncCurrentAccountBalance(userId: string): Promise<void> {
+    const { Transaction } = await import('../models/Transaction');
+    const currentAccount = await getCurrentAccount(userId);
+
+    if (!currentAccount) return;
+
+    // Sum 'current' transactions (Income - Expense)
+    const txAgg = await Transaction.aggregate([
+        { $match: { userId, accountType: 'current' } },
+        { $group: { _id: '$type', total: { $sum: '$amount' } } }
+    ]);
+
+    const income = txAgg.find(t => t._id === 'income')?.total || 0;
+    const expenses = txAgg.find(t => t._id === 'expense')?.total || 0;
+
+    // Current Account Balance = Income - Expenses
+    // (Includes transfers because they are recorded as transactions)
+    currentAccount.balance = income - expenses;
+    await currentAccount.save();
 }

@@ -123,6 +123,21 @@ export const getAccounts = async (userId: string) => {
     return response.data;
 };
 
+export const getMainAccount = async (userId: string) => {
+    const response = await api.get(`/accounts/main/${userId}`);
+    return response.data;
+};
+
+export const getCurrentAccount = async (userId: string) => {
+    const response = await api.get(`/accounts/current/${userId}`);
+    return response.data;
+};
+
+export const getAccountSummary = async (userId: string) => {
+    const response = await api.get(`/accounts/summary/${userId}`);
+    return response.data;
+};
+
 export const createAccount = async (account: any) => {
     const response = await api.post('/accounts', account);
     return response.data;
@@ -135,6 +150,48 @@ export const updateAccount = async (id: string, account: any) => {
 
 export const setMainAccount = async (id: string, userId: string) => {
     const response = await api.patch(`/accounts/${id}/set-main`, { userId });
+    return response.data;
+};
+
+export const triggerRollover = async (userId: string) => {
+    const response = await api.post('/accounts/rollover', { userId });
+    return response.data;
+};
+
+// Transfers
+export const borrowFromMain = async (userId: string, amount: number, description: string) => {
+    const response = await api.post('/transfers/borrow', { userId, amount, description });
+    return response.data;
+};
+
+export const repayToMain = async (userId: string, amount: number, description: string) => {
+    const response = await api.post('/transfers/repay', { userId, amount, description });
+    return response.data;
+};
+
+export const withdrawFromSpecial = async (userId: string, entityType: string, entityId: string, amount: number, description: string) => {
+    const response = await api.post('/transfers/withdraw', { userId, entityType, entityId, amount, description });
+    return response.data;
+};
+
+export const getTransferHistory = async (userId: string) => {
+    const response = await api.get(`/transfers/${userId}`);
+    return response.data;
+};
+
+// Special Transactions
+export const getVisibleTransactions = async (userId: string, limit: number = 50) => {
+    const response = await api.get(`/transactions/visible/${userId}`, { params: { limit } });
+    return response.data.map((t: any) => ({ ...t, id: t._id }));
+};
+
+export const getSpecialTransactions = async (userId: string, category: 'debt' | 'investment' | 'goal') => {
+    const response = await api.get(`/transactions/special/${userId}`, { params: { category } });
+    return response.data.map((t: any) => ({ ...t, id: t._id }));
+};
+
+export const createSpecialTransaction = async (data: any) => {
+    const response = await api.post('/transactions/special', data);
     return response.data;
 };
 

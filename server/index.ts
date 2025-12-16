@@ -11,6 +11,9 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 import uploadRoutes from './routes/upload';
 import receiptRoutes from './routes/receipts';
 import aiRoutes from './routes/ai';
+import accountRoutes from './routes/accounts';
+import transferRoutes from './routes/transfers';
+import transactionRoutes from './routes/transactions';
 import { validateImageType } from './services/imageService';
 import { User } from './models/User';
 import { Transaction } from './models/Transaction';
@@ -118,6 +121,9 @@ app.get('/health', (req, res) => {
 app.use('/api/upload', uploadRoutes);
 app.use('/api/receipts', receiptRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/accounts', accountRoutes);
+app.use('/api/transfers', transferRoutes);
+app.use('/api/transactions', transactionRoutes);
 
 // Basic CRUD Routes (Examples)
 
@@ -136,12 +142,12 @@ app.get('/api/user/:clerkId', async (req, res) => {
                 customCategories: []
             });
             await newUser.save();
-            
+
             // Create default main account
             const mainAccountId = await ensureMainAccount(req.params.clerkId);
             newUser.mainAccountId = mainAccountId;
             await newUser.save();
-            
+
             return res.json(newUser);
         }
 
@@ -253,297 +259,7 @@ function invalidateMetricsCache(userId: string): void {
     keysToDelete.forEach(key => metricsCache.delete(key));
 }
 
-// Get Transactions
-app.get('/api/transactions', async (req, res) => {
-    const { userId } = req.query;
-    if (!userId) return res.status(400).json({ error: 'UserId required' });
-
-    try {
-        const transactions = await Transaction.find({ userId }).sort({ date: -1 });
-        res.json(transactions);
-    } catch (error) {
-        res.status(500).json({ error: 'Server error' });
-    }
-});
-
-// Add Transaction
-app.post('/api/transactions', validateTransaction, async (req, res) => {
-    try {
-        const { userId, date } = req.body;
-
-        if (!userId) {
-            console.error('Missing userId in transaction creation');
-            return res.status(400).json({ error: 'UserId is required' });
-        }
-
-        // Create and save the transaction
-        const newTransaction = new Transaction(req.body);
-        await newTransaction.save();
-        console.log('Transaction saved:', newTransaction._id);
-        
-        // Sync main account balance
-        await syncMainAccountBalance(userId);
-
-        // Calculate same-day XP bonus and update user
-        // We wrap this in a try-catch so that if XP calculation fails (e.g. due to user data corruption),
-        // we still return the successful transaction to the client.
-        try {
-            // Get user for streak and XP calculation
-            let user;
-            try {
-                // Try to fetch user normally
-                user = await User.findOne({ clerkId: userId });
-            } catch (err) {
-                console.log(`Error fetching user ${userId} in transaction creation, attempting repair:`, err);
-                // If fetch fails (likely validation error), try to repair
-                await User.updateOne(
-                    { clerkId: userId },
-                    { $set: { customCategories: [] } }
-                );
-                // Try fetching again
-                user = await User.findOne({ clerkId: userId });
-            }
-
-            // Additional check for corruption even if fetch succeeded
-            if (user && (!Array.isArray(user.customCategories) || typeof user.customCategories === 'string')) {
-                console.log(`Found corrupted customCategories for user ${userId} after fetch, repairing...`);
-                await User.updateOne(
-                    { clerkId: userId },
-                    { $set: { customCategories: [] } }
-                );
-            }
-
-            // Use the centralized gamification engine to award XP
-            // This handles streaks, badges, notifications, and level updates
-            const xpReward = await awardTransactionXP(userId, new Date(date));
-
-            // Store XP awarded in transaction
-            newTransaction.xpAwarded = xpReward.totalXP;
-            await newTransaction.save();
-
-            // Invalidate metrics cache since transaction affects financial metrics
-            try {
-                invalidateMetricsCache(userId);
-                console.log(`Metrics cache invalidated for user ${userId}`);
-            } catch (cacheError) {
-                console.error('Cache invalidation error:', cacheError);
-            }
-
-            // Return transaction with XP reward details
-            const txObj = newTransaction.toObject();
-            return res.status(201).json({
-                transaction: { ...txObj, id: txObj._id.toString() },
-                xpReward: xpReward
-            });
-
-        } catch (xpError) {
-            console.error('Error calculating XP or updating user:', xpError);
-            // Return success for the transaction even if XP failed
-            const txObj = newTransaction.toObject();
-            return res.status(201).json({
-                transaction: { ...txObj, id: txObj._id.toString() },
-                xpReward: null
-            });
-        }
-    } catch (error) {
-        console.error('Error adding transaction:', error);
-        if (error instanceof Error) {
-            console.error('Error details:', error.message, error.stack);
-        }
-        return res.status(500).json({
-            error: 'Server error',
-            details: error instanceof Error ? error.message : 'Unknown error'
-        });
-    }
-});
-
-// Update Transaction
-app.put('/api/transactions/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { userId, amount, category, date, description, type } = req.body;
-
-        // Find the transaction
-        const transaction = await Transaction.findById(id);
-        if (!transaction) {
-            console.error(`Transaction not found: ${id}`);
-            return res.status(404).json(
-                createErrorResponse('Transaction not found', ERROR_CODES.TRANSACTION_NOT_FOUND, { transactionId: id })
-            );
-        }
-
-        // Validate user ownership
-        if (userId && transaction.userId !== userId) {
-            console.error(`Unauthorized transaction update attempt: user ${userId} tried to update transaction ${id} owned by ${transaction.userId}`);
-            return res.status(403).json(
-                createErrorResponse('You do not have permission to update this transaction', ERROR_CODES.UNAUTHORIZED)
-            );
-        }
-
-        // Store original values for balance calculation
-        const originalAmount = transaction.amount;
-        const originalType = transaction.type;
-        
-        // Update fields if provided
-        if (amount !== undefined) transaction.amount = amount;
-        if (category !== undefined) transaction.category = category;
-        if (date !== undefined) transaction.date = new Date(date);
-        if (description !== undefined) transaction.description = description;
-        if (type !== undefined) transaction.type = type;
-
-        // Update timestamp
-        transaction.updatedAt = new Date();
-
-        await transaction.save();
-        
-        // Sync main account balance
-        await syncMainAccountBalance(userId);
-
-        // Update related budgets if it's an expense
-        // Note: This is a simplified update. Ideally, we should handle the difference if amount changed.
-        // For now, we'll just invalidate the cache and let the next fetch recalculate.
-        // A more robust implementation would adjust the budget spent amount based on the difference.
-
-        // Invalidate metrics cache since transaction update affects financial metrics
-        if (userId) {
-            invalidateMetricsCache(userId);
-        }
-
-        console.log(`Transaction updated successfully: ${id}`);
-
-        const txObj = transaction.toObject();
-        res.json({ ...txObj, id: txObj._id.toString() });
-    } catch (error) {
-        console.error('Error updating transaction:', error);
-        res.status(500).json(
-            createErrorResponse('Failed to update transaction', ERROR_CODES.SERVER_ERROR)
-        );
-    }
-});
-
-// Delete Transaction
-app.delete('/api/transactions/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { userId } = req.query;
-
-        if (!userId) {
-            console.error('Missing userId in transaction deletion request');
-            return res.status(400).json(
-                createErrorResponse('User ID is required', ERROR_CODES.MISSING_REQUIRED_FIELD)
-            );
-        }
-
-        // Find the transaction by unique ID
-        const transaction = await Transaction.findById(id);
-
-        if (!transaction) {
-            console.error(`Transaction not found: ${id}`);
-            return res.status(404).json(
-                createErrorResponse('Transaction not found', ERROR_CODES.TRANSACTION_NOT_FOUND, { transactionId: id })
-            );
-        }
-
-        // Validate user ownership
-        if (transaction.userId !== userId) {
-            console.error(`Unauthorized transaction deletion attempt: user ${userId} tried to delete transaction ${id} owned by ${transaction.userId}`);
-            return res.status(403).json(
-                createErrorResponse('You do not have permission to delete this transaction', ERROR_CODES.UNAUTHORIZED)
-            );
-        }
-
-        // Deduct XP if it was awarded
-        if (transaction.xpAwarded && transaction.xpAwarded > 0) {
-            try {
-                const user = await User.findOne({ clerkId: userId });
-                if (user) {
-                    const { calculateLevel } = await import('./services/gamificationEngine');
-
-                    // Deduct XP but ensure it doesn't go below 0
-                    user.xp = Math.max(0, (user.xp || 0) - transaction.xpAwarded);
-
-                    // Recalculate level
-                    const oldLevel = user.level || 1;
-                    user.level = calculateLevel(user.xp);
-
-                    await user.save();
-
-                    console.log(`Deducted ${transaction.xpAwarded} XP from user ${userId}. New XP: ${user.xp}, Level: ${user.level}`);
-                }
-            } catch (xpError) {
-                console.error('Error deducting XP during transaction deletion:', xpError);
-                // Continue with deletion even if XP deduction fails
-            }
-        }
-
-        // Delete the transaction
-        await Transaction.findByIdAndDelete(id);
-        
-        // Sync main account balance
-        await syncMainAccountBalance(userId as string);
-
-        // Update related budgets if it's an expense
-        if (transaction.type === 'expense') {
-            const budget = await Budget.findOne({
-                userId: transaction.userId,
-                category: transaction.category
-            });
-
-            if (budget) {
-                budget.spent = Math.max(0, budget.spent - transaction.amount);
-                budget.updatedAt = new Date();
-                await budget.save();
-            }
-        }
-
-        // Calculate updated metrics
-        const currentMonth = new Date();
-        currentMonth.setDate(1);
-        currentMonth.setHours(0, 0, 0, 0);
-
-        const nextMonth = new Date(currentMonth);
-        nextMonth.setMonth(nextMonth.getMonth() + 1);
-
-        // Get current month transactions
-        const transactions = await Transaction.find({
-            userId: userId as string,
-            date: { $gte: currentMonth, $lt: nextMonth }
-        });
-
-        // Calculate monthly spending
-        const monthlySpending = transactions
-            .filter(t => t.type === 'expense')
-            .reduce((sum, t) => sum + t.amount, 0);
-
-        // Calculate total income
-        const totalIncome = transactions
-            .filter(t => t.type === 'income')
-            .reduce((sum, t) => sum + t.amount, 0);
-
-        // Get all budgets for remaining budget calculation
-        const budgets = await Budget.find({ userId: userId as string });
-
-        // Invalidate metrics cache since transaction deletion affects financial metrics
-        invalidateMetricsCache(userId as string);
-
-        console.log(`Transaction deleted successfully: ${id}`);
-
-        res.json({
-            success: true,
-            message: 'Transaction deleted successfully',
-            updatedMetrics: {
-                budgets: budgets,
-                monthlySpending,
-                totalIncome
-            }
-        });
-    } catch (error) {
-        console.error('Error deleting transaction:', error);
-        res.status(500).json(
-            createErrorResponse('Failed to delete transaction', ERROR_CODES.SERVER_ERROR)
-        );
-    }
-});
+// Transaction routes moved to server/routes/transactions.ts
 
 // Get Budgets
 app.get('/api/budgets', async (req, res) => {
@@ -1063,7 +779,7 @@ app.post('/api/goals/:id/contribute', async (req, res) => {
             mainAccount.balance -= amount;
             await mainAccount.save();
         }
-        
+
         // Save both user and goal
         await user.save();
         await goal.save();
@@ -1134,31 +850,31 @@ app.get('/api/accounts', async (req, res) => {
 app.post('/api/accounts', async (req, res) => {
     try {
         const { userId, isMain, balance } = req.body;
-        
+
         // If this is marked as main account or no main account exists, set as main
         const user = await User.findOne({ clerkId: userId });
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
         }
-        
+
         const existingMainAccount = await getMainAccount(userId);
         const shouldBeMain = isMain || !existingMainAccount;
-        
+
         // If setting as main, unset previous main account
         if (shouldBeMain && existingMainAccount) {
             existingMainAccount.isMain = false;
             await existingMainAccount.save();
         }
-        
+
         const newAccount = new Account({ ...req.body, isMain: shouldBeMain });
         await newAccount.save();
-        
+
         // Update user's main account reference
         if (shouldBeMain) {
             user.mainAccountId = newAccount._id.toString();
             await user.save();
         }
-        
+
         // If adding money to non-main account, transfer to main account
         if (!shouldBeMain && balance > 0 && existingMainAccount) {
             existingMainAccount.balance += balance;
@@ -1166,7 +882,7 @@ app.post('/api/accounts', async (req, res) => {
             newAccount.balance = 0;
             await newAccount.save();
         }
-        
+
         res.status(201).json(newAccount);
     } catch (error) {
         res.status(500).json({ error: 'Server error' });
@@ -1178,14 +894,14 @@ app.put('/api/accounts/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const { isMain, balance } = req.body;
-        
+
         const account = await Account.findById(id);
         if (!account) {
             return res.status(404).json({ error: 'Account not found' });
         }
-        
+
         const oldBalance = account.balance;
-        
+
         // Handle main account designation
         if (isMain && !account.isMain) {
             // Unset previous main account
@@ -1193,18 +909,18 @@ app.put('/api/accounts/:id', async (req, res) => {
                 { userId: account.userId, isMain: true },
                 { $set: { isMain: false } }
             );
-            
+
             // Update user's main account reference
             await User.updateOne(
                 { clerkId: account.userId },
                 { $set: { mainAccountId: id } }
             );
         }
-        
+
         // Update account
         Object.assign(account, req.body);
         await account.save();
-        
+
         // Handle balance changes for non-main accounts
         if (!account.isMain && balance !== undefined && balance !== oldBalance) {
             const mainAccount = await getMainAccount(account.userId);
@@ -1216,7 +932,7 @@ app.put('/api/accounts/:id', async (req, res) => {
                 await account.save();
             }
         }
-        
+
         res.json(account);
     } catch (error) {
         res.status(500).json({ error: 'Server error' });
@@ -1228,32 +944,32 @@ app.patch('/api/accounts/:id/set-main', async (req, res) => {
     try {
         const { id } = req.params;
         const { userId } = req.body;
-        
+
         if (!userId) {
             return res.status(400).json({ error: 'UserId required' });
         }
-        
+
         const account = await Account.findById(id);
         if (!account || account.userId !== userId) {
             return res.status(404).json({ error: 'Account not found' });
         }
-        
+
         // Unset previous main account
         await Account.updateMany(
             { userId, isMain: true },
             { $set: { isMain: false } }
         );
-        
+
         // Set new main account
         account.isMain = true;
         await account.save();
-        
+
         // Update user reference
         await User.updateOne(
             { clerkId: userId },
             { $set: { mainAccountId: id } }
         );
-        
+
         res.json({ success: true, message: 'Main account updated' });
     } catch (error) {
         res.status(500).json({ error: 'Server error' });
@@ -1929,7 +1645,7 @@ app.post('/api/investments', async (req, res) => {
         });
 
         await newInvestment.save();
-        
+
         // Sync main account balance
         await syncMainAccountBalance(userId);
 
@@ -2205,7 +1921,7 @@ app.post('/api/debts/:id/payment', async (req, res) => {
         debt.updatedAt = new Date();
 
         await debt.save();
-        
+
         // Sync main account balance
         await syncMainAccountBalance(debt.userId);
 
