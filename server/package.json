@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:integration": "vitest run tests/integration",
-    "migrate:account-separation": "ts-node scripts/migrateToAccountSeparation.ts"
+    "migrate:account-separation": "ts-node scripts/migrateToAccountSeparation.ts",
+    "optimize:account-separation": "ts-node scripts/optimizeAccountSeparation.ts"
   },
   "keywords": [],
   "author": "",

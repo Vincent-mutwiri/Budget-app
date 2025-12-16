@@ -149,6 +149,7 @@ const TransactionsView = ({
   const [amountFilter, setAmountFilter] = useState<{ min: string, max: string }>({ min: '', max: '' });
   const [showSuggestion, setShowSuggestion] = useState(true);
   const [viewFilter, setViewFilter] = useState<'day-to-day' | 'special' | 'all'>('day-to-day');
+  const [showFilterModal, setShowFilterModal] = useState(false);
 
   // ... existing imports ...
 
@@ -616,9 +617,15 @@ const TransactionsView = ({
                 className="bg-forest-950 border border-forest-700 rounded-xl py-2 pl-10 pr-4 text-white text-sm focus:outline-none focus:border-primary w-full md:w-64"
               />
             </div>
-            <button className="flex items-center gap-2 px-4 py-2 bg-forest-950 border border-forest-700 rounded-xl text-forest-300 hover:text-white hover:border-forest-600 transition-colors text-sm font-medium">
+            <button 
+              onClick={() => setShowFilterModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-forest-950 border border-forest-700 rounded-xl text-forest-300 hover:text-white hover:border-forest-600 transition-colors text-sm font-medium"
+            >
               <Filter size={16} />
               Filters
+              {(categoryFilter || amountFilter.min || amountFilter.max) && (
+                <span className="w-2 h-2 bg-primary rounded-full"></span>
+              )}
             </button>
           </div>
         </div>
@@ -709,6 +716,71 @@ const TransactionsView = ({
             onTransactionCreated={handleReceiptTransaction}
             onClose={() => setShowReceiptScanner(false)}
           />
+        </Modal>
+      )}
+
+      {/* Filter Modal */}
+      {showFilterModal && (
+        <Modal
+          isOpen={showFilterModal}
+          onClose={() => setShowFilterModal(false)}
+          title="Filter Transactions"
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="block text-forest-300 text-sm font-medium mb-2">Category</label>
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="w-full bg-forest-950 border border-forest-700 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-primary"
+              >
+                <option value="">All Categories</option>
+                {customCategories.map((cat, idx) => (
+                  <option key={`filter-cat-${idx}`} value={cat.name}>{cat.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-forest-300 text-sm font-medium mb-2">Amount Range</label>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <input
+                    type="number"
+                    placeholder="Min"
+                    value={amountFilter.min}
+                    onChange={(e) => setAmountFilter(prev => ({ ...prev, min: e.target.value }))}
+                    className="w-full bg-forest-950 border border-forest-700 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <input
+                    type="number"
+                    placeholder="Max"
+                    value={amountFilter.max}
+                    onChange={(e) => setAmountFilter(prev => ({ ...prev, max: e.target.value }))}
+                    className="w-full bg-forest-950 border border-forest-700 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-primary"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-3 pt-4">
+              <button
+                onClick={() => {
+                  setCategoryFilter('');
+                  setAmountFilter({ min: '', max: '' });
+                }}
+                className="flex-1 px-4 py-3 bg-forest-700 hover:bg-forest-600 text-white rounded-xl font-medium transition-colors"
+              >
+                Clear Filters
+              </button>
+              <button
+                onClick={() => setShowFilterModal(false)}
+                className="flex-1 px-4 py-3 bg-primary hover:bg-primary/90 text-forest-950 rounded-xl font-bold transition-colors"
+              >
+                Apply Filters
+              </button>
+            </div>
+          </div>
         </Modal>
       )}
 
