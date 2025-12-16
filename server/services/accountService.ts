@@ -87,38 +87,23 @@ export async function getMainAccount(userId: string) {
 }
 
 /**
- * Syncs main account balance by aggregating 'main' transactions and transfers
+ * Syncs main account balance by aggregating 'main' transactions
  */
 export async function syncMainAccountBalance(userId: string): Promise<void> {
-    const { Transaction } = await import('../models/Transaction');
-    const { Transfer } = await import('../models/Transfer');
+    const { MainTransaction } = await import('../models/MainTransaction');
     const mainAccount = await getMainAccount(userId);
 
     if (!mainAccount) return;
 
-    // 1. Sum 'main' transactions (Income - Expense)
-    const txAgg = await Transaction.aggregate([
-        { $match: { userId, accountType: 'main' } },
+    // Sum MainTransactions (Income - Expense)
+    const txAgg = await MainTransaction.aggregate([
+        { $match: { userId } },
         { $group: { _id: '$type', total: { $sum: '$amount' } } }
     ]);
 
     const income = txAgg.find(t => t._id === 'income')?.total || 0;
     const expenses = txAgg.find(t => t._id === 'expense')?.total || 0;
-    let balance = income - expenses;
-
-    // 2. Add Transfers TO Main (Repayments, Surplus Rollovers)
-    const transfersIn = await Transfer.aggregate([
-        { $match: { userId, toAccount: 'main', status: 'completed' } },
-        { $group: { _id: null, total: { $sum: '$amount' } } }
-    ]);
-    balance += transfersIn[0]?.total || 0;
-
-    // 3. Subtract Transfers FROM Main (Loans to Current)
-    const transfersOut = await Transfer.aggregate([
-        { $match: { userId, fromAccount: 'main', status: 'completed' } },
-        { $group: { _id: null, total: { $sum: '$amount' } } }
-    ]);
-    balance -= transfersOut[0]?.total || 0;
+    const balance = income - expenses;
 
     mainAccount.balance = balance;
     await mainAccount.save();
@@ -126,25 +111,23 @@ export async function syncMainAccountBalance(userId: string): Promise<void> {
 
 /**
  * Syncs current account balance by aggregating 'current' transactions
- * (Transfers to/from Current are already recorded as 'current' transactions)
  */
 export async function syncCurrentAccountBalance(userId: string): Promise<void> {
-    const { Transaction } = await import('../models/Transaction');
+    const { CurrentTransaction } = await import('../models/CurrentTransaction');
     const currentAccount = await getCurrentAccount(userId);
 
     if (!currentAccount) return;
 
-    // Sum 'current' transactions (Income - Expense)
-    const txAgg = await Transaction.aggregate([
-        { $match: { userId, accountType: 'current' } },
+    // Sum CurrentTransactions (Income - Expense)
+    const txAgg = await CurrentTransaction.aggregate([
+        { $match: { userId } },
         { $group: { _id: '$type', total: { $sum: '$amount' } } }
     ]);
 
     const income = txAgg.find(t => t._id === 'income')?.total || 0;
     const expenses = txAgg.find(t => t._id === 'expense')?.total || 0;
+    const balance = income - expenses;
 
-    // Current Account Balance = Income - Expenses
-    // (Includes transfers because they are recorded as transactions)
-    currentAccount.balance = income - expenses;
+    currentAccount.balance = balance;
     await currentAccount.save();
 }

@@ -1,4 +1,4 @@
-import { Transaction } from '../models/Transaction';
+import { CurrentTransaction } from '../models/CurrentTransaction';
 import { Budget } from '../models/Budget';
 import { User } from '../models/User';
 
@@ -36,7 +36,7 @@ export async function calculateCurrentMonthIncome(
     const endOfMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0);
     endOfMonth.setHours(23, 59, 59, 999);
 
-    const incomeTransactions = await Transaction.find({
+    const incomeTransactions = await CurrentTransaction.find({
         userId,
         type: 'income',
         date: { $gte: startOfMonth, $lte: endOfMonth }
@@ -78,7 +78,7 @@ export async function calculateCurrentMonthSpending(
     const endOfMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0);
     endOfMonth.setHours(23, 59, 59, 999);
 
-    const expenseTransactions = await Transaction.find({
+    const expenseTransactions = await CurrentTransaction.find({
         userId,
         type: 'expense',
         date: { $gte: startOfMonth, $lte: endOfMonth }

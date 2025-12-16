@@ -1,4 +1,5 @@
-import { Transaction } from '../models/Transaction';
+import { CurrentTransaction } from '../models/CurrentTransaction';
+import { MainTransaction } from '../models/MainTransaction';
 import { Account } from '../models/Account';
 
 /**
@@ -13,7 +14,8 @@ export async function createSpecialTransaction(
     linkedEntityId: string,
     description: string
 ) {
-    const transaction = new Transaction({
+    // Special transactions are strictly Main Account business
+    const transaction = new MainTransaction({
         userId,
         amount,
         type,
@@ -21,10 +23,7 @@ export async function createSpecialTransaction(
         category: specialCategory === 'debt' ? 'Debt Repayment' :
             specialCategory === 'investment' ? 'Investment' : 'Savings Goal',
         date: new Date(),
-        accountType: 'main', // Big expenses go to main account
-        specialCategory,
-        linkedEntityId,
-        isVisible: false // Hidden from day-to-day view
+        relatedEntityId: linkedEntityId
     });
 
     await transaction.save();
@@ -33,6 +32,7 @@ export async function createSpecialTransaction(
 
 /**
  * Creates a transaction representing a transfer between accounts
+ * Implements Double Entry Bookkeeping where applicable
  */
 export async function createTransferTransaction(
     userId: string,
@@ -43,84 +43,89 @@ export async function createTransferTransaction(
     description: string,
     isVisible: boolean = true
 ) {
-    // Create two transactions: one for outflow, one for inflow? 
-    // Or just one representing the movement?
-    // Usually, for double-entry, we might want two, but here we are tracking "Transactions" as a list.
-    // If we want it to show up in "Current Account" history, we need a transaction there.
-
     // Case 1: Borrow from Main (Main -> Current)
-    // Current Account gets Income (visible? maybe special color)
     if (transferType === 'borrow') {
-        const incomeTx = new Transaction({
+        // 1. Expense in Main (Transfer Out) - Optional, but good for tracking
+        const mainTx = new MainTransaction({
+            userId,
+            amount,
+            type: 'expense',
+            description: `Transfer to Current: ${description}`,
+            category: 'Transfer',
+            date: new Date()
+        });
+        await mainTx.save();
+
+        // 2. Income in Current (Transfer In)
+        const currentTx = new CurrentTransaction({
             userId,
             amount,
             type: 'income',
             description: `Borrowed: ${description}`,
             category: 'Transfer',
             date: new Date(),
-            accountType: 'current',
-            specialCategory: 'transfer',
-            transferType: 'borrow',
-            isVisible // Controlled by parameter
+            relatedTransferId: mainTx._id.toString() // Link them
         });
-        await incomeTx.save();
-        return incomeTx;
+        await currentTx.save();
+        return currentTx;
     }
 
     // Case 2: Repay to Main (Current -> Main)
-    // Current Account gets Expense
     if (transferType === 'repay') {
-        const expenseTx = new Transaction({
+        // 1. Expense in Current (Transfer Out)
+        const currentTx = new CurrentTransaction({
             userId,
             amount,
             type: 'expense',
             description: `Repayment: ${description}`,
             category: 'Transfer',
-            date: new Date(),
-            accountType: 'current',
-            specialCategory: 'transfer',
-            transferType: 'repay',
-            isVisible // Controlled by parameter
+            date: new Date()
         });
-        await expenseTx.save();
-        return expenseTx;
+        await currentTx.save();
+
+        // 2. Income in Main (Transfer In)
+        const mainTx = new MainTransaction({
+            userId,
+            amount,
+            type: 'income',
+            description: `Repayment from Current: ${description}`,
+            category: 'Transfer',
+            date: new Date(),
+            relatedTransferId: currentTx._id.toString()
+        });
+        await mainTx.save();
+        return currentTx;
     }
 
-    // Case 3: Withdraw from Special (Special -> Current)
+    // Case 3: Withdraw from Special (Special -> Main)
     if (transferType === 'withdraw') {
-        const incomeTx = new Transaction({
+        // Income in Main
+        const mainTx = new MainTransaction({
             userId,
             amount,
             type: 'income',
             description: `Withdrawal: ${description}`,
             category: 'Transfer',
-            date: new Date(),
-            accountType: 'current',
-            specialCategory: 'transfer',
-            transferType: 'withdraw',
-            isVisible // Controlled by parameter
+            date: new Date()
         });
-        await incomeTx.save();
-        return incomeTx;
+        await mainTx.save();
+        return mainTx;
     }
 
     // Case 4: Deposit to Special (Current -> Special)
-    // This is usually handled by createSpecialTransaction as an expense, but if we treat it as transfer:
+    // This flow should ideally be Current -> Main -> Special
+    // But if we allow direct, we treat it as Expense in Current
     if (transferType === 'deposit') {
-        const expenseTx = new Transaction({
+        const currentTx = new CurrentTransaction({
             userId,
             amount,
             type: 'expense',
             description: `Deposit: ${description}`,
             category: 'Transfer',
-            date: new Date(),
-            accountType: 'current',
-            specialCategory: 'transfer',
-            transferType: 'deposit', // We might need to add this to enum if not present
-            isVisible // Controlled by parameter
+            date: new Date()
         });
-        await expenseTx.save();
-        return expenseTx;
+        await currentTx.save();
+        return currentTx;
     }
 }
 
@@ -128,22 +133,25 @@ export async function createTransferTransaction(
  * Get visible transactions for Current Account view
  */
 export async function getVisibleTransactions(userId: string, limit: number = 50) {
-    return await Transaction.find({
-        userId,
-        isVisible: true,
-        accountType: { $ne: 'special' } // Exclude purely special transactions just in case
-    })
+    return await CurrentTransaction.find({ userId })
         .sort({ date: -1 })
         .limit(limit);
 }
 
 /**
- * Get special transactions by category
+ * Get special transactions by category (Main Account)
  */
 export async function getSpecialTransactions(userId: string, category: 'debt' | 'investment' | 'goal') {
-    return await Transaction.find({
+    // Map category to MainTransaction category string if needed, or query by regex
+    // For now, we stored them as 'Savings Goal', 'Investment', 'Debt Repayment'
+    let categoryName = '';
+    if (category === 'goal') categoryName = 'Savings Goal';
+    if (category === 'investment') categoryName = 'Investment';
+    if (category === 'debt') categoryName = 'Debt Repayment';
+
+    return await MainTransaction.find({
         userId,
-        specialCategory: category
+        category: categoryName
     })
         .sort({ date: -1 });
 }

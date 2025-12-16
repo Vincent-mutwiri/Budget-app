@@ -293,7 +293,7 @@ app.get('/api/budgets', async (req, res) => {
         // If no budgets for current month, check for legacy budgets or previous month
         if (budgets.length === 0) {
             const legacyBudgets = await Budget.find({ userId, month: { $exists: false } });
-            
+
             if (legacyBudgets.length > 0) {
                 // Migrate legacy budgets to current month
                 budgets = await Promise.all(
@@ -1788,14 +1788,15 @@ app.get('/api/metrics/:userId', async (req, res) => {
         const cacheKey = `${userId}:${targetMonth.getFullYear()}-${targetMonth.getMonth()}`;
 
         // Check cache
-        const cached = metricsCache.get(cacheKey);
-        if (cached && Date.now() - cached.timestamp < METRICS_CACHE_TTL) {
-            return res.json({
-                metrics: cached.data,
-                calculatedAt: new Date(cached.timestamp).toISOString(),
-                cached: true
-            });
-        }
+        // const cached = metricsCache.get(cacheKey);
+        // if (cached && Date.now() - cached.timestamp < METRICS_CACHE_TTL) {
+        //     return res.json({
+        //         metrics: cached.data,
+        //         calculatedAt: new Date(cached.timestamp).toISOString(),
+        //         cached: true
+        //     });
+        // }
+        console.log(`Calculating metrics for ${userId} (Cache Disabled)`);
 
         // Calculate metrics
         const metrics = await calculateFinancialMetrics(userId, targetMonth);
@@ -1805,6 +1806,8 @@ app.get('/api/metrics/:userId', async (req, res) => {
             data: metrics,
             timestamp: Date.now()
         });
+
+        console.log('Sending metrics response:', JSON.stringify(metrics, null, 2));
 
         res.json({
             metrics,
@@ -1984,7 +1987,7 @@ app.post('/api/investments/:id/withdraw', async (req, res) => {
 
         // Check if withdrawal amount is valid
         if (amount > investment.currentValue) {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 error: 'Withdrawal amount exceeds investment value',
                 availableAmount: investment.currentValue
             });

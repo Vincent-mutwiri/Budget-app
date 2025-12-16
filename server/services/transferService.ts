@@ -1,7 +1,7 @@
 import { Transfer } from '../models/Transfer';
 import { Account } from '../models/Account';
 import { createTransferTransaction, createSpecialTransaction } from './transactionService';
-import { ensureMainAccount, ensureCurrentAccount, getCurrentAccount, getMainAccount } from './accountService';
+import { ensureMainAccount, ensureCurrentAccount, getCurrentAccount, getMainAccount, syncCurrentAccountBalance, syncMainAccountBalance } from './accountService';
 
 /**
  * Borrow money from Main Account to Current Account
@@ -30,14 +30,12 @@ export async function borrowFromMain(userId: string, amount: number, description
     });
     await transfer.save();
 
-    // 2. Update Account Balances
-    mainAccount.balance -= amount;
-    currentAccount.balance += amount;
-    await mainAccount.save();
-    await currentAccount.save();
-
-    // 3. Create Transaction Record (for Current Account history) - hidden from day-to-day view
+    // 2. Create Transaction Records (Double Entry)
     await createTransferTransaction(userId, 'main', 'current', amount, 'borrow', description, false);
+
+    // 3. Sync Balances
+    await syncMainAccountBalance(userId);
+    await syncCurrentAccountBalance(userId);
 
     return transfer;
 }
@@ -69,22 +67,19 @@ export async function repayToMain(userId: string, amount: number, description: s
     });
     await transfer.save();
 
-    // 2. Update Account Balances
-    currentAccount.balance -= amount;
-    mainAccount.balance += amount;
-    await currentAccount.save();
-    await mainAccount.save();
-
-    // 3. Create Transaction Record - hidden from day-to-day view
+    // 2. Create Transaction Records (Double Entry)
     await createTransferTransaction(userId, 'current', 'main', amount, 'repay', description, false);
+
+    // 3. Sync Balances
+    await syncMainAccountBalance(userId);
+    await syncCurrentAccountBalance(userId);
 
     return transfer;
 }
 
 /**
- * Withdraw from a Special Account (Debt/Investment/Goal) to Current Account
- * Note: This assumes the Special Account Entity (e.g. Goal) balance is updated separately 
- * or passed in here. For now, we just handle the money movement to Current.
+ * Withdraw from a Special Account (Debt/Investment/Goal) to Main Account
+ * Special accounts only interact with Main Account, not Current Account
  */
 export async function withdrawFromSpecial(
     userId: string,
@@ -93,14 +88,14 @@ export async function withdrawFromSpecial(
     amount: number,
     description: string
 ) {
-    const currentAccount = await getCurrentAccount(userId);
-    if (!currentAccount) throw new Error('Current Account not found');
+    const mainAccount = await getMainAccount(userId);
+    if (!mainAccount) throw new Error('Main Account not found');
 
     // 1. Create Transfer Record
     const transfer = new Transfer({
         userId,
         fromAccount: entityType,
-        toAccount: 'current',
+        toAccount: 'main',
         amount,
         type: 'withdraw',
         linkedEntityId: entityId,
@@ -109,11 +104,7 @@ export async function withdrawFromSpecial(
     });
     await transfer.save();
 
-    // 2. Update Current Account Balance
-    currentAccount.balance += amount;
-    await currentAccount.save();
-
-    // 3. Update the specific entity
+    // 2. Update the specific entity
     if (entityType === 'investment') {
         const { Investment } = await import('../models/Investment');
         const investment = await Investment.findById(entityId);
@@ -144,9 +135,11 @@ export async function withdrawFromSpecial(
         }
     }
 
-    // 4. Create Transaction Record - visible for debt withdrawals, hidden for others
-    const isVisible = entityType === 'debt'; // Make debt withdrawals visible
-    await createTransferTransaction(userId, 'special', 'current', amount, 'withdraw', description, isVisible);
+    // 3. Create Transaction Record (Income in Main)
+    await createTransferTransaction(userId, 'special', 'main', amount, 'withdraw', description, false);
+
+    // 4. Sync Main Account Balance
+    await syncMainAccountBalance(userId);
 
     return transfer;
 }
@@ -168,21 +161,14 @@ export async function processSpecialContribution(
         throw new Error('Insufficient funds in Main Account');
     }
 
-    // 1. Deduct from Main Account
-    mainAccount.balance -= amount;
-    await mainAccount.save();
-
-    // 2. Create Special Transaction (Visible for debt payments, hidden for others)
-    // We use 'expense' because money leaves the Main Account context
+    // 1. Create Special Transaction (Expense in Main)
     const transaction = await createSpecialTransaction(userId, 'expense', amount, type, entityId, description);
-    
-    // Make debt payments visible in transaction history
-    if (type === 'debt') {
-        transaction.isVisible = true;
-        await transaction.save();
-    }
 
-    // 3. Update the specific entity
+    // Make debt payments visible in transaction history? 
+    // MainTransaction doesn't have isVisible flag, but we can query by category.
+    // If we want to show it in Main Account history, it's there.
+
+    // 2. Update the specific entity
     if (type === 'debt') {
         const { Debt } = await import('../models/Debt');
         const debt = await Debt.findById(entityId);
@@ -201,7 +187,6 @@ export async function processSpecialContribution(
         const investment = await Investment.findById(entityId);
         if (investment) {
             investment.currentValue += amount; // Increase value
-            // Ideally track contributions history too, but Investment model might need update
             await investment.save();
         }
     } else if (type === 'goal') {
@@ -217,6 +202,9 @@ export async function processSpecialContribution(
             await goal.save();
         }
     }
+
+    // 3. Sync Main Account Balance
+    await syncMainAccountBalance(userId);
 
     return { success: true, message: 'Contribution processed successfully' };
 }

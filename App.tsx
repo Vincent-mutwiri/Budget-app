@@ -296,7 +296,7 @@ const TransactionsView = ({
 
     let matchesView = true;
     if (viewFilter === 'day-to-day') {
-      matchesView = t.isVisible !== false; // Default to true if undefined
+      matchesView = t.isVisible !== false && t.accountType !== 'main'; // Default to true if undefined, but exclude Main account
     } else if (viewFilter === 'special') {
       matchesView = t.isVisible === false;
     }
