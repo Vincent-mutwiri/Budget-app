@@ -70,8 +70,31 @@ export async function getCurrentMonthBudgets(userId: string) {
 
     let budgets = await getBudgetsForMonth(userId, currentMonth, currentYear);
 
-    // If no budgets exist for current month, copy from previous month
+    // If no budgets exist for current month, check for legacy budgets (without month/year)
     if (budgets.length === 0) {
+        const legacyBudgets = await Budget.find({ userId, month: { $exists: false } });
+        
+        if (legacyBudgets.length > 0) {
+            // Migrate legacy budgets to current month
+            const migratedBudgets = await Promise.all(
+                legacyBudgets.map(async (budget) => {
+                    const newBudget = new Budget({
+                        userId: budget.userId,
+                        category: budget.category,
+                        limit: budget.limit,
+                        spent: budget.spent,
+                        icon: budget.icon,
+                        month: currentMonth,
+                        year: currentYear,
+                        isTemplate: false
+                    });
+                    return await newBudget.save();
+                })
+            );
+            return migratedBudgets;
+        }
+        
+        // If still no budgets, try to copy from previous month
         budgets = await copyBudgetsToNewMonth(userId, currentMonth, currentYear);
     }
 

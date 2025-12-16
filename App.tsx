@@ -1473,40 +1473,6 @@ const GoalsView = ({
     }
   };
 
-  const handleWithdraw = async (goalId: string) => {
-    const amount = parseFloat(withdrawAmount);
-
-    if (isNaN(amount)) {
-      alert('Please enter a valid amount');
-      return;
-    }
-
-    if (amount <= 0) {
-      alert('Withdrawal amount must be greater than zero');
-      return;
-    }
-
-    const goal = goals.find(g => g.id === goalId);
-    if (!goal) return;
-
-    if (amount > goal.currentAmount) {
-      alert(`Insufficient funds in goal. Available: ${formatCurrency(goal.currentAmount)}`);
-      return;
-    }
-
-    setIsProcessing(true);
-    try {
-      await onWithdraw(goalId, amount);
-      setShowWithdrawModal(null);
-      setWithdrawAmount('');
-    } catch (error) {
-      console.error('Failed to withdraw:', error);
-      alert('Failed to withdraw. Please try again.');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
   const handleEditClick = React.useCallback((goal: SavingsGoal) => {
     setEditFormData({
       title: goal.title,
@@ -2994,7 +2960,7 @@ export default function App() {
           // Fetch Resources
           const [txs, bgs, gls, accs, recTxs, customCats] = await Promise.all([
             getTransactions(clerkUser.id),
-            getCurrentMonthBudgets(clerkUser.id),
+            getBudgets(clerkUser.id),
             getGoals(clerkUser.id),
             getAccounts(clerkUser.id),
             getRecurringTransactions(clerkUser.id),

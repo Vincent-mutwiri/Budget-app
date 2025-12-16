@@ -273,12 +273,67 @@ app.get('/api/budgets', async (req, res) => {
     if (!userId) return res.status(400).json({ error: 'UserId required' });
 
     try {
-        const budgets = await Budget.find({ userId });
-
-        // Calculate current month spending for each budget (resets automatically each month)
         const now = new Date();
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0, 0);
+        const currentMonth = now.getMonth() + 1;
+        const currentYear = now.getFullYear();
+
+        // Try to get current month budgets
+        let budgets = await Budget.find({ userId, month: currentMonth, year: currentYear });
+
+        // If no budgets for current month, check for legacy budgets or previous month
+        if (budgets.length === 0) {
+            const legacyBudgets = await Budget.find({ userId, month: { $exists: false } });
+            
+            if (legacyBudgets.length > 0) {
+                // Migrate legacy budgets to current month
+                budgets = await Promise.all(
+                    legacyBudgets.map(async (b) => {
+                        const newBudget = new Budget({
+                            userId: b.userId,
+                            category: b.category,
+                            limit: b.limit,
+                            spent: 0,
+                            icon: b.icon,
+                            month: currentMonth,
+                            year: currentYear,
+                            isTemplate: false
+                        });
+                        return await newBudget.save();
+                    })
+                );
+            } else {
+                // Copy from previous month
+                let prevMonth = currentMonth - 1;
+                let prevYear = currentYear;
+                if (prevMonth === 0) {
+                    prevMonth = 12;
+                    prevYear -= 1;
+                }
+
+                const prevBudgets = await Budget.find({ userId, month: prevMonth, year: prevYear });
+                if (prevBudgets.length > 0) {
+                    budgets = await Promise.all(
+                        prevBudgets.map(async (b) => {
+                            const newBudget = new Budget({
+                                userId: b.userId,
+                                category: b.category,
+                                limit: b.limit,
+                                spent: 0,
+                                icon: b.icon,
+                                month: currentMonth,
+                                year: currentYear,
+                                isTemplate: false
+                            });
+                            return await newBudget.save();
+                        })
+                    );
+                }
+            }
+        }
+
+        // Calculate current month spending
+        const startOfMonth = new Date(currentYear, currentMonth - 1, 1, 0, 0, 0, 0);
+        const endOfMonth = new Date(currentYear, currentMonth, 1, 0, 0, 0, 0);
 
         const transactions = await Transaction.find({
             userId,
@@ -286,13 +341,11 @@ app.get('/api/budgets', async (req, res) => {
             date: { $gte: startOfMonth, $lt: endOfMonth }
         });
 
-        // Calculate spending by category for current month only
         const spendingByCategory: Record<string, number> = {};
         transactions.forEach(t => {
             spendingByCategory[t.category] = (spendingByCategory[t.category] || 0) + t.amount;
         });
 
-        // Return budgets with current month spending (automatically 0 for new month)
         const budgetsWithCurrentSpending = budgets.map(budget => {
             const b = budget.toObject();
             return {
@@ -311,10 +364,15 @@ app.get('/api/budgets', async (req, res) => {
 // Add Budget
 app.post('/api/budgets', validateBudget, async (req, res) => {
     try {
-        const newBudget = new Budget(req.body);
+        const now = new Date();
+        const newBudget = new Budget({
+            ...req.body,
+            month: now.getMonth() + 1,
+            year: now.getFullYear(),
+            isTemplate: false
+        });
         await newBudget.save();
 
-        // Invalidate metrics cache since new budget affects total planned budget
         invalidateMetricsCache(req.body.userId);
 
         const budgetObj = newBudget.toObject();

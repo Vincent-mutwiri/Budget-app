@@ -4,6 +4,7 @@ import { RecurringTransactionForm } from './RecurringTransactionForm';
 import { RecurringTransactionList } from './RecurringTransactionList';
 import { Modal } from './Modal';
 import { Plus, Calendar, Info } from 'lucide-react';
+import { UpcomingTransactionsList } from './UpcomingTransactionsList';
 
 interface RecurringTransactionsViewProps {
     recurringTransactions: RecurringTransaction[];
@@ -101,6 +102,9 @@ export const RecurringTransactionsView: React.FC<RecurringTransactionsViewProps>
                     </p>
                 </div>
             </div>
+
+            {/* Upcoming Transactions */}
+            <UpcomingTransactionsList transactions={recurringTransactions} />
 
             {/* Recurring Transactions List */}
             <div className="bg-forest-800 border border-forest-700 rounded-3xl p-6">
