@@ -44,6 +44,9 @@ export interface Transaction {
   date: string;
   type: TransactionType;
   xpAwarded?: number;
+  accountType?: 'main' | 'current' | 'special';
+  specialCategory?: 'debt' | 'investment' | 'goal' | 'transfer';
+  isVisible?: boolean;
 }
 
 export interface UserState {
