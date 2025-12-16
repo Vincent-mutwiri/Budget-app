@@ -241,10 +241,27 @@ export const InvestmentsView: React.FC<InvestmentsViewProps> = ({ userId }) => {
                             </button>
                             <button
                                 type="button"
-                                onClick={() => {
-                                    alert('Contribute functionality will be implemented');
-                                    setShowContributeModal(null);
-                                    setContributeAmount('');
+                                onClick={async () => {
+                                    const amount = parseFloat(contributeAmount);
+                                    if (isNaN(amount) || amount <= 0) return;
+
+                                    if (amount > mainAccountBalance) {
+                                        alert('Insufficient funds in Main Account');
+                                        return;
+                                    }
+
+                                    try {
+                                        const { contributeToSpecial } = await import('../services/api');
+                                        await contributeToSpecial(userId, 'investment', showContributeModal!, amount, 'Investment Contribution');
+                                        await loadInvestments();
+                                        await loadMainAccountBalance();
+                                        setShowContributeModal(null);
+                                        setContributeAmount('');
+                                        alert('Contribution successful!');
+                                    } catch (error) {
+                                        console.error('Error contributing:', error);
+                                        alert('Failed to contribute. Please try again.');
+                                    }
                                 }}
                                 disabled={!contributeAmount || parseFloat(contributeAmount) <= 0}
                                 className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -269,7 +286,10 @@ export const InvestmentsView: React.FC<InvestmentsViewProps> = ({ userId }) => {
                     <div className="flex flex-col gap-5">
                         <div className="bg-blue-900/20 border border-blue-700/30 rounded-xl p-4">
                             <p className="text-blue-300 text-sm">
-                                Transfer money from this investment to your current account.
+                                Transfer money from this investment to your Current Account.
+                            </p>
+                            <p className="text-blue-200 text-sm font-semibold mt-1">
+                                Available to Withdraw: {formatCurrency(investments.find(i => i.id === showWithdrawModal)?.currentValue || 0)}
                             </p>
                         </div>
 
@@ -303,10 +323,29 @@ export const InvestmentsView: React.FC<InvestmentsViewProps> = ({ userId }) => {
                             </button>
                             <button
                                 type="button"
-                                onClick={() => {
-                                    alert('Withdraw functionality will be implemented');
-                                    setShowWithdrawModal(null);
-                                    setWithdrawAmount('');
+                                onClick={async () => {
+                                    const amount = parseFloat(withdrawAmount);
+                                    if (isNaN(amount) || amount <= 0) return;
+
+                                    const investment = investments.find(i => i.id === showWithdrawModal);
+                                    if (investment && amount > investment.currentValue) {
+                                        alert('Insufficient funds in investment');
+                                        return;
+                                    }
+
+                                    try {
+                                        const { withdrawFromSpecial } = await import('../services/api');
+                                        await withdrawFromSpecial(userId, 'investment', showWithdrawModal!, amount, 'Investment Withdrawal');
+                                        await loadInvestments();
+                                        // Note: We might want to refresh Current Account balance if we displayed it, 
+                                        // but here we only display Main Account balance.
+                                        setShowWithdrawModal(null);
+                                        setWithdrawAmount('');
+                                        alert('Withdrawal successful!');
+                                    } catch (error) {
+                                        console.error('Error withdrawing:', error);
+                                        alert('Failed to withdraw. Please try again.');
+                                    }
                                 }}
                                 disabled={!withdrawAmount || parseFloat(withdrawAmount) <= 0}
                                 className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"

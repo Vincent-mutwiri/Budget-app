@@ -113,14 +113,45 @@ export async function withdrawFromSpecial(
     currentAccount.balance += amount;
     await currentAccount.save();
 
-    // 3. Create Transaction Record
+    // 3. Update the specific entity
+    if (entityType === 'investment') {
+        const { Investment } = await import('../models/Investment');
+        const investment = await Investment.findById(entityId);
+        if (investment) {
+            if (investment.currentValue < amount) {
+                throw new Error('Insufficient funds in Investment');
+            }
+            investment.currentValue -= amount;
+            await investment.save();
+        }
+    } else if (entityType === 'debt') {
+        const { Debt } = await import('../models/Debt');
+        const debt = await Debt.findById(entityId);
+        if (debt) {
+            // Withdrawing from a debt (e.g. Line of Credit) increases the debt balance
+            debt.currentBalance += amount;
+            await debt.save();
+        }
+    } else if (entityType === 'goal') {
+        const { SavingsGoal } = await import('../models/SavingsGoal');
+        const goal = await SavingsGoal.findById(entityId);
+        if (goal) {
+            if (goal.currentAmount < amount) {
+                throw new Error('Insufficient funds in Goal');
+            }
+            goal.currentAmount -= amount;
+            await goal.save();
+        }
+    }
+
+    // 4. Create Transaction Record
     await createTransferTransaction(userId, 'special', 'current', amount, 'withdraw', description);
 
     return transfer;
 }
 
 /**
- * Process a contribution to a Special Account (Debt/Investment/Goal) from Current Account
+ * Process a contribution to a Special Account (Debt/Investment/Goal) from Main Account
  */
 export async function processSpecialContribution(
     userId: string,
@@ -129,19 +160,19 @@ export async function processSpecialContribution(
     amount: number,
     description: string
 ) {
-    const currentAccount = await getCurrentAccount(userId);
-    if (!currentAccount) throw new Error('Current Account not found');
+    const mainAccount = await getMainAccount(userId);
+    if (!mainAccount) throw new Error('Main Account not found');
 
-    if (currentAccount.balance < amount) {
-        throw new Error('Insufficient funds in Current Account');
+    if (mainAccount.balance < amount) {
+        throw new Error('Insufficient funds in Main Account');
     }
 
-    // 1. Deduct from Current Account
-    currentAccount.balance -= amount;
-    await currentAccount.save();
+    // 1. Deduct from Main Account
+    mainAccount.balance -= amount;
+    await mainAccount.save();
 
     // 2. Create Special Transaction (Hidden from daily view)
-    // We use 'expense' because money leaves the Current Account context
+    // We use 'expense' because money leaves the Main Account context
     await createSpecialTransaction(userId, 'expense', amount, type, entityId, description);
 
     // 3. Update the specific entity

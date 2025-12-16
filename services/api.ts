@@ -179,6 +179,16 @@ export const getTransferHistory = async (userId: string) => {
     return response.data;
 };
 
+export const contributeToSpecial = async (userId: string, entityType: string, entityId: string, amount: number, description: string) => {
+    const response = await api.post('/transfers/contribute', { userId, entityType, entityId, amount, description });
+    return response.data;
+};
+
+export const withdrawFromSpecial = async (userId: string, entityType: string, entityId: string, amount: number, description: string) => {
+    const response = await api.post('/transfers/withdraw', { userId, entityType, entityId, amount, description });
+    return response.data;
+};
+
 // Special Transactions
 export const getVisibleTransactions = async (userId: string, limit: number = 50) => {
     const response = await api.get(`/transactions/visible/${userId}`, { params: { limit } });

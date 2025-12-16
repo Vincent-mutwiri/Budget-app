@@ -188,8 +188,8 @@ export const DebtTracker: React.FC<DebtTrackerProps> = ({ userId }) => {
                     <button
                         onClick={() => setActiveTab('list')}
                         className={`px-6 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'list'
-                                ? 'bg-forest-800 text-white border border-forest-700'
-                                : 'text-forest-400 hover:text-white'
+                            ? 'bg-forest-800 text-white border border-forest-700'
+                            : 'text-forest-400 hover:text-white'
                             }`}
                     >
                         Debt List
@@ -197,8 +197,8 @@ export const DebtTracker: React.FC<DebtTrackerProps> = ({ userId }) => {
                     <button
                         onClick={() => setActiveTab('charts')}
                         className={`px-6 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'charts'
-                                ? 'bg-forest-800 text-white border border-forest-700'
-                                : 'text-forest-400 hover:text-white'
+                            ? 'bg-forest-800 text-white border border-forest-700'
+                            : 'text-forest-400 hover:text-white'
                             }`}
                     >
                         Charts & Projections
@@ -310,10 +310,28 @@ export const DebtTracker: React.FC<DebtTrackerProps> = ({ userId }) => {
                             </button>
                             <button
                                 type="button"
-                                onClick={() => {
-                                    alert('Contribute functionality will be implemented');
-                                    setShowContributeModal(null);
-                                    setContributeAmount('');
+                                onClick={async () => {
+                                    const amount = parseFloat(contributeAmount);
+                                    if (isNaN(amount) || amount <= 0) return;
+
+                                    if (amount > mainAccountBalance) {
+                                        alert('Insufficient funds in Main Account');
+                                        return;
+                                    }
+
+                                    try {
+                                        const { contributeToSpecial } = await import('../services/api');
+                                        await contributeToSpecial(userId, 'debt', showContributeModal!, amount, 'Debt Contribution');
+                                        await loadDebts();
+                                        await loadSummary();
+                                        await loadMainAccountBalance();
+                                        setShowContributeModal(null);
+                                        setContributeAmount('');
+                                        alert('Contribution successful!');
+                                    } catch (error) {
+                                        console.error('Error contributing:', error);
+                                        alert('Failed to contribute. Please try again.');
+                                    }
                                 }}
                                 disabled={!contributeAmount || parseFloat(contributeAmount) <= 0}
                                 className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -338,7 +356,7 @@ export const DebtTracker: React.FC<DebtTrackerProps> = ({ userId }) => {
                     <div className="flex flex-col gap-5">
                         <div className="bg-blue-900/20 border border-blue-700/30 rounded-xl p-4">
                             <p className="text-blue-300 text-sm">
-                                Transfer money from this debt to your current account.
+                                Transfer money from this debt to your Current Account.
                             </p>
                         </div>
 
@@ -372,10 +390,28 @@ export const DebtTracker: React.FC<DebtTrackerProps> = ({ userId }) => {
                             </button>
                             <button
                                 type="button"
-                                onClick={() => {
-                                    alert('Withdraw functionality will be implemented');
-                                    setShowWithdrawModal(null);
-                                    setWithdrawAmount('');
+                                onClick={async () => {
+                                    const amount = parseFloat(withdrawAmount);
+                                    if (isNaN(amount) || amount <= 0) return;
+
+                                    // For debt, withdrawal means increasing the debt balance (borrowing more)
+                                    // or taking back an overpayment. 
+                                    // Usually "Withdraw" from a debt context means "Borrow More" if it's a line of credit,
+                                    // or it might not make sense for a fixed loan.
+                                    // Assuming "Borrow More" or "Cash Advance" logic here as per user request to have "Withdraw" button.
+
+                                    try {
+                                        const { withdrawFromSpecial } = await import('../services/api');
+                                        await withdrawFromSpecial(userId, 'debt', showWithdrawModal!, amount, 'Debt Withdrawal / Borrow');
+                                        await loadDebts();
+                                        await loadSummary();
+                                        setShowWithdrawModal(null);
+                                        setWithdrawAmount('');
+                                        alert('Withdrawal successful!');
+                                    } catch (error) {
+                                        console.error('Error withdrawing:', error);
+                                        alert('Failed to withdraw. Please try again.');
+                                    }
                                 }}
                                 disabled={!withdrawAmount || parseFloat(withdrawAmount) <= 0}
                                 className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
