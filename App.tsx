@@ -20,7 +20,10 @@ import {
   addCustomCategory,
   deleteCustomCategory,
   getMetrics,
-  getCurrentMonthBudgets
+  getMonthlyGoals,
+  createMonthlyGoal,
+  updateMonthlyGoal,
+  deleteMonthlyGoal
 } from './services/api';
 import {
   Transaction, UserState, Category, DailyChallenge,
@@ -2743,6 +2746,11 @@ export default function App() {
   // Dashboard Password Protection
   const [isDashboardAuthenticated, setIsDashboardAuthenticated] = useState(false);
 
+  // Monthly Goals
+  const [monthlyGoals, setMonthlyGoals] = useState<any[]>([]);
+  const [isMonthlyGoalModalOpen, setIsMonthlyGoalModalOpen] = useState(false);
+  const [editingMonthlyGoal, setEditingMonthlyGoal] = useState<any>(null);
+
   // Alerts
   const alerts: Alert[] = useMemo(() => {
     const newAlerts: Alert[] = [];
@@ -2868,12 +2876,13 @@ export default function App() {
 
     const syncData = async () => {
       try {
-        const [txs, bgs, gls, accs, recTxs] = await Promise.all([
+        const [txs, bgs, gls, accs, recTxs, mGoals] = await Promise.all([
           getTransactions(clerkUser.id),
-          getCurrentMonthBudgets(clerkUser.id),
+          getBudgets(clerkUser.id),
           getGoals(clerkUser.id),
           getAccounts(clerkUser.id),
-          getRecurringTransactions(clerkUser.id)
+          getRecurringTransactions(clerkUser.id),
+          getMonthlyGoals(clerkUser.id)
         ]);
 
         const goalsWithId = gls.map((g: any) => ({ ...g, id: g.id || g._id }));
@@ -2882,12 +2891,14 @@ export default function App() {
         setSavingsGoals(goalsWithId);
         setAccounts(accs);
         setRecurringTransactions(recTxs);
+        setMonthlyGoals(mGoals);
 
         cache.set(`transactions_${clerkUser.id}`, txs);
         cache.set(`budgets_${clerkUser.id}`, bgs);
         cache.set(`goals_${clerkUser.id}`, gls);
         cache.set(`accounts_${clerkUser.id}`, accs);
         cache.set(`recurring_${clerkUser.id}`, recTxs);
+        cache.set(`monthlyGoals_${clerkUser.id}`, mGoals);
       } catch (err) {
         console.error('Sync failed:', err);
       }
@@ -2958,13 +2969,14 @@ export default function App() {
           setUser(prev => ({ ...prev, ...userData }));
 
           // Fetch Resources
-          const [txs, bgs, gls, accs, recTxs, customCats] = await Promise.all([
+          const [txs, bgs, gls, accs, recTxs, customCats, mGoals] = await Promise.all([
             getTransactions(clerkUser.id),
             getBudgets(clerkUser.id),
             getGoals(clerkUser.id),
             getAccounts(clerkUser.id),
             getRecurringTransactions(clerkUser.id),
-            getCustomCategories(clerkUser.id)
+            getCustomCategories(clerkUser.id),
+            getMonthlyGoals(clerkUser.id)
           ]);
 
           // Ensure all transactions have id field (MongoDB returns _id)
@@ -2978,6 +2990,7 @@ export default function App() {
           setAccounts(accs);
           setRecurringTransactions(recTxs);
           setCustomCategories(customCats);
+          setMonthlyGoals(mGoals);
 
           cache.set(`transactions_${clerkUser.id}`, transactionsWithId);
           cache.set(`budgets_${clerkUser.id}`, bgs);
@@ -2985,6 +2998,7 @@ export default function App() {
           cache.set(`accounts_${clerkUser.id}`, accs);
           cache.set(`recurring_${clerkUser.id}`, recTxs);
           cache.set(`customCategories_${clerkUser.id}`, customCats);
+          cache.set(`monthlyGoals_${clerkUser.id}`, mGoals);
 
           // Fetch metrics after other data is loaded
           await fetchMetrics();
@@ -3563,6 +3577,48 @@ export default function App() {
     }
   };
 
+  // Monthly Goals Handlers
+  const handleAddMonthlyGoal = async (goalData: any) => {
+    if (!clerkUser) return;
+    try {
+      const newGoal = await createMonthlyGoal({ ...goalData, userId: clerkUser.id });
+      setMonthlyGoals(prev => [...prev, newGoal]);
+      setIsMonthlyGoalModalOpen(false);
+      setEditingMonthlyGoal(null);
+      success('Monthly goal created!');
+    } catch (err) {
+      showError('Failed to create goal');
+    }
+  };
+
+  const handleEditMonthlyGoal = (goal: any) => {
+    setEditingMonthlyGoal(goal);
+    setIsMonthlyGoalModalOpen(true);
+  };
+
+  const handleUpdateMonthlyGoal = async (id: string, updates: any) => {
+    try {
+      const updated = await updateMonthlyGoal(id, updates);
+      setMonthlyGoals(prev => prev.map(g => (g._id === id || g.id === id) ? updated : g));
+      setIsMonthlyGoalModalOpen(false);
+      setEditingMonthlyGoal(null);
+      success('Monthly goal updated!');
+    } catch (err) {
+      showError('Failed to update goal');
+    }
+  };
+
+  const handleDeleteMonthlyGoal = async (id: string) => {
+    if (!confirm('Delete this monthly goal?')) return;
+    try {
+      await deleteMonthlyGoal(id);
+      setMonthlyGoals(prev => prev.filter(g => g._id !== id && g.id !== id));
+      success('Monthly goal deleted!');
+    } catch (err) {
+      showError('Failed to delete goal');
+    }
+  };
+
   // --- Views ---
 
   const DashboardContent = () => (
@@ -3599,10 +3655,45 @@ export default function App() {
 
         {/* Bottom Goals Row */}
         <div>
-          <h3 className="text-xl font-bold text-white mb-4">Monthly Goals</h3>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-xl font-bold text-white">Monthly Goals</h3>
+            <button
+              onClick={() => setIsMonthlyGoalModalOpen(true)}
+              className="flex items-center gap-2 px-3 py-2 bg-primary hover:bg-primary/90 text-forest-950 font-bold rounded-xl transition-colors text-sm"
+            >
+              <Plus size={16} strokeWidth={3} /> Add Goal
+            </button>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <GoalCard title="Emergency Fund" current={75000} target={100000} colorClass="bg-primary" />
-            <GoalCard title="House Deposit" current={300000} target={500000} colorClass="bg-primary" />
+            {monthlyGoals.map(goal => (
+              <div key={goal._id || goal.id} className="relative group">
+                <GoalCard 
+                  title={goal.title} 
+                  current={goal.currentAmount} 
+                  target={goal.targetAmount} 
+                  colorClass="bg-primary" 
+                />
+                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleEditMonthlyGoal(goal); }}
+                    className="p-1.5 bg-forest-900/80 hover:bg-forest-800 text-white rounded-lg transition-colors"
+                  >
+                    <Pencil size={14} />
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDeleteMonthlyGoal(goal._id || goal.id); }}
+                    className="p-1.5 bg-forest-900/80 hover:bg-red-600 text-white rounded-lg transition-colors"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+            ))}
+            {monthlyGoals.length === 0 && (
+              <div className="col-span-2 text-center py-8 text-forest-400 italic">
+                No monthly goals yet. Click "Add Goal" to create one.
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -4023,6 +4114,87 @@ export default function App() {
                 onClose={() => setIsNotificationPrefsOpen(false)}
               />
             )}
+
+            {/* Monthly Goal Modal */}
+            <Modal
+              isOpen={isMonthlyGoalModalOpen}
+              onClose={() => {
+                setIsMonthlyGoalModalOpen(false);
+                setEditingMonthlyGoal(null);
+              }}
+              title={editingMonthlyGoal ? 'Edit Monthly Goal' : 'Add Monthly Goal'}
+            >
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const formData = new FormData(e.currentTarget);
+                  const data = {
+                    title: formData.get('title'),
+                    targetAmount: parseFloat(formData.get('targetAmount') as string),
+                    currentAmount: parseFloat(formData.get('currentAmount') as string) || 0
+                  };
+                  if (editingMonthlyGoal) {
+                    handleUpdateMonthlyGoal(editingMonthlyGoal._id || editingMonthlyGoal.id, data);
+                  } else {
+                    handleAddMonthlyGoal(data);
+                  }
+                }}
+                className="space-y-4"
+              >
+                <div>
+                  <label className="block text-forest-300 text-sm font-medium mb-2">Goal Title</label>
+                  <input
+                    type="text"
+                    name="title"
+                    defaultValue={editingMonthlyGoal?.title}
+                    placeholder="e.g., Save for Vacation"
+                    className="w-full bg-forest-950 border border-forest-700 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-primary"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-forest-300 text-sm font-medium mb-2">Target Amount</label>
+                  <input
+                    type="number"
+                    name="targetAmount"
+                    defaultValue={editingMonthlyGoal?.targetAmount}
+                    placeholder="0.00"
+                    step="0.01"
+                    className="w-full bg-forest-950 border border-forest-700 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-primary"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-forest-300 text-sm font-medium mb-2">Current Amount</label>
+                  <input
+                    type="number"
+                    name="currentAmount"
+                    defaultValue={editingMonthlyGoal?.currentAmount || 0}
+                    placeholder="0.00"
+                    step="0.01"
+                    className="w-full bg-forest-950 border border-forest-700 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-primary"
+                  />
+                </div>
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMonthlyGoalModalOpen(false);
+                      setEditingMonthlyGoal(null);
+                    }}
+                    className="flex-1 px-4 py-3 bg-forest-700 hover:bg-forest-600 text-white rounded-xl font-medium transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 px-4 py-3 bg-primary hover:bg-primary/90 text-forest-950 rounded-xl font-bold transition-colors"
+                  >
+                    {editingMonthlyGoal ? 'Update' : 'Create'} Goal
+                  </button>
+                </div>
+              </form>
+            </Modal>
 
           </div>
         )}

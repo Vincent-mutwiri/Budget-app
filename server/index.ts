@@ -28,6 +28,7 @@ import { Debt } from './models/Debt';
 import { BudgetRecommendation } from './models/BudgetRecommendation';
 import { Receipt } from './models/Receipt';
 import { UserPreferences } from './models/UserPreferences';
+import { MonthlyGoal } from './models/MonthlyGoal';
 import { startRecurringTransactionScheduler } from './services/recurringTransactionScheduler';
 import { startNotificationEngine } from './services/notificationEngine';
 import { ensureMainAccount, getMainAccount, syncMainAccountBalance } from './services/accountService';
@@ -2753,6 +2754,69 @@ app.post('/api/export/summary', async (req, res) => {
         }
     } catch (error) {
         console.error('Error exporting financial summary:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Monthly Goals Routes
+app.get('/api/monthly-goals', async (req, res) => {
+    const { userId } = req.query;
+    if (!userId) return res.status(400).json({ error: 'UserId required' });
+
+    try {
+        const now = new Date();
+        const goals = await MonthlyGoal.find({
+            userId,
+            month: now.getMonth() + 1,
+            year: now.getFullYear()
+        });
+        res.json(goals);
+    } catch (error) {
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+app.post('/api/monthly-goals', async (req, res) => {
+    try {
+        const now = new Date();
+        const newGoal = new MonthlyGoal({
+            ...req.body,
+            month: now.getMonth() + 1,
+            year: now.getFullYear()
+        });
+        await newGoal.save();
+        res.status(201).json(newGoal);
+    } catch (error) {
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+app.put('/api/monthly-goals/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { title, targetAmount, currentAmount } = req.body;
+
+        const goal = await MonthlyGoal.findById(id);
+        if (!goal) return res.status(404).json({ error: 'Goal not found' });
+
+        if (title !== undefined) goal.title = title;
+        if (targetAmount !== undefined) goal.targetAmount = targetAmount;
+        if (currentAmount !== undefined) goal.currentAmount = currentAmount;
+        goal.updatedAt = new Date();
+
+        await goal.save();
+        res.json(goal);
+    } catch (error) {
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+app.delete('/api/monthly-goals/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        await MonthlyGoal.findByIdAndDelete(id);
+        res.json({ message: 'Goal deleted successfully' });
+    } catch (error) {
         res.status(500).json({ error: 'Server error' });
     }
 });

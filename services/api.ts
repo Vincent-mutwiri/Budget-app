@@ -576,4 +576,25 @@ export const copyBudgetsToNewMonth = async (userId: string, month: number, year:
     return response.data;
 };
 
+// Monthly Goals
+export const getMonthlyGoals = async (userId: string) => {
+    const response = await api.get('/monthly-goals', { params: { userId } });
+    return response.data;
+};
+
+export const createMonthlyGoal = async (goal: any) => {
+    const response = await api.post('/monthly-goals', goal);
+    return response.data;
+};
+
+export const updateMonthlyGoal = async (id: string, updates: any) => {
+    const response = await api.put(`/monthly-goals/${id}`, updates);
+    return response.data;
+};
+
+export const deleteMonthlyGoal = async (id: string) => {
+    const response = await api.delete(`/monthly-goals/${id}`);
+    return response.data;
+};
+
 export default api;
