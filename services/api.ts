@@ -560,4 +560,25 @@ export const getMonthlySpendingHistory = async (userId: string, year: number, mo
     return response.data;
 };
 
+// Month-End Automation
+export const triggerMonthEndAutomation = async (userId: string) => {
+    const response = await api.post(`/automation/month-end/${userId}`);
+    return response.data;
+};
+
+export const processUserRecurringTransactions = async (userId: string) => {
+    const response = await api.post(`/automation/recurring-transactions/${userId}`);
+    return response.data;
+};
+
+export const getCurrentMonthBudgets = async (userId: string) => {
+    const response = await api.get(`/automation/budgets/current/${userId}`);
+    return response.data;
+};
+
+export const copyBudgetsToNewMonth = async (userId: string, month: number, year: number) => {
+    const response = await api.post('/automation/budgets/copy', { userId, month, year });
+    return response.data;
+};
+
 export default api;

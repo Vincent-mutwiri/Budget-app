@@ -19,7 +19,8 @@ import {
   getCustomCategories,
   addCustomCategory,
   deleteCustomCategory,
-  getMetrics
+  getMetrics,
+  getCurrentMonthBudgets
 } from './services/api';
 import {
   Transaction, UserState, Category, DailyChallenge,
@@ -2903,7 +2904,7 @@ export default function App() {
       try {
         const [txs, bgs, gls, accs, recTxs] = await Promise.all([
           getTransactions(clerkUser.id),
-          getBudgets(clerkUser.id),
+          getCurrentMonthBudgets(clerkUser.id),
           getGoals(clerkUser.id),
           getAccounts(clerkUser.id),
           getRecurringTransactions(clerkUser.id)
@@ -2993,7 +2994,7 @@ export default function App() {
           // Fetch Resources
           const [txs, bgs, gls, accs, recTxs, customCats] = await Promise.all([
             getTransactions(clerkUser.id),
-            getBudgets(clerkUser.id),
+            getCurrentMonthBudgets(clerkUser.id),
             getGoals(clerkUser.id),
             getAccounts(clerkUser.id),
             getRecurringTransactions(clerkUser.id),
@@ -3184,7 +3185,7 @@ export default function App() {
       await updateBudget(id, updates);
 
       // Re-fetch budgets to get updated data
-      const updatedBudgets = await getBudgets(clerkUser.id);
+      const updatedBudgets = await getCurrentMonthBudgets(clerkUser.id);
       setBudgets(updatedBudgets);
       cache.set(`budgets_${clerkUser.id}`, updatedBudgets);
 

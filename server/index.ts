@@ -123,7 +123,13 @@ app.use('/api/receipts', receiptRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/accounts', accountRoutes);
+app.use('/api/accounts', accountRoutes);
 app.use('/api/transfers', transferRoutes);
+import automationRoutes from './routes/automation';
+app.use('/api/automation', automationRoutes);
+
+import { initializeCronJobs } from './services/cronService';
+initializeCronJobs();
 
 // Basic CRUD Routes (Examples)
 
