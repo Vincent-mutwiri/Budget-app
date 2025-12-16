@@ -152,6 +152,29 @@ export const DebtTracker: React.FC<DebtTrackerProps> = ({ userId }) => {
                 </button>
             </div>
 
+            {/* Total Contributions Card */}
+            {debts.length > 0 && (
+                <div className="bg-gradient-to-br from-rose-500/10 to-amber-500/10 border border-rose-500/30 p-6 rounded-3xl mb-6">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-forest-300 text-sm font-medium mb-1">Total Paid Towards Debts</p>
+                            <p className="text-4xl font-bold text-white">
+                                {formatCurrency(debts.reduce((sum, d) => {
+                                    const totalPaid = d.paymentHistory?.reduce((pSum, p) => pSum + p.amount, 0) || 0;
+                                    return sum + totalPaid;
+                                }, 0))}
+                            </p>
+                            <p className="text-forest-400 text-sm mt-2">
+                                Remaining debt: {formatCurrency(summary?.totalDebt || 0)}
+                            </p>
+                        </div>
+                        <div className="w-16 h-16 rounded-full bg-rose-500/20 flex items-center justify-center">
+                            <TrendingDown size={32} className="text-rose-500" />
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Summary Cards */}
             {summary && debts.length > 0 && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

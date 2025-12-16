@@ -139,6 +139,24 @@ export const InvestmentsView: React.FC<InvestmentsViewProps> = ({ userId }) => {
                     </button>
                 </div>
 
+                {/* Total Contributions Card */}
+                <div className="bg-gradient-to-br from-emerald-500/10 to-blue-500/10 border border-emerald-500/30 p-6 rounded-3xl mb-6">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-forest-300 text-sm font-medium mb-1">Total Contributed to Investments</p>
+                            <p className="text-4xl font-bold text-white">
+                                {formatCurrency(totalInvested)}
+                            </p>
+                            <p className="text-forest-400 text-sm mt-2">
+                                Current value: {formatCurrency(totalValue)}
+                            </p>
+                        </div>
+                        <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                            <TrendingUp size={32} className="text-emerald-500" />
+                        </div>
+                    </div>
+                </div>
+
                 {/* Portfolio Summary Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div className="bg-forest-800 border border-forest-700 p-5 rounded-3xl min-w-0">

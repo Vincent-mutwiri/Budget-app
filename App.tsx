@@ -1548,6 +1548,24 @@ const GoalsView = ({
         </div>
       </div>
 
+      {/* Total Contributions Card */}
+      <div className="bg-gradient-to-br from-primary/10 to-emerald-500/10 border border-primary/30 p-6 rounded-3xl">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-forest-300 text-sm font-medium mb-1">Total Contributed to Goals</p>
+            <p className="text-4xl font-bold text-white">
+              {formatCurrency(goals.reduce((sum, g) => sum + g.currentAmount, 0))}
+            </p>
+            <p className="text-forest-400 text-sm mt-2">
+              Across {goals.length} {goals.length === 1 ? 'goal' : 'goals'}
+            </p>
+          </div>
+          <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center">
+            <Target size={32} className="text-primary" />
+          </div>
+        </div>
+      </div>
+
       {/* Filter Tabs */}
       <div className="flex gap-3 overflow-x-auto pb-2">
         <button
