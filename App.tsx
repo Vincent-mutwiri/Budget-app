@@ -191,17 +191,16 @@ const TransactionsView = ({
         await repayToMain(clerkUser.id, amount, description);
       }
 
-      showSuccess('Transfer completed successfully!');
+      success('Transfer completed successfully!');
       setIsTransferModalOpen(false);
 
       // Refresh all data in background
       getAccountSummary(clerkUser.id)
         .then(setAccountSummary)
         .catch(err => console.error('Failed to refresh account summary:', err));
-      
-      getTransactions(clerkUser.id)
-        .then(txs => setTransactions(txs.map((t: any) => ({ ...t, id: t.id || t._id }))))
-        .catch(err => console.error('Failed to refresh transactions:', err));
+
+      // Refresh transactions will be handled by the parent component
+      // The parent component will re-fetch data after successful transfer
     } catch (error) {
       console.error('Transfer error:', error);
       showError('Transfer failed. Please try again.');
@@ -250,21 +249,31 @@ const TransactionsView = ({
       type
     };
 
-    if (editingId) {
-      onUpdate(editingId, transactionData);
-      setEditingId(null);
-    } else {
-      onAdd(transactionData);
-    }
+    try {
+      if (editingId) {
+        await onUpdate(editingId, transactionData);
+        setEditingId(null);
+      } else {
+        await onAdd(transactionData);
+      }
 
-    setAmount('');
-    setDescription('');
-    setCategory('' as Category);
-    if (!retainDate) {
-      setDate(new Date().toISOString().split('T')[0]);
-    }
-    if (editingId) {
-      setType('expense');
+      // Refresh account summary
+      if (clerkUser) {
+        getAccountSummary(clerkUser.id).then(setAccountSummary).catch(console.error);
+      }
+
+      setAmount('');
+      setDescription('');
+      setCategory('' as Category);
+      if (!retainDate) {
+        setDate(new Date().toISOString().split('T')[0]);
+      }
+      if (editingId) {
+        setType('expense');
+      }
+    } catch (error) {
+      console.error('Error saving transaction:', error);
+      showError('Failed to save transaction.');
     }
   };
 
@@ -849,9 +858,18 @@ const TransactionsView = ({
                 Cancel
               </button>
               <button
-                onClick={() => {
-                  onDelete(deleteConfirmation.transaction!.id);
-                  setDeleteConfirmation({ isOpen: false, transaction: null });
+                onClick={async () => {
+                  try {
+                    await onDelete(deleteConfirmation.transaction!.id);
+                    // Refresh account summary
+                    if (clerkUser) {
+                      getAccountSummary(clerkUser.id).then(setAccountSummary).catch(console.error);
+                    }
+                    setDeleteConfirmation({ isOpen: false, transaction: null });
+                  } catch (error) {
+                    console.error('Error deleting transaction:', error);
+                    showError('Failed to delete transaction.');
+                  }
                 }}
                 className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-medium transition-colors"
               >
@@ -3292,7 +3310,7 @@ export default function App() {
 
     try {
       const result = await withdrawFromGoal(goalId, amount, clerkUser.id);
-      
+
       // Update goal with server response
       const updatedGoals = savingsGoals.map(g =>
         g.id === goalId ? result.goal : g
@@ -3687,11 +3705,11 @@ export default function App() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {monthlyGoals.map(goal => (
               <div key={goal._id || goal.id} className="relative group">
-                <GoalCard 
-                  title={goal.title} 
-                  current={goal.currentAmount} 
-                  target={goal.targetAmount} 
-                  colorClass="bg-primary" 
+                <GoalCard
+                  title={goal.title}
+                  current={goal.currentAmount}
+                  target={goal.targetAmount}
+                  colorClass="bg-primary"
                 />
                 <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
                   <button
