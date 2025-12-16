@@ -617,7 +617,7 @@ const TransactionsView = ({
                 className="bg-forest-950 border border-forest-700 rounded-xl py-2 pl-10 pr-4 text-white text-sm focus:outline-none focus:border-primary w-full md:w-64"
               />
             </div>
-            <button 
+            <button
               onClick={() => setShowFilterModal(true)}
               className="flex items-center gap-2 px-4 py-2 bg-forest-950 border border-forest-700 rounded-xl text-forest-300 hover:text-white hover:border-forest-600 transition-colors text-sm font-medium"
             >
@@ -1363,6 +1363,7 @@ const GoalsView = ({
   onContribute,
   onDelete,
   onEdit,
+  onWithdraw,
   userBalance
 }: {
   goals: SavingsGoal[];
@@ -1370,6 +1371,7 @@ const GoalsView = ({
   onContribute: (goalId: string, amount: number) => Promise<void>;
   onDelete: (goalId: string) => Promise<void>;
   onEdit: (goalId: string, formData: any, imageFile: File | null) => Promise<void>;
+  onWithdraw: (goalId: string, amount: number) => Promise<void>;
   userBalance: number;
 }) => {
   const [filterStatus, setFilterStatus] = useState<'all' | 'in-progress' | 'completed' | 'archived'>('all');
@@ -1431,6 +1433,74 @@ const GoalsView = ({
     } catch (error) {
       console.error('Failed to contribute:', error);
       alert('Failed to contribute. Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleWithdraw = async (goalId: string) => {
+    const amount = parseFloat(withdrawAmount);
+
+    if (isNaN(amount)) {
+      alert('Please enter a valid amount');
+      return;
+    }
+
+    if (amount <= 0) {
+      alert('Withdrawal amount must be greater than zero');
+      return;
+    }
+
+    const goal = goals.find(g => g.id === goalId);
+    if (!goal) return;
+
+    if (amount > goal.currentAmount) {
+      alert(`Insufficient funds in goal. Available: ${formatCurrency(goal.currentAmount)}`);
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      await onWithdraw(goalId, amount);
+      setShowWithdrawModal(null);
+      setWithdrawAmount('');
+    } catch (error) {
+      console.error('Failed to withdraw:', error);
+      alert('Failed to withdraw. Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleWithdraw = async (goalId: string) => {
+    const amount = parseFloat(withdrawAmount);
+
+    if (isNaN(amount)) {
+      alert('Please enter a valid amount');
+      return;
+    }
+
+    if (amount <= 0) {
+      alert('Withdrawal amount must be greater than zero');
+      return;
+    }
+
+    const goal = goals.find(g => g.id === goalId);
+    if (!goal) return;
+
+    if (amount > goal.currentAmount) {
+      alert(`Insufficient funds in goal. Available: ${formatCurrency(goal.currentAmount)}`);
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      await onWithdraw(goalId, amount);
+      setShowWithdrawModal(null);
+      setWithdrawAmount('');
+    } catch (error) {
+      console.error('Failed to withdraw:', error);
+      alert('Failed to withdraw. Please try again.');
     } finally {
       setIsProcessing(false);
     }
@@ -1790,6 +1860,55 @@ const GoalsView = ({
                 className="px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-forest-950 font-bold transition-colors disabled:opacity-50"
               >
                 {isProcessing ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Withdraw Modal */}
+      {showWithdrawModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-forest-800 rounded-2xl p-6 max-w-md w-full border border-forest-700">
+            <h3 className="text-xl font-bold text-white mb-4">Withdraw from Goal</h3>
+            <div className="space-y-4">
+              <p className="text-forest-300 text-sm">
+                Transfer money from this goal to your Current Account.
+              </p>
+              <div>
+                <p className="text-forest-400 text-sm mb-2">
+                  Available to Withdraw: {formatCurrency(goals.find(g => g.id === showWithdrawModal)?.currentAmount || 0)}
+                </p>
+                <label className="block text-forest-400 text-sm mb-2">Withdrawal Amount</label>
+                <input
+                  type="number"
+                  value={withdrawAmount}
+                  onChange={(e) => setWithdrawAmount(e.target.value)}
+                  placeholder="Enter amount"
+                  className="w-full px-4 py-2 rounded-xl bg-forest-900 border border-forest-700 text-white focus:outline-none focus:border-primary"
+                  min="0"
+                  step="0.01"
+                  autoFocus
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end mt-6">
+              <button
+                onClick={() => {
+                  setShowWithdrawModal(null);
+                  setWithdrawAmount('');
+                }}
+                disabled={isProcessing}
+                className="px-4 py-2 rounded-xl bg-forest-700 hover:bg-forest-600 text-white transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleWithdraw(showWithdrawModal)}
+                disabled={isProcessing}
+                className="px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-forest-950 font-bold transition-colors disabled:opacity-50"
+              >
+                {isProcessing ? 'Processing...' : 'Withdraw'}
               </button>
             </div>
           </div>
@@ -3163,6 +3282,51 @@ export default function App() {
     }
   };
 
+  const handleWithdrawFromGoal = async (goalId: string, amount: number) => {
+    if (!clerkUser) return;
+
+    // Store original state for rollback
+    const originalGoal = savingsGoals.find(g => g.id === goalId);
+    const originalUser = { ...user };
+    if (!originalGoal) return;
+
+    // Optimistic update
+    const optimisticGoals = savingsGoals.map(g =>
+      g.id === goalId ? { ...g, currentAmount: g.currentAmount - amount } : g
+    );
+    setSavingsGoals(optimisticGoals);
+
+    try {
+      const { withdrawFromSpecial } = await import('./services/api');
+      await withdrawFromSpecial(clerkUser.id, 'goal', goalId, amount, 'Withdrawal from goal');
+
+      // Refresh data to ensure sync
+      const [updatedGoals, updatedAccounts] = await Promise.all([
+        getGoals(clerkUser.id),
+        getAccounts(clerkUser.id)
+      ]);
+
+      // Ensure goals have id
+      const goalsWithId = updatedGoals.map((g: any) => ({ ...g, id: g.id || g._id }));
+      setSavingsGoals(goalsWithId);
+      setAccounts(updatedAccounts);
+
+      cache.set(`goals_${clerkUser.id}`, updatedGoals);
+      cache.set(`accounts_${clerkUser.id}`, updatedAccounts);
+
+      success(`Withdrew ${formatCurrency(amount)} from goal!`);
+    } catch (err: any) {
+      // Rollback
+      setSavingsGoals(prev => prev.map(g =>
+        g.id === goalId ? originalGoal : g
+      ));
+      setUser(originalUser);
+
+      const errorMessage = err?.response?.data?.error || 'Failed to withdraw. Please try again.';
+      showError(errorMessage);
+    }
+  };
+
   const handleDeleteGoal = async (goalId: string) => {
     if (!clerkUser) return;
 
@@ -3719,7 +3883,7 @@ export default function App() {
               {activeView !== 'insights' && activeView !== 'ai-assistant' && (
                 <div className="px-8 py-6 shrink-0">
                   <h1 className="text-3xl font-bold text-white mb-1">
-                    {activeView === 'dashboard' ? `Welcome back, ${clerkUser?.firstName || 'User'}!` :
+                    {activeView === 'dashboard' ? `Welcome back, ${clerkUser?.firstName || 'User'}` :
                       activeView === 'gamification' ? 'Your Gamification Hub' :
                         activeView === 'export' ? 'Export & Reports' :
                           activeView === 'debts' ? 'Debt Tracker' :
@@ -3803,7 +3967,8 @@ export default function App() {
                       onContribute={handleContributeToGoal}
                       onDelete={handleDeleteGoal}
                       onEdit={handleEditGoal}
-                      userBalance={accountSummary?.mainAccount?.balance || 0}
+                      onWithdraw={handleWithdrawFromGoal}
+                      userBalance={user.totalBalance}
                     />
                   </>
                 ) : activeView === 'accounts' ? (

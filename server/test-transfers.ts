@@ -141,6 +141,37 @@ async function runTest() {
         // Investment should decrease by 200 (1200 -> 1000)
         if (afterWithdrawInvestment?.currentValue !== 1000) throw new Error('Withdraw failed Investment check');
 
+        // 6. Test Withdraw from Goal (Goal -> Current)
+        console.log('\n--- Testing Withdraw from Goal (to Current) ---');
+        const { SavingsGoal } = await import('./models/SavingsGoal');
+        const goal = new SavingsGoal({
+            userId: testUserId,
+            title: 'Test Goal',
+            targetAmount: 1000,
+            currentAmount: 500,
+            deadline: new Date(),
+            status: 'in-progress'
+        });
+        await goal.save();
+
+        await withdrawFromSpecial(testUserId, 'goal', goal._id.toString(), 100, 'Emergency Withdraw');
+
+        const afterWithdrawGoalCurrent = await Account.findById(currentAccountId);
+        const afterWithdrawGoal = await SavingsGoal.findById(goal._id);
+
+        console.log('After Goal Withdraw:', {
+            Current: afterWithdrawGoalCurrent?.balance,
+            Goal: afterWithdrawGoal?.currentAmount
+        });
+
+        // Current should increase by 100 (1500 -> 1600)
+        if (afterWithdrawGoalCurrent?.balance !== 1600) throw new Error('Goal Withdraw failed Current Account check');
+        // Goal should decrease by 100 (500 -> 400)
+        if (afterWithdrawGoal?.currentAmount !== 400) throw new Error('Goal Withdraw failed Goal check');
+
+        // Cleanup Goal
+        await SavingsGoal.deleteOne({ _id: goal._id });
+
         console.log('\n✅ All Tests Passed!');
 
         // Cleanup

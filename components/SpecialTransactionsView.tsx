@@ -52,8 +52,8 @@ export const SpecialTransactionsView: React.FC<SpecialTransactionsViewProps> = (
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id as any)}
                         className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${activeTab === tab.id
-                                ? 'bg-primary text-forest-950'
-                                : 'bg-forest-900 text-forest-400 hover:text-white hover:bg-forest-700'
+                            ? 'bg-primary text-forest-950'
+                            : 'bg-forest-900 text-forest-400 hover:text-white hover:bg-forest-700'
                             }`}
                     >
                         <tab.icon size={16} />
@@ -79,18 +79,18 @@ export const SpecialTransactionsView: React.FC<SpecialTransactionsViewProps> = (
                                 <div key={t._id || t.id} className="bg-forest-900/50 border border-forest-700/50 p-4 rounded-xl flex items-center justify-between group hover:bg-forest-900 transition-colors">
                                     <div className="flex items-center gap-4">
                                         <div className={`p-2.5 rounded-full ${activeTab === 'transfers'
-                                                ? t.type === 'borrow' ? 'bg-blue-500/20 text-blue-400' : 'bg-emerald-500/20 text-emerald-400'
-                                                : 'bg-primary/10 text-primary'
+                                            ? (t.type === 'borrow' || t.type === 'withdraw') ? 'bg-blue-500/20 text-blue-400' : 'bg-emerald-500/20 text-emerald-400'
+                                            : 'bg-primary/10 text-primary'
                                             }`}>
                                             {activeTab === 'transfers' ? (
-                                                t.type === 'borrow' ? <ArrowRight size={18} /> : <ArrowLeft size={18} />
+                                                (t.type === 'borrow' || t.type === 'withdraw') ? <ArrowRight size={18} /> : <ArrowLeft size={18} />
                                             ) : (
                                                 <CreditCard size={18} />
                                             )}
                                         </div>
                                         <div>
                                             <div className="text-white font-medium text-sm">
-                                                {t.description || (activeTab === 'transfers' ? `${t.type === 'borrow' ? 'Transfer to Current' : 'Repay to Main'}` : 'Transaction')}
+                                                {t.description || (activeTab === 'transfers' ? `${(t.type === 'borrow' || t.type === 'withdraw') ? 'Transfer to Current' : 'Repay to Main'}` : 'Transaction')}
                                             </div>
                                             <div className="text-forest-400 text-xs">
                                                 {new Date(t.date).toLocaleDateString()}
@@ -98,8 +98,8 @@ export const SpecialTransactionsView: React.FC<SpecialTransactionsViewProps> = (
                                         </div>
                                     </div>
                                     <div className={`font-bold ${activeTab === 'transfers'
-                                            ? t.type === 'borrow' ? 'text-blue-400' : 'text-emerald-400'
-                                            : 'text-white'
+                                        ? (t.type === 'borrow' || t.type === 'withdraw') ? 'text-blue-400' : 'text-emerald-400'
+                                        : 'text-white'
                                         }`}>
                                         {formatCurrency(t.amount)}
                                     </div>
