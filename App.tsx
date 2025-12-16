@@ -4044,7 +4044,7 @@ export default function App() {
                       onDelete={handleDeleteGoal}
                       onEdit={handleEditGoal}
                       onWithdraw={handleWithdrawFromGoal}
-                      userBalance={user.totalBalance}
+                      userBalance={accounts.find(a => (a as any).isMain)?.balance || 0}
                     />
                   </>
                 ) : activeView === 'accounts' ? (
