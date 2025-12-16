@@ -12,6 +12,7 @@ interface DebtListProps {
     onEdit: (debt: DebtWithMetrics) => void;
     onDelete: (id: string) => void;
     onRecordPayment: (id: string) => void;
+    onWithdraw?: (id: string) => void;
 }
 
 const DEBT_TYPE_LABELS: Record<string, string> = {
@@ -23,7 +24,7 @@ const DEBT_TYPE_LABELS: Record<string, string> = {
     other: 'Other'
 };
 
-export const DebtList: React.FC<DebtListProps> = ({ debts, onEdit, onDelete, onRecordPayment }) => {
+export const DebtList: React.FC<DebtListProps> = ({ debts, onEdit, onDelete, onRecordPayment, onWithdraw }) => {
     const [expandedDebtId, setExpandedDebtId] = useState<string | null>(null);
 
     const toggleExpand = (debtId: string) => {
@@ -148,6 +149,14 @@ export const DebtList: React.FC<DebtListProps> = ({ debts, onEdit, onDelete, onR
                                 <DollarSign size={18} />
                                 Record Payment
                             </button>
+                            {onWithdraw && (
+                                <button
+                                    onClick={() => onWithdraw(debt.id)}
+                                    className="px-6 bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-xl transition-colors"
+                                >
+                                    Withdraw
+                                </button>
+                            )}
                             <button
                                 onClick={() => toggleExpand(debt.id)}
                                 className="px-6 bg-forest-900 border border-forest-700 hover:border-forest-600 text-white font-medium py-3 rounded-xl transition-colors"

@@ -12,13 +12,15 @@ interface InvestmentListProps {
     onEdit: (investment: InvestmentWithMetrics) => void;
     onDelete: (id: string) => void;
     onUpdateValue: (id: string, currentValue: number) => void;
+    onWithdraw?: (id: string) => void;
 }
 
 export const InvestmentList: React.FC<InvestmentListProps> = ({
     investments,
     onEdit,
     onDelete,
-    onUpdateValue
+    onUpdateValue,
+    onWithdraw
 }) => {
     const [editingValueId, setEditingValueId] = useState<string | null>(null);
     const [newValue, setNewValue] = useState('');
@@ -200,6 +202,18 @@ export const InvestmentList: React.FC<InvestmentListProps> = ({
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Actions */}
+                            {onWithdraw && (
+                                <div className="mt-4">
+                                    <button
+                                        onClick={() => onWithdraw(investment.id)}
+                                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-xl transition-colors"
+                                    >
+                                        Withdraw
+                                    </button>
+                                </div>
+                            )}
 
                             {/* Notes */}
                             {investment.notes && (

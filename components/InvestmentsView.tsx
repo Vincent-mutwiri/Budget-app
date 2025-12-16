@@ -21,6 +21,8 @@ export const InvestmentsView: React.FC<InvestmentsViewProps> = ({ userId }) => {
     const [loading, setLoading] = useState(true);
     const [showAddModal, setShowAddModal] = useState(false);
     const [editingInvestment, setEditingInvestment] = useState<InvestmentWithMetrics | null>(null);
+    const [showWithdrawModal, setShowWithdrawModal] = useState<string | null>(null);
+    const [withdrawAmount, setWithdrawAmount] = useState<string>('');
 
     // Load investments
     useEffect(() => {
@@ -171,7 +173,70 @@ export const InvestmentsView: React.FC<InvestmentsViewProps> = ({ userId }) => {
                 onEdit={setEditingInvestment}
                 onDelete={handleDeleteInvestment}
                 onUpdateValue={handleUpdateValue}
+                onWithdraw={(id) => setShowWithdrawModal(id)}
             />
+
+            {/* Withdraw Modal */}
+            {showWithdrawModal && (
+                <Modal
+                    isOpen={!!showWithdrawModal}
+                    onClose={() => {
+                        setShowWithdrawModal(null);
+                        setWithdrawAmount('');
+                    }}
+                    title={`Withdraw from ${investments.find(i => i.id === showWithdrawModal)?.name}`}
+                >
+                    <div className="flex flex-col gap-5">
+                        <div className="bg-blue-900/20 border border-blue-700/30 rounded-xl p-4">
+                            <p className="text-blue-300 text-sm">
+                                Transfer money from this investment to your current account.
+                            </p>
+                        </div>
+
+                        <div>
+                            <label className="block text-forest-300 text-sm font-medium mb-2">
+                                Withdrawal Amount <span className="text-rose-500">*</span>
+                            </label>
+                            <div className="relative">
+                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-forest-400">$</span>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    value={withdrawAmount}
+                                    onChange={(e) => setWithdrawAmount(e.target.value)}
+                                    placeholder="0.00"
+                                    className="w-full bg-forest-950 border border-forest-700 rounded-xl py-3 pl-8 pr-4 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder-forest-500"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 mt-2">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowWithdrawModal(null);
+                                    setWithdrawAmount('');
+                                }}
+                                className="flex-1 bg-forest-800 border border-forest-700 hover:border-forest-600 text-white font-medium py-3 rounded-xl transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    alert('Withdraw functionality will be implemented');
+                                    setShowWithdrawModal(null);
+                                    setWithdrawAmount('');
+                                }}
+                                disabled={!withdrawAmount || parseFloat(withdrawAmount) <= 0}
+                                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Withdraw
+                            </button>
+                        </div>
+                    </div>
+                </Modal>
+            )}
 
             {/* Add Investment Modal */}
             {showAddModal && (

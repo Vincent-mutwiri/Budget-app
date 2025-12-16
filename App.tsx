@@ -1255,13 +1255,15 @@ const GoalItemCard = React.memo(({
   onEditClick,
   onDeleteClick,
   onContributeClick,
-  onRemoveImageClick
+  onRemoveImageClick,
+  onWithdrawClick
 }: {
   goal: SavingsGoal;
   onEditClick: (goal: SavingsGoal) => void;
   onDeleteClick: (goal: SavingsGoal) => void;
   onContributeClick: (goal: SavingsGoal) => void;
   onRemoveImageClick: (goal: SavingsGoal) => void;
+  onWithdrawClick: (goal: SavingsGoal) => void;
 }) => {
   const progressPercent = (goal.currentAmount / goal.targetAmount) * 100;
   const isCompleted = progressPercent >= 100;
@@ -1332,15 +1334,23 @@ const GoalItemCard = React.memo(({
               Est: {new Date(goal.deadline).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
             </span>
           )}
-          <button
-            onClick={() => !isCompleted && onContributeClick(goal)}
-            disabled={isCompleted}
-            className={`flex items-center justify-center rounded-xl h-8 px-4 text-sm font-medium transition-colors ${isCompleted
-              ? 'bg-forest-900 text-forest-400 cursor-not-allowed'
-              : 'bg-primary hover:bg-primary/90 text-forest-950 cursor-pointer'
-              }`}>
-            {isCompleted ? 'View' : 'Contribute'}
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => onWithdrawClick(goal)}
+              className="flex items-center justify-center rounded-xl h-8 px-3 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+            >
+              Withdraw
+            </button>
+            <button
+              onClick={() => !isCompleted && onContributeClick(goal)}
+              disabled={isCompleted}
+              className={`flex items-center justify-center rounded-xl h-8 px-4 text-sm font-medium transition-colors ${isCompleted
+                ? 'bg-forest-900 text-forest-400 cursor-not-allowed'
+                : 'bg-primary hover:bg-primary/90 text-forest-950 cursor-pointer'
+                }`}>
+              {isCompleted ? 'View' : 'Contribute'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -1372,6 +1382,8 @@ const GoalsView = ({
   const [showContributeModal, setShowContributeModal] = useState<string | null>(null);
   const [contributionAmount, setContributionAmount] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showWithdrawModal, setShowWithdrawModal] = useState<string | null>(null);
+  const [withdrawAmount, setWithdrawAmount] = useState<string>('');
 
   const filteredGoals = filterStatus === 'all'
     ? goals
@@ -1447,6 +1459,10 @@ const GoalsView = ({
     setShowRemoveConfirm(goal.id);
   }, []);
 
+  const handleWithdrawClick = React.useCallback((goal: SavingsGoal) => {
+    setShowWithdrawModal(goal.id);
+  }, []);
+
   return (
     <div className="flex flex-col gap-6 w-full max-w-full overflow-hidden">
 
@@ -1508,6 +1524,7 @@ const GoalsView = ({
             onDeleteClick={handleDeleteClick}
             onContributeClick={handleContributeClick}
             onRemoveImageClick={handleRemoveImageClick}
+            onWithdrawClick={handleWithdrawClick}
           />
         ))}
         {filteredGoals.length === 0 && (
@@ -1517,13 +1534,68 @@ const GoalsView = ({
         )}
       </div>
 
+      {/* Withdraw Modal */}
+      {showWithdrawModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-forest-800 rounded-2xl p-6 max-w-md w-full border border-forest-700">
+            <h3 className="text-xl font-bold text-white mb-4">Withdraw from {goals.find(g => g.id === showWithdrawModal)?.title}</h3>
+            <div className="mb-4">
+              <div className="bg-blue-900/20 border border-blue-700/30 rounded-xl p-4 mb-4">
+                <p className="text-blue-300 text-sm">
+                  Transfer money from this goal to your current account.
+                </p>
+              </div>
+              <label className="block text-forest-400 text-sm mb-2">Withdrawal Amount</label>
+              <input
+                type="number"
+                value={withdrawAmount}
+                onChange={(e) => setWithdrawAmount(e.target.value)}
+                placeholder="Enter amount"
+                className="w-full px-4 py-2 rounded-xl bg-forest-900 border border-forest-700 text-white focus:outline-none focus:border-primary"
+                min="0"
+                step="0.01"
+                autoFocus
+              />
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setShowWithdrawModal(null);
+                  setWithdrawAmount('');
+                }}
+                disabled={isProcessing}
+                className="px-4 py-2 rounded-xl bg-forest-700 hover:bg-forest-600 text-white transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  alert('Withdraw functionality will be implemented');
+                  setShowWithdrawModal(null);
+                  setWithdrawAmount('');
+                }}
+                disabled={isProcessing || !withdrawAmount || parseFloat(withdrawAmount) <= 0}
+                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition-colors disabled:opacity-50"
+              >
+                {isProcessing ? 'Processing...' : 'Withdraw'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Contribute Modal - Outside of GoalCard to prevent re-renders */}
       {showContributeModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-forest-800 rounded-2xl p-6 max-w-md w-full border border-forest-700">
             <h3 className="text-xl font-bold text-white mb-4">Contribute to {goals.find(g => g.id === showContributeModal)?.title}</h3>
             <div className="mb-4">
-              <p className="text-forest-400 text-sm mb-2">Available Balance: {formatCurrency(userBalance)}</p>
+              <div className="bg-emerald-900/20 border border-emerald-700/30 rounded-xl p-4 mb-4">
+                <p className="text-emerald-300 text-sm">
+                  Money will be taken from your Main Account.
+                </p>
+              </div>
+              <p className="text-forest-400 text-sm mb-2">Main Account Balance: {formatCurrency(userBalance)}</p>
               <p className="text-forest-400 text-sm mb-4">
                 Goal Progress: {formatCurrency(goals.find(g => g.id === showContributeModal)?.currentAmount || 0)} / {formatCurrency(goals.find(g => g.id === showContributeModal)?.targetAmount || 0)}
               </p>
