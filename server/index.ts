@@ -431,8 +431,11 @@ app.put('/api/budgets/:id', async (req, res) => {
         // Calculate utilization percentage
         const utilizationPercentage = budget.limit > 0 ? (budget.spent / budget.limit) * 100 : 0;
 
-        // Calculate total planned budget for this user
-        const allBudgets = await Budget.find({ userId: budget.userId });
+        // Calculate total planned budget for this user (current month only)
+        const now = new Date();
+        const currentMonth = now.getMonth() + 1;
+        const currentYear = now.getFullYear();
+        const allBudgets = await Budget.find({ userId: budget.userId, month: currentMonth, year: currentYear });
         const totalPlannedBudget = allBudgets.reduce((sum, b) => sum + b.limit, 0);
 
         // Invalidate metrics cache since budget update affects financial metrics
@@ -492,7 +495,12 @@ app.get('/api/budgets/total', async (req, res) => {
     }
 
     try {
-        const budgets = await Budget.find({ userId });
+        const now = new Date();
+        const currentMonth = now.getMonth() + 1;
+        const currentYear = now.getFullYear();
+
+        // Only get budgets for current month
+        const budgets = await Budget.find({ userId, month: currentMonth, year: currentYear });
         const totalPlannedBudget = budgets.reduce((sum, budget) => sum + budget.limit, 0);
 
         res.json({
