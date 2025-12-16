@@ -6,6 +6,7 @@ import { Investment } from '../models/Investment';
 import { Debt } from '../models/Debt';
 import { SavingsGoal } from '../models/SavingsGoal';
 import { User } from '../models/User';
+import { Account } from '../models/Account';
 import {
     generateEnhancedFinancialAdvice as generateGeminiAdvice,
     generateInvestmentRecommendations as generateGeminiInvestment,
@@ -35,6 +36,7 @@ interface UserFinancialContext {
 
 interface FinancialRAGContext {
     user: any;
+    accounts: any[];
     transactions: any[];
     budgets: any[];
     investments: any[];
@@ -48,9 +50,6 @@ interface FinancialRAGContext {
 /**
  * Retrieve comprehensive financial data for RAG context
  */
-/**
- * Retrieve comprehensive financial data for RAG context
- */
 export async function retrieveFinancialContext(userId: string): Promise<FinancialRAGContext> {
     const now = new Date();
     const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -61,8 +60,9 @@ export async function retrieveFinancialContext(userId: string): Promise<Financia
     const startOfPreviousYear = new Date(now.getFullYear() - 1, 0, 1);
 
     // Parallel data retrieval for better performance
-    const [user, transactions, budgets, investments, debts, goals] = await Promise.all([
+    const [user, accounts, transactions, budgets, investments, debts, goals] = await Promise.all([
         User.findOne({ clerkId: userId }),
+        Account.find({ userId }),
         Transaction.find({
             userId,
             date: { $gte: startOfPreviousYear }
@@ -119,6 +119,7 @@ export async function retrieveFinancialContext(userId: string): Promise<Financia
 
     return {
         user: user?.toObject() || {},
+        accounts: accounts.map(a => a.toObject()),
         transactions: transactions.slice(0, 20).map(t => t.toObject()),
         budgets: budgets.map(b => b.toObject()),
         investments: investments.map(i => i.toObject()),
@@ -133,9 +134,6 @@ export async function retrieveFinancialContext(userId: string): Promise<Financia
 /**
  * Build comprehensive RAG context string
  */
-/**
- * Build comprehensive RAG context string
- */
 export function buildRAGContext(context: FinancialRAGContext, query?: string): string {
     let currency = context.user.currency || 'USD';
     if (currency === 'Ksh' || currency === 'Kenyan Shilling') {
@@ -143,13 +141,26 @@ export function buildRAGContext(context: FinancialRAGContext, query?: string): s
     }
     let ragContext = `FINANCIAL DATA CONTEXT:\n\n`;
 
-    // User Profile
+    // User Profile & Accounts
     ragContext += `USER PROFILE:\n`;
     ragContext += `- Name: ${context.user.fullName || 'User'}\n`;
     ragContext += `- Level: ${context.user.level || 1}\n`;
     ragContext += `- XP: ${context.user.xp || 0}\n`;
     ragContext += `- Streak: ${context.user.streak || 0} days\n`;
-    ragContext += `- Total Balance: ${currency} ${(context.user.totalBalance || 0).toFixed(2)}\n\n`;
+
+    // Account Balances
+    const mainAccount = context.accounts.find(a => a.isMain || a.accountCategory === 'main');
+    const currentAccount = context.accounts.find(a => a.accountCategory === 'current');
+    const totalBalance = context.accounts.reduce((sum, a) => sum + (a.balance || 0), 0);
+
+    ragContext += `- Total Net Worth: ${currency} ${totalBalance.toFixed(2)}\n`;
+    if (mainAccount) {
+        ragContext += `- Main Account Balance: ${currency} ${mainAccount.balance.toFixed(2)}\n`;
+    }
+    if (currentAccount) {
+        ragContext += `- Current Account Balance: ${currency} ${currentAccount.balance.toFixed(2)}\n`;
+    }
+    ragContext += `\n`;
 
     // Monthly Performance
     ragContext += `CURRENT MONTH PERFORMANCE:\n`;
