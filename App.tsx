@@ -164,6 +164,7 @@ const TransactionsView = ({
   const [showReceiptScanner, setShowReceiptScanner] = useState(false);
   const [customCategory, setCustomCategory] = useState('');
   const [retainDate, setRetainDate] = useState(false);
+  const [lockDate, setLockDate] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState<{ isOpen: boolean; transaction: Transaction | null }>({ isOpen: false, transaction: null });
 
   // Account Separation State
@@ -231,7 +232,7 @@ const TransactionsView = ({
     setDescription('');
     setCategory('' as Category);
     setCustomCategory('');
-    if (!retainDate) {
+    if (!retainDate && !lockDate) {
       setDate(new Date().toISOString().split('T')[0]);
     }
     setType('expense');
@@ -265,7 +266,7 @@ const TransactionsView = ({
       setAmount('');
       setDescription('');
       setCategory('' as Category);
-      if (!retainDate) {
+      if (!retainDate && !lockDate) {
         setDate(new Date().toISOString().split('T')[0]);
       }
       if (editingId) {
@@ -479,30 +480,60 @@ const TransactionsView = ({
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="block text-forest-300 text-sm font-medium">Date</label>
-                <button
-                  type="button"
-                  onClick={() => setRetainDate(!retainDate)}
-                  className={`flex items-center gap-2 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${retainDate
-                    ? 'bg-primary/20 text-primary border border-primary/30'
-                    : 'bg-forest-900 text-forest-400 border border-forest-700 hover:text-forest-300'
-                    }`}
-                  title={retainDate ? 'Date will be kept after submission' : 'Date will reset after submission'}
-                >
-                  <svg
-                    className="w-3.5 h-3.5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setRetainDate(!retainDate)}
+                    className={`flex items-center gap-2 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${retainDate
+                      ? 'bg-primary/20 text-primary border border-primary/30'
+                      : 'bg-forest-900 text-forest-400 border border-forest-700 hover:text-forest-300'
+                      }`}
+                    title={retainDate ? 'Date will be kept after submission' : 'Date will reset after submission'}
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                    />
-                  </svg>
-                  {retainDate ? 'Keep Date' : 'Reset Date'}
-                </button>
+                    <svg
+                      className="w-3.5 h-3.5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                      />
+                    </svg>
+                    {retainDate ? 'Keep Date' : 'Reset Date'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLockDate(!lockDate)}
+                    className={`flex items-center gap-2 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${lockDate
+                      ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                      : 'bg-forest-900 text-forest-400 border border-forest-700 hover:text-forest-300'
+                      }`}
+                    title={lockDate ? 'Date locked across tab switches' : 'Date will reset when switching tabs'}
+                  >
+                    <svg
+                      className="w-3.5 h-3.5"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      {lockDate ? (
+                        <path
+                          fillRule="evenodd"
+                          d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
+                          clipRule="evenodd"
+                        />
+                      ) : (
+                        <path
+                          d="M10 2a5 5 0 00-5 5v2a2 2 0 00-2 2v5a2 2 0 002 2h10a2 2 0 002-2v-5a2 2 0 00-2-2H7V7a3 3 0 015.905-.75 1 1 0 001.937-.5A5.002 5.002 0 0010 2z"
+                        />
+                      )}
+                    </svg>
+                    {lockDate ? 'Locked' : 'Lock'}
+                  </button>
+                </div>
               </div>
               <div className="relative">
                 <input
@@ -531,12 +562,12 @@ const TransactionsView = ({
                   </div>
                 )}
               </div>
-              {retainDate && (
-                <p className="mt-1.5 text-xs text-primary/80 flex items-center gap-1.5">
+              {(retainDate || lockDate) && (
+                <p className="mt-1.5 text-xs flex items-center gap-1.5" style={{ color: lockDate ? '#fbbf24' : '#10b981' }}>
                   <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                   </svg>
-                  Date will be kept for bulk entry
+                  {lockDate ? 'Date locked across tab switches' : 'Date will be kept for bulk entry'}
                 </p>
               )}
             </div>
